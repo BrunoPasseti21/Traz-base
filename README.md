@@ -9,7 +9,7 @@ Aplicação desktop para Windows que copia arquivos de solicitações, extrai pa
 - Serviço Firebird local instalado e ativo para acessar os arquivos `.FDB`.
 - Permissão de leitura na pasta de origem e permissão de gravação na pasta de destino.
 
-O instalador autocontido para Windows x64 inclui o runtime do .NET e não exige uma instalação separada do runtime.
+O instalador autocontido para Windows x64 inclui o runtime do .NET e não exige uma instalação separada do runtime. O serviço Firebird local precisa estar instalado e ativo para as operações de banco de dados.
 
 ## Executar durante o desenvolvimento
 
@@ -30,6 +30,16 @@ dotnet publish TrazBase.App/TrazBase.App.csproj -c Release -r win-x64 --self-con
 ```
 
 O conteúdo de `Instalador/Aplicativo` e o arquivo `TrazBase-Instalador.zip` são artefatos de distribuição e ficam fora do Git. Publique o ZIP em uma GitHub Release quando precisar distribuir uma versão.
+
+Para criar o instalador executável com o Inno Setup instalado, execute no Windows:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1
+```
+
+O script usa `Instalador/TrazBase.iss` e gera `Instalador/TrazBase-Setup.exe`. O usuário pode escolher a pasta de instalação.
+
+Para lançar uma atualização, incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/TrazBase.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões iguais ou antigas; arquivos versionados são comparados pela versão e arquivos sem versão (JSON, PDB e imagens) pelo horário de modificação. O instalador continua contendo o pacote completo, mas evita substituir os arquivos que não mudaram.
 
 ## Configuração e privacidade
 

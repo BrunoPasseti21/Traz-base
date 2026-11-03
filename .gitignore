@@ -12,6 +12,8 @@
 # Publish output and downloadable release package (attach these to a GitHub Release).
 /Instalador/Aplicativo/
 /TrazBase-Instalador.zip
+/Instalador/TrazBase-Setup.exe
+/Instalador/tools/
 
 # Local Firebird databases and source archives may contain company data.
 *.fdb

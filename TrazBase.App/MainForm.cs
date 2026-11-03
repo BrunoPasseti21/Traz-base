@@ -17,7 +17,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly CheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly TextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
-    private readonly TextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
     private readonly Label _versionLabel = new() { Text = "", AutoSize = true, Visible = false, ForeColor = Color.FromArgb(0, 120, 255), Font = UiTypography.Body(14f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
     private readonly Panel _progress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
@@ -29,16 +29,23 @@ internal sealed class MainForm : Form
     private readonly TableLayoutPanel _shell = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
     private readonly Panel _contentHost = new() { Dock = DockStyle.Fill };
     private readonly Panel _sidebar = new() { Dock = DockStyle.Fill, BackColor = Color.White };
-    private readonly Button _menuToggle = new() { Text = "", Image = SvgIconLoader.Load("menu.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 54, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
-    private readonly Button _transferNav = new() { Text = "", Image = SvgIconLoader.Load("Transferir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
-    private readonly Button _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
-    private readonly Button _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
-    private readonly Button _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _menuToggle = new() { Text = "", Image = SvgIconLoader.Load("menu.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 54, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _transferNav = new() { Text = "", Image = SvgIconLoader.Load("Transferir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _changeBaseNav = new() { Text = "", Image = SvgIconLoader.Load("Trocar-Base.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private TableLayoutPanel _transferView = null!;
     private Control _settingsView = null!;
+    private Control _changeBaseView = null!;
     private Control _arqEmpView = null!;
     private Control _arqSistView = null!;
     private Panel _settingsFieldsHost = null!;
+    private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
+    private readonly TextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
+    private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly TextBox _arqEmpDatabase = new();
     private readonly TextBox _arqSistDatabase = new();
     private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
@@ -70,10 +77,12 @@ internal sealed class MainForm : Form
         _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(_arqSistNav);
         _sidebar.Controls.Add(_arqEmpNav);
+        _sidebar.Controls.Add(_changeBaseNav);
         _sidebar.Controls.Add(_transferNav);
         _sidebar.Controls.Add(_menuToggle);
         _transferView = BuildTransferView();
         _settingsView = BuildSettingsView();
+        _changeBaseView = BuildChangeBaseView();
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
         _arqEmpDatabase.Text = _settings.ArqEmpCommandDatabase;
@@ -83,6 +92,7 @@ internal sealed class MainForm : Form
         HighlightSql(_arqEmpEditor);
         HighlightSql(_arqSistEditor);
         _contentHost.Controls.Add(_settingsView);
+        _contentHost.Controls.Add(_changeBaseView);
         _contentHost.Controls.Add(_arqEmpView);
         _contentHost.Controls.Add(_arqSistView);
         _contentHost.Controls.Add(_transferView);
@@ -93,6 +103,8 @@ internal sealed class MainForm : Form
         _darkMode.CheckedChanged += (_, _) =>
         {
             _settings.DarkMode = _darkMode.Checked;
+            Application.SetColorMode(_settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
+            RefreshNativeScrollingThemes();
             ApplyTheme();
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de tema: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
@@ -111,6 +123,11 @@ internal sealed class MainForm : Form
         _menuToggle.Click += (_, _) => SetMenuExpanded(!_menuExpanded);
         _transferNav.Click += (_, _) => ShowView(settings: false);
         _settingsNav.Click += (_, _) => ShowView(settings: true);
+        _changeBaseNav.Click += (_, _) => ShowChangeBaseView();
+        _baseFolders.SelectedIndexChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+        _baseFolders.DoubleClick += async (_, _) => await ChangeSelectedBaseAsync();
+        _changeBaseButton.Click += async (_, _) => await ChangeSelectedBaseAsync();
+        _openBaseFolderButton.Click += (_, _) => OpenSelectedBaseFolder();
         _arqEmpNav.Click += (_, _) => ShowCommandView(arqEmp: true);
         _arqSistNav.Click += (_, _) => ShowCommandView(arqEmp: false);
         _commandSaveTimer.Tick += (_, _) =>
@@ -184,6 +201,102 @@ internal sealed class MainForm : Form
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
         return page;
+    }
+
+    private Control BuildChangeBaseView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        page.Controls.Add(BuildHeader("Alterar base", "Selecione uma pasta para apontar o Registro para essa base"), 0, 0);
+
+        page.Controls.Add(_baseFoldersRootLabel, 0, 1);
+        var listCard = Card();
+        _baseFolders.Font = UiTypography.Body(11f);
+        _baseFolders.ItemSelectionChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+        listCard.Controls.Add(_baseFolders);
+        page.Controls.Add(listCard, 0, 2);
+
+        var bottom = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(0, 8, 0, 0) };
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+        bottom.Controls.Add(_selectedBasePath, 0, 0);
+        _changeBaseButton.FlatAppearance.BorderSize = 0;
+        _openBaseFolderButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _openBaseFolderButton.FlatAppearance.BorderSize = 1;
+        bottom.Controls.Add(_changeBaseButton, 1, 0);
+        bottom.Controls.Add(_openBaseFolderButton, 2, 0);
+        page.Controls.Add(bottom, 0, 3);
+        RefreshBaseFolders();
+        return page;
+    }
+
+    private void RefreshBaseFolders()
+    {
+        _baseFolders.Items.Clear();
+        var root = _settings.BasesRoot?.Trim();
+        _baseFoldersRootLabel.Text = "Pastas encontradas em: " + (string.IsNullOrWhiteSpace(root) ? "(pasta local não configurada)" : root);
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
+        foreach (var folder in Directory.GetDirectories(root).OrderBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase))
+        {
+            var item = new ListViewItem(Path.GetFileName(folder)) { Tag = folder };
+            _baseFolders.Items.Add(item);
+        }
+    }
+
+    private async Task ChangeSelectedBaseAsync()
+    {
+        var folder = _selectedBasePath.Text.Trim();
+        if (folder.Length == 0 || !Directory.Exists(folder))
+        {
+            MessageBox.Show(this, "Selecione uma pasta de base existente na lista.", "Base não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _changeBaseButton.Enabled = false;
+        try
+        {
+            await UpdateRegistryAsync(folder);
+            _status.Text = "Base alterada para: " + folder;
+            MessageBox.Show(this, $"O Registro foi atualizado para a base:\n{folder}", "Base alterada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Não foi possível alterar a base no Registro:\n{ex.Message}", "Falha ao alterar base", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally { _changeBaseButton.Enabled = true; }
+    }
+
+    private void OpenSelectedBaseFolder()
+    {
+        var folder = _selectedBasePath.Text.Trim();
+        if (folder.Length == 0 || !Directory.Exists(folder))
+        {
+            MessageBox.Show(this, "Selecione uma pasta de base existente na lista.", "Base não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = folder, UseShellExecute = true }); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void ShowChangeBaseView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = true;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.FromArgb(231, 240, 255);
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        AcceptButton = _changeBaseButton;
+        RefreshBaseFolders();
+        ApplyNavigationColors();
     }
 
     private Control BuildCommandView(string title, TextBox databasePath, RichTextBox editor, RichTextBox output, string databaseName)
@@ -273,7 +386,7 @@ internal sealed class MainForm : Form
         return card;
     }
 
-    private static RichTextBox CreateSqlEditor() => new()
+    private static ThemedRichTextBox CreateSqlEditor() => new()
     {
         Dock = DockStyle.Fill,
         Multiline = true,
@@ -286,7 +399,7 @@ internal sealed class MainForm : Form
         Font = new Font("Consolas", 11f)
     };
 
-    private static RichTextBox CreateSqlOutput() => new()
+    private static ThemedRichTextBox CreateSqlOutput() => new()
     {
         Dock = DockStyle.Fill,
         Multiline = true,
@@ -397,6 +510,7 @@ internal sealed class MainForm : Form
         _shell.ColumnStyles[0].Width = expanded ? 300 : 68;
         _menuToggle.Text = expanded ? "Menu" : "";
         _transferNav.Text = expanded ? "Transferir" : "";
+        _changeBaseNav.Text = expanded ? "Alterar base" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
@@ -405,7 +519,7 @@ internal sealed class MainForm : Form
         _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
         _menuToggle.FlatAppearance.BorderSize = 0;
         _menuToggle.Font = UiTypography.Body(12f);
-        foreach (var button in new[] { _transferNav, _settingsNav, _arqEmpNav, _arqSistNav })
+        foreach (var button in new[] { _transferNav, _changeBaseNav, _settingsNav, _arqEmpNav, _arqSistNav })
         {
             button.Font = UiTypography.Body(12f);
             button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -419,9 +533,11 @@ internal sealed class MainForm : Form
     {
         _transferView.Visible = !settings;
         _settingsView.Visible = settings;
+        _changeBaseView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
+        _changeBaseNav.BackColor = Color.White;
         _settingsNav.BackColor = settings ? Color.FromArgb(231, 240, 255) : Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
@@ -433,9 +549,11 @@ internal sealed class MainForm : Form
     {
         _transferView.Visible = false;
         _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
         _arqEmpView.Visible = arqEmp;
         _arqSistView.Visible = !arqEmp;
         _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = arqEmp ? Color.FromArgb(231, 240, 255) : Color.White;
         _arqSistNav.BackColor = arqEmp ? Color.White : Color.FromArgb(231, 240, 255);
@@ -622,13 +740,32 @@ internal sealed class MainForm : Form
                         ? text : muted;
                 label.BackColor = Color.Transparent;
             }
+            else if (control is ListView listView)
+            {
+                listView.BackColor = surface;
+                listView.ForeColor = text;
+            }
             else if (control is TextBox textBox) { textBox.BackColor = input; textBox.ForeColor = text; }
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
-                var isNavigation = button == _menuToggle || button == _transferNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
-                button.ForeColor = isNavigation ? text : Color.White;
-                if (isNavigation) button.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
+                var isSecondaryAction = button == _openBaseFolderButton;
+                button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
+                if (isNavigation)
+                {
+                    button.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderSize = 0;
+                    button.FlatAppearance.BorderColor = button.BackColor;
+                    button.FlatAppearance.MouseOverBackColor = dark ? Color.FromArgb(38, 47, 62) : Color.FromArgb(244, 247, 251);
+                    button.FlatAppearance.MouseDownBackColor = dark ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
+                }
+                else if (isSecondaryAction)
+                {
+                    button.BackColor = surface;
+                    button.FlatAppearance.BorderColor = dark ? Color.FromArgb(83, 98, 119) : Color.FromArgb(208, 217, 230);
+                }
             }
         }
         ApplyNavigationColors();
@@ -636,12 +773,19 @@ internal sealed class MainForm : Form
         HighlightSql(_arqSistEditor);
     }
 
+    private void RefreshNativeScrollingThemes()
+    {
+        foreach (var control in EnumerateControls(this).OfType<IThemedScrollingControl>())
+            control.RefreshNativeTheme();
+    }
+
     private void ApplyNavigationColors()
     {
         var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
         var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
-        foreach (var button in new[] { _menuToggle, _transferNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
+        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
         if (_transferView.Visible) _transferNav.BackColor = active;
+        else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
         else if (_settingsView.Visible) _settingsNav.BackColor = active;
         else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
         else if (_arqSistView.Visible) _arqSistNav.BackColor = active;

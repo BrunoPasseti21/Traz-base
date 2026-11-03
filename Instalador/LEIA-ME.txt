@@ -1,9 +1,11 @@
 Traz Base - Instalador
 
-1. Extraia o pacote completo para uma pasta local.
-2. Execute Instalar.bat.
-3. Escolha a pasta de destino na janela exibida.
-4. O instalador copia os arquivos e cria um atalho no menu Iniciar.
+O arquivo TrazBase-Setup.exe é distribuído separadamente deste ZIP.
 
-O pacote inclui o runtime do .NET necessário para executar o aplicativo em Windows x64.
-Não é necessário instalar o .NET separadamente.
+Alternativa por arquivo ZIP
+1. Extraia o pacote completo para uma pasta local.
+2. Execute Instalar.bat e escolha a pasta de destino na janela exibida.
+3. Aguarde a cópia dos arquivos e a criação do atalho no menu Iniciar.
+
+O pacote inclui o runtime do .NET necessário para Windows x64; não é necessário instalar o .NET separadamente.
+O serviço Firebird local precisa estar instalado e ativo para as operações de banco de dados.

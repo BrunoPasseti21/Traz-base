@@ -8,6 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TrazBase.App</RootNamespace>
     <AssemblyName>TrazBase</AssemblyName>
+    <Version>0.2.0</Version>
     <ApplicationIcon>..\Imagens\icone\icone_supra.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
