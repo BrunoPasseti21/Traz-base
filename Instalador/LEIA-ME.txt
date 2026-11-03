@@ -1,0 +1,9 @@
+Traz Base - Instalador
+
+1. Extraia o pacote completo para uma pasta local.
+2. Execute Instalar.bat.
+3. Escolha a pasta de destino na janela exibida.
+4. O instalador copia os arquivos e cria um atalho no menu Iniciar.
+
+O pacote inclui o runtime do .NET necessário para executar o aplicativo em Windows x64.
+Não é necessário instalar o .NET separadamente.

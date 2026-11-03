@@ -1,0 +1,30 @@
+**/bin/
+**/obj/
+
+# Visual Studio / user-local files
+.vs/
+*.user
+*.suo
+
+# Legacy operational script contains internal settings and credentials.
+/Traz-base-sl.bat
+
+# Publish output and downloadable release package (attach these to a GitHub Release).
+/Instalador/Aplicativo/
+/TrazBase-Instalador.zip
+
+# Local Firebird databases and source archives may contain company data.
+*.fdb
+*.FDB
+*.fbk
+*.FBK
+*.rar
+*.RAR
+*.zip
+*.ZIP
+
+# Local credentials/configuration files
+.env
+.env.*
+!.env.example
+*.local.json
