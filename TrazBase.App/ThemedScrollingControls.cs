@@ -1,5 +1,73 @@
 namespace TrazBase.App;
 
+internal sealed class ThemedProgressBar : Control
+{
+    private readonly System.Windows.Forms.Timer _timer = new() { Interval = 30 };
+    private int _value;
+    private int _marqueeOffset;
+    private bool _isMarquee;
+
+    internal Color TrackColor = Color.FromArgb(38, 47, 62);
+    internal Color FillColor = Color.FromArgb(31, 111, 235);
+    internal Color BorderColor = Color.FromArgb(57, 68, 84);
+
+    internal void SetValue(int value)
+    {
+        var next = Math.Clamp(value, 0, 100);
+        if (_value == next) return;
+        _value = next;
+        Invalidate();
+    }
+
+    internal void SetMarquee(bool value)
+    {
+        if (_isMarquee == value) return;
+        _isMarquee = value;
+        if (value) _timer.Start();
+        else _timer.Stop();
+        Invalidate();
+    }
+
+    public ThemedProgressBar()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        Height = 16;
+        _timer.Tick += (_, _) =>
+        {
+            _marqueeOffset = (_marqueeOffset + Math.Max(2, ClientSize.Width / 35)) % Math.Max(1, ClientSize.Width);
+            Invalidate();
+        };
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        base.OnPaint(e);
+        var bounds = ClientRectangle;
+        if (bounds.Width < 3 || bounds.Height < 3) return;
+        bounds.Inflate(-1, -1);
+        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        using var track = new SolidBrush(TrackColor);
+        using var border = new Pen(BorderColor);
+        e.Graphics.FillRectangle(track, bounds);
+
+        var fillWidth = _isMarquee ? Math.Max(20, bounds.Width / 3) : (int)(bounds.Width * _value / 100.0);
+        var fillX = _isMarquee ? bounds.Left + _marqueeOffset - fillWidth : bounds.Left;
+        var fillBounds = Rectangle.Intersect(bounds, new Rectangle(fillX, bounds.Top, fillWidth, bounds.Height));
+        if (fillBounds.Width > 0)
+        {
+            using var fill = new SolidBrush(FillColor);
+            e.Graphics.FillRectangle(fill, fillBounds);
+        }
+        e.Graphics.DrawRectangle(border, bounds);
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing) _timer.Dispose();
+        base.Dispose(disposing);
+    }
+}
+
 internal interface IThemedScrollingControl
 {
     void RefreshNativeTheme();

@@ -35,6 +35,15 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly Panel _menuFooter = new() { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(6, 4, 6, 6) };
+    private readonly Label _appVersionLabel = new() { Dock = DockStyle.Top, Height = 30, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.FromArgb(38, 50, 68), ForeColor = Color.FromArgb(190, 208, 230), Font = UiTypography.BodySemibold(9f) };
+    private readonly Label _creatorLabel = new() { Dock = DockStyle.Top, Height = 24, AutoEllipsis = true, Text = "Criado por Bruno Passeti", TextAlign = ContentAlignment.MiddleCenter, Font = UiTypography.Body(8.5f) };
+    private readonly Panel _updateRow = new() { Dock = DockStyle.Top, Height = 34, Visible = false };
+    private readonly PictureBox _updateAnimation = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.StretchImage, Visible = false, BackColor = Color.Transparent };
+    private readonly ThemedProgressBar _updateProgress = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly Button _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly ToolTip _menuToolTip = new();
+    private bool _downloadingUpdate;
     private TableLayoutPanel _transferView = null!;
     private Control _settingsView = null!;
     private Control _changeBaseView = null!;
@@ -74,6 +83,13 @@ internal sealed class MainForm : Form
         _shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _shell.Controls.Add(_sidebar, 0, 0);
         _shell.Controls.Add(_contentHost, 1, 0);
+        _updateRow.Controls.Add(_updateButton);
+        _updateRow.Controls.Add(_updateProgress);
+        _updateRow.Controls.Add(_updateAnimation);
+        _menuFooter.Controls.Add(_updateRow);
+        _menuFooter.Controls.Add(_creatorLabel);
+        _menuFooter.Controls.Add(_appVersionLabel);
+        _sidebar.Controls.Add(_menuFooter);
         _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(_arqSistNav);
         _sidebar.Controls.Add(_arqEmpNav);
@@ -111,6 +127,8 @@ internal sealed class MainForm : Form
         };
         HandleCreated += (_, _) => ApplyTitleBarTheme();
         ApplyTheme();
+        _appVersionLabel.Text = GetCurrentVersion().ToString(3);
+        Shown += async (_, _) => await CheckForUpdatesAsync();
         _password.Text = _settings.GetFirebirdPassword() ?? "";
         _savePassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedFirebirdPassword);
         _savePassword.CheckedChanged += (_, _) => SavePasswordPreference();
@@ -121,6 +139,8 @@ internal sealed class MainForm : Form
         _start.Click += async (_, _) => await StartFlowAsync();
         _cancel.Click += (_, _) => { if (_running) { _runCancellation?.Cancel(); _cancel.Enabled = false; _status.Text = "Cancelando…"; } };
         _menuToggle.Click += (_, _) => SetMenuExpanded(!_menuExpanded);
+        _updateButton.Click += async (_, _) => await InstallUpdateAsync();
+        _menuToolTip.SetToolTip(_updateButton, "Baixar e instalar a atualização disponível");
         _transferNav.Click += (_, _) => ShowView(settings: false);
         _settingsNav.Click += (_, _) => ShowView(settings: true);
         _changeBaseNav.Click += (_, _) => ShowChangeBaseView();
@@ -159,6 +179,107 @@ internal sealed class MainForm : Form
 
     private bool _running;
     private CancellationTokenSource? _runCancellation;
+
+    private static Version GetCurrentVersion() => typeof(MainForm).Assembly.GetName().Version ?? new Version(0, 0);
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var update = await GitHubReleaseUpdater.CheckAsync(GetCurrentVersion());
+            if (update is null || IsDisposed) return;
+            _updateButton.Text = $"Atualização disponível · v{update.Version}";
+            _updateButton.Tag = update;
+            _updateRow.Visible = true;
+            _menuToolTip.SetToolTip(_updateButton, $"Atualização disponível: versão {update.Version}. Clique para instalar.");
+            SetMenuExpanded(_menuExpanded);
+        }
+        catch
+        {
+            // A indisponibilidade do GitHub não interfere no uso normal da aplicação.
+        }
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        if (_updateButton.Tag is not ReleaseUpdate update) return;
+        if (_running)
+        {
+            MessageBox.Show(this, "Aguarde a operação atual terminar antes de atualizar a aplicação.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var answer = MessageBox.Show(this,
+            $"A versão {update.Version} está disponível. Deseja baixar e iniciar a atualização agora? A aplicação será fechada para instalar a nova versão.",
+            "Atualização do Traz Base", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+        if (answer != DialogResult.Yes) return;
+
+        _downloadingUpdate = true;
+        _updateProgress.SetValue(0);
+        _updateProgress.SetMarquee(true);
+        _menuToolTip.SetToolTip(_updateButton, "Baixando a atualização…");
+        UpdateDownloadButtonText();
+        try
+        {
+            var progress = new Progress<int>(value =>
+            {
+                if (IsDisposed) return;
+                _updateProgress.SetMarquee(false);
+                _updateProgress.SetValue(value);
+            });
+            var installer = await GitHubReleaseUpdater.DownloadInstallerAsync(update.InstallerUri, progress);
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installer)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS"
+            });
+            Close();
+        }
+        catch (Exception ex)
+        {
+            _downloadingUpdate = false;
+            _updateButton.Enabled = true;
+            UpdateDownloadButtonText();
+            SetUpdateAnimation(null);
+            _updateAnimation.Visible = false;
+            _updateButton.Visible = true;
+            _menuToolTip.SetToolTip(_updateButton, $"Atualização disponível: versão {update.Version}. Clique para instalar.");
+            MessageBox.Show(this, $"Não foi possível iniciar a atualização. A notificação continuará disponível.\n\n{ex.Message}", "Falha na atualização", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void UpdateDownloadButtonText()
+    {
+        if (_updateButton.Tag is not ReleaseUpdate update) return;
+        _updateRow.Visible = true;
+        if (_downloadingUpdate)
+        {
+            _updateButton.Image?.Dispose();
+            _updateButton.Image = null;
+        }
+        else if (_updateButton.Image is null)
+        {
+            _updateButton.Image = SvgIconLoader.Load("Atualizar.svg", 16);
+        }
+        _updateAnimation.Visible = _downloadingUpdate && !_menuExpanded;
+        _updateProgress.Visible = _downloadingUpdate && _menuExpanded;
+        _updateButton.Visible = !_downloadingUpdate;
+        if (_downloadingUpdate && !_menuExpanded)
+        {
+            SetUpdateAnimation("Baixando.gif");
+            _updateAnimation.BringToFront();
+        }
+        _updateButton.Text = _downloadingUpdate ? "" : (_menuExpanded ? $"Atualização disponível · v{update.Version}" : "");
+    }
+
+    private void SetUpdateAnimation(string? fileName)
+    {
+        var previous = _updateAnimation.Image;
+        _updateAnimation.Image = fileName is null
+            ? null
+            : Image.FromFile(Path.Combine(AppContext.BaseDirectory, "Imagens", fileName));
+        previous?.Dispose();
+    }
 
     private Control BuildHeader()
     {
@@ -508,6 +629,22 @@ internal sealed class MainForm : Form
     {
         _menuExpanded = expanded;
         _shell.ColumnStyles[0].Width = expanded ? 300 : 68;
+        _menuFooter.Visible = true;
+        _menuFooter.Padding = expanded ? new Padding(12, 6, 12, 8) : new Padding(6, 4, 6, 6);
+        _menuFooter.Height = expanded
+            ? (_updateButton.Tag is ReleaseUpdate ? 104 : 70)
+            : (_updateButton.Tag is ReleaseUpdate ? 78 : 48);
+        _appVersionLabel.Visible = true;
+        _appVersionLabel.Text = expanded ? $"Versão {GetCurrentVersion().ToString(3)}" : GetCurrentVersion().ToString(3);
+        _creatorLabel.Visible = expanded;
+        _updateRow.Visible = _updateButton.Tag is ReleaseUpdate;
+        if (_updateButton.Tag is ReleaseUpdate update)
+        {
+            _updateRow.Visible = true;
+            _updateRow.Height = expanded ? 34 : 30;
+            _updateButton.Font = UiTypography.BodySemibold(expanded ? 9f : 14f);
+            UpdateDownloadButtonText();
+        }
         _menuToggle.Text = expanded ? "Menu" : "";
         _transferNav.Text = expanded ? "Transferir" : "";
         _changeBaseNav.Text = expanded ? "Alterar base" : "";
@@ -595,12 +732,15 @@ internal sealed class MainForm : Form
                 Text = "Procurar",
                 Size = new Size(120, 28),
                 FlatStyle = FlatStyle.Flat,
-                ForeColor = Ink,
-                Font = UiTypography.Body(9f),
+                BackColor = Color.FromArgb(31, 111, 235),
+                ForeColor = Color.White,
+                Font = UiTypography.BodySemibold(9f),
                 Tag = key
             };
             button.Click += (sender, _) => Browse((string)((Button)sender!).Tag!, "folder");
-            button.FlatAppearance.BorderSize = 1;
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+            button.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
             return button;
         }).ToArray();
 
@@ -726,19 +866,31 @@ internal sealed class MainForm : Form
             {
                 if (panel == _progress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel == _progressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
-                else if (panel == _sidebar) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
                 else if (panel == _settingsFieldsHost) panel.BackColor = surface;
                 else panel.BackColor = panel.BorderStyle == BorderStyle.None ? background : surface;
             }
             else if (control is TableLayoutPanel || control is FlowLayoutPanel) control.BackColor = background;
 
+            if (control is ThemedProgressBar progressBar)
+            {
+                progressBar.TrackColor = dark ? Color.FromArgb(18, 25, 38) : Color.FromArgb(225, 232, 241);
+                progressBar.FillColor = Color.FromArgb(31, 111, 235);
+                progressBar.BorderColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(196, 207, 221);
+                progressBar.Invalidate();
+            }
+
             if (control is Label label)
             {
-                label.ForeColor = label.Text == "TRAZ BASE" || label == _versionLabel
+                label.ForeColor = label == _appVersionLabel
+                    ? Color.FromArgb(190, 208, 230)
+                    : label.Text == "TRAZ BASE" || label == _versionLabel
                     ? Color.FromArgb(31, 111, 235)
                     : label.Text is "Preparar base por solicitação" or "Transferir" or "Configurações" or "Comandos ARQEMP" or "Comandos ARQSIST"
                         ? text : muted;
-                label.BackColor = Color.Transparent;
+                label.BackColor = label == _appVersionLabel
+                    ? dark ? Color.FromArgb(38, 50, 68) : Color.FromArgb(231, 240, 255)
+                    : Color.Transparent;
             }
             else if (control is ListView listView)
             {

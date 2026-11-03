@@ -29,7 +29,7 @@ Para gerar o pacote autocontido para Windows x64:
 dotnet publish TrazBase.App/TrazBase.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
 ```
 
-O conteúdo de `Instalador/Aplicativo` e o arquivo `TrazBase-Instalador.zip` são artefatos de distribuição e ficam fora do Git. Publique o ZIP em uma GitHub Release quando precisar distribuir uma versão.
+O conteúdo de `Instalador/Aplicativo` e os instaladores são artefatos de distribuição e ficam fora do Git. Publique `TrazBase-Setup.exe` como asset de uma GitHub Release para que a aplicação detecte e instale automaticamente a versão mais recente.
 
 Para criar o instalador executável com o Inno Setup instalado, execute no Windows:
 
@@ -37,9 +37,11 @@ Para criar o instalador executável com o Inno Setup instalado, execute no Windo
 powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1
 ```
 
-O script usa `Instalador/TrazBase.iss` e gera `Instalador/TrazBase-Setup.exe`. O usuário pode escolher a pasta de instalação.
+O script usa `Instalador/TrazBase.iss` e gera `Instalador/TrazBase-Setup.exe`. O destino padrão é `C:\Program Files\TrazBase`; o instalador solicita privilégios de administrador e permite escolher outra pasta.
 
-Para lançar uma atualização, incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/TrazBase.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões iguais ou antigas; arquivos versionados são comparados pela versão e arquivos sem versão (JSON, PDB e imagens) pelo horário de modificação. O instalador continua contendo o pacote completo, mas evita substituir os arquivos que não mudaram.
+As atualizações iniciadas pela aplicação executam o instalador em modo silencioso, sem telas de instalação. O Windows ainda solicita autorização do UAC para atualizar arquivos em `Program Files`.
+
+Para lançar uma atualização, incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/TrazBase.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões antigas, mas permite reinstalar a versão atual para aplicar correções sem mudar o número da versão. Os arquivos da aplicação são substituídos; arquivos sem versão (JSON, PDB, SVG e ícones) são atualizados quando o horário de modificação muda.
 
 ## Configuração e privacidade
 
@@ -55,6 +57,7 @@ O script operacional legado foi excluído deste repositório porque contém cred
 - Consulta e exibição da versão do banco ARQSIST.
 - Preferência de tema claro/escuro persistida.
 - Instalador que permite escolher a pasta de instalação.
+- Exibição da versão e aviso de atualização a partir das GitHub Releases.
 
 ## Documentação
 

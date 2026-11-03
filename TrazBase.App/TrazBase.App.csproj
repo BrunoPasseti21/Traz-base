@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TrazBase.App</RootNamespace>
     <AssemblyName>TrazBase</AssemblyName>
-    <Version>0.2.0</Version>
+    <Version>0.3.0</Version>
     <ApplicationIcon>..\Imagens\icone\icone_supra.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\Imagens\*.svg" Link="Imagens\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="..\Imagens\*.gif" Link="Imagens\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="..\Imagens\icone\*.ico" Link="Imagens\icone\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

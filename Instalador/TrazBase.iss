@@ -1,18 +1,18 @@
 #define AppName "Traz Base"
 #define AppPublisher "Traz Base"
 #define AppExeName "TrazBase.exe"
-#define AppVersion "0.2.0"
-#define AppFileVersion "0.2.0.0"
+#define AppVersion "0.3.0"
+#define AppFileVersion "0.3.0.0"
 
 [Setup]
 AppId={{6BB4D28C-AE7D-4627-8F01-CCEA7B3311B5}
 AppName={#AppName}
 AppVersion={#AppVersion}
 AppPublisher={#AppPublisher}
-DefaultDirName={localappdata}\Programs\TrazBase
+DefaultDirName={autopf}\TrazBase
 DefaultGroupName={#AppName}
 DisableProgramGroupPage=yes
-PrivilegesRequired=lowest
+PrivilegesRequired=admin
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0
@@ -37,7 +37,7 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 Name: "desktopicon"; Description: "Criar um atalho na área de trabalho"; GroupDescription: "Atalhos adicionais:"; Flags: unchecked
 
 [Files]
-Source: "Aplicativo\*"; DestDir: "{app}"; Excludes: "*.json,*.pdb,Imagens\*.svg,Imagens\icone\*.ico"; Flags: recursesubdirs createallsubdirs
+Source: "Aplicativo\*"; DestDir: "{app}"; Excludes: "*.json,*.pdb,Imagens\*.svg,Imagens\icone\*.ico"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "Aplicativo\*.json"; DestDir: "{app}"; Flags: comparetimestamp nocompression
 Source: "Aplicativo\*.pdb"; DestDir: "{app}"; Flags: comparetimestamp nocompression
 Source: "Aplicativo\Imagens\*.svg"; DestDir: "{app}\Imagens"; Flags: comparetimestamp nocompression
@@ -48,7 +48,7 @@ Name: "{autoprograms}\Traz Base"; Filename: "{app}\{#AppExeName}"; WorkingDir: "
 Name: "{autodesktop}\Traz Base"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "Abrir Traz Base"; Flags: postinstall nowait skipifsilent
+Filename: "{app}\{#AppExeName}"; Flags: nowait runasoriginaluser
 
 [Code]
 const
@@ -61,11 +61,14 @@ var
   SetupVersion: Int64;
 begin
   Result := True;
-  if RegQueryStringValue(HKCU, UninstallKey, 'DisplayVersion', InstalledVersionText) then
+  InstalledVersionText := '';
+  if not RegQueryStringValue(HKLM, UninstallKey, 'DisplayVersion', InstalledVersionText) then
+    RegQueryStringValue(HKCU, UninstallKey, 'DisplayVersion', InstalledVersionText);
+  if InstalledVersionText <> '' then
   begin
     if StrToVersion(InstalledVersionText, InstalledVersion) and
        StrToVersion('{#AppVersion}', SetupVersion) and
-       (ComparePackedVersion(SetupVersion, InstalledVersion) <= 0) then
+       (ComparePackedVersion(SetupVersion, InstalledVersion) < 0) then
     begin
       MsgBox('A versão ' + InstalledVersionText + ' já está instalada. Este instalador contém a versão ' +
         '{#AppVersion}' + ', que não é mais recente.', mbInformation, MB_OK);
