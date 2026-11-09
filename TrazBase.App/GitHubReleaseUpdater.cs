@@ -22,10 +22,16 @@ internal static class GitHubReleaseUpdater
     {
         using var response = await Client.GetAsync(ReleaseApi);
         response.EnsureSuccessStatusCode();
-        await using var stream = await response.Content.ReadAsStreamAsync();
-        using var release = await JsonDocument.ParseAsync(stream);
+        var json = await response.Content.ReadAsStringAsync();
+        return ParseLatestRelease(json, currentVersion);
+    }
+
+    internal static ReleaseUpdate? ParseLatestRelease(string json, Version currentVersion)
+    {
+        using var release = JsonDocument.Parse(json);
         var root = release.RootElement;
-        var tag = root.GetProperty("tag_name").GetString()?.TrimStart('v', 'V');
+        if (!root.TryGetProperty("tag_name", out var tagElement)) return null;
+        var tag = tagElement.GetString()?.TrimStart('v', 'V');
         if (!Version.TryParse(tag, out var latest) || latest <= currentVersion) return null;
 
         if (!root.TryGetProperty("assets", out var assets)) return null;
@@ -34,7 +40,8 @@ internal static class GitHubReleaseUpdater
             var name = asset.GetProperty("name").GetString();
             var url = asset.GetProperty("browser_download_url").GetString();
             if (name is not null && name.EndsWith("Setup.exe", StringComparison.OrdinalIgnoreCase)
-                && Uri.TryCreate(url, UriKind.Absolute, out var installerUri))
+                && Uri.TryCreate(url, UriKind.Absolute, out var installerUri)
+                && installerUri.Scheme == Uri.UriSchemeHttps)
                 return new ReleaseUpdate(latest.ToString(), installerUri);
         }
         return null;

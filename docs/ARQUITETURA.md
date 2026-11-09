@@ -1,58 +1,89 @@
-# Arquitetura proposta
+# Arquitetura
 
 ## Plataforma
 
-- C# com .NET para Windows.
-- WinForms para a primeira interface, adequado ao fluxo de formulários, seleção de pastas e progresso.
-- Aplicação inicialmente distribuída como executável Windows; definir depois se será dependente do runtime instalado ou publicada como self-contained.
+- C# com .NET **10** (`net10.0-windows`), WinForms, DPI `PerMonitorV2`.
+- Aplicação desktop para Windows 10+, distribuída como executável **self-contained win-x64** dentro de um instalador Inno Setup (`TrazBase-Setup.exe`), com autoatualização via GitHub Releases.
+- `AssemblyName` = `TrazBase`; versão atual **0.3.0** (`TrazBase.App.csproj`), espelhada em `Instalador/TrazBase.iss`.
 
-## Organização sugerida
+## Organização do código
 
-Manter a solução simples no início, com responsabilidades separadas:
+Solução única, projeto único (`TrazBase.App`); não há separação em assemblies de UI/Application/Infrastructure. As responsabilidades estão separadas por arquivo, e a lógica pura está isolada em classes `internal static` para permitir testes (`InternalsVisibleTo("TrazBase.Tests")`):
 
-- **UI**: formulários, validação de entrada, confirmação e apresentação do progresso.
-- **Application**: coordenação dos casos de uso (copiar SL, trocar base, preparar, restaurar).
-- **Infrastructure**: sistema de arquivos, Registro, provider Firebird ADO.NET, `gbak` para restauração futura e extração.
-- **Configuration**: leitura, validação e gravação das opções locais.
-- **Logging**: histórico de operações e detalhes técnicos.
+| Arquivo | Responsabilidade |
+|---|---|
+| `Program.cs` | Ponto de entrada: carrega `AppSettings`, aplica o modo de cor (claro/escuro) antes de `ApplicationConfiguration.Initialize()` e abre `MainForm`. |
+| `MainForm.cs` | Janela principal: layout, menu lateral, tema claro/escuro, orquestração dos fluxos (Transferir, Alterar base, Redefinir base, Comandos SQL), cópia/extração, Registro, SQL, versão, atualização. É um arquivo grande (~1 700 linhas) e concentra a UI e o fluxo. |
+| `AppSettings.cs` | Configuração persistida em JSON (`%APPDATA%\TrazBase\settings.json`), proteção da senha com DPAPI (`CurrentUser`), migração de scripts legados. |
+| `BaseOperationRules.cs` | Regras puras de operação: resolução do destino local com proteção de path traversal, lista de bases de apoio a copiar (`ARQEMP.FDB`, `ARQOCOR.FDB`), interpretação do diálogo de conflito de destino (`ExistingDestinationAction`). |
+| `ArchivePathSafety` (em `BaseOperationRules.cs`) | Normalização e validação do caminho de saída de entradas de arquivos compactados (rejeita caminhos absolutos e `..`). |
+| `RestoreOperationRules.cs` | Regras puras da restauração: resolução da pasta dos backups (`BKP` quando existe, senão a própria pasta selecionada), reconhecimento do tipo de base pelo nome do arquivo (`ARQEMP`/`ARQOCOR`/`ARQSIST`, sem distinção de maiúsculas/minúsculas), mapeamento para o `.FDB` ao lado do `.FBK`, detecção de destinos duplicados. |
+| `GitHubReleaseUpdater.cs` | Consulta a API de releases do GitHub, escolhe o asset `*Setup.exe` mais recente e baixa o instalador com progresso. `ParseLatestRelease` é testável. |
+| `AppMessageBox.cs` | Diálogos próprios (`AppMessageDialog`) que substituem o `MessageBox` nativo, incluindo o diálogo de conflito de destino (`ShowFolderConflict`). |
+| `SvgIconLoader.cs` | Renderiza os ícones SVG (apenas `<path fill>`, com `translate()`) para `Bitmap` — os ícones do menu não usam biblioteca externa. |
+| `ThemedScrollingControls.cs` | Controles com tema próprio: `ThemedProgressBar` (barra/marquee), `ThemedListView`, `ThemedTextBox`, `ThemedRichTextBox`, `PlainNavigationButton` e a interface `IThemedScrollingControl`. |
+| `UiTypography.cs` | Tipografia centralizada (Segoe UI Variable/Segoe UI com fallback), usada por toda a UI. |
 
-Essas responsabilidades podem começar em projetos/pastas de uma única solução e ser divididas em assemblies quando houver necessidade real.
+Projeto de testes: `TrazBase.Tests` (MSTest 4, `net10.0-windows`, referencia `TrazBase.App`). Cobre a lógica pura: `BaseOperationRules` (resolução de destino, arquivos de apoio, ação de conflito), `ArchivePathSafety` (path traversal), `RestoreOperationRules` (reconhecimento/mapeamento de `.FBK`), `GitHubReleaseUpdater.ParseLatestRelease` e a proteção DPAPI de `AppSettings`. `MainForm` e a UI não têm cobertura. Detalhes em [Testes](TESTES.md).
 
-As telas devem seguir os [padrões de interface](PADROES-DE-INTERFACE.md), incluindo o estilo compartilhado para botões, menu lateral e progresso.
+Recursos: `Imagens/*.svg`, `Imagens/Baixando.gif`, `Imagens/icone/icone_supra.ico` (copiados para a saída). O instalador reside em `Instalador/` (`TrazBase.iss`, `Compilar-Instalador.ps1`, `Instalar.ps1`/`Instalar.bat` para a alternativa ZIP, `LEIA-ME.txt`).
 
 ## Integrações
 
 ### Processos externos
 
-Executar utilitários com `ProcessStartInfo` e argumentos separados, sem concatenar comandos de shell. Ler `stdout`/`stderr`, guardar código de saída, permitir cancelamento quando seguro e sempre aguardar o processo específico iniciado pela aplicação. Não detectar conclusão procurando qualquer processo do mesmo nome no sistema.
+Não há processos externos no caminho crítico de negócio. O único processo iniciado é o instalador durante a atualização (`Verb=runas`, argumentos silenciosos do Inno Setup). Toda leitura/escrita de banco é via provider ADO.NET; toda extração é via bibliotecas gerenciadas.
 
-Integrações do fluxo:
+### Arquivos e rede
 
-- Cópia da solicitação feita em C# por fluxos `FileStream` em blocos, com progresso por bytes e cancelamento cooperativo; não depende do `robocopy`.
-- SharpCompress (biblioteca gerenciada C#) para leitura e extração RAR, sem chamar WinRAR ou outro executável.
-- `ZipArchive`/`FileStream` do .NET para extração ZIP, com cancelamento entre blocos.
-- `FirebirdSql.Data.FirebirdClient` (`FbConnection`, `FbCommand`) para conectar diretamente aos arquivos `.FDB`, executar scripts e consultar a versão; depende do serviço Firebird local, não do executável `isql.exe`.
-- `gbak.exe` para restauração dos arquivos de backup.
+- Cópia recursiva própria (`FileStream`, buffer de 1 MB, `FileOptions.Asynchronous | SequentialScan`), com progresso por bytes e cancelamento por `CancellationToken`. Não usa `robocopy`.
+- Extração ZIP: `System.IO.Compression.ZipArchive`. Extração RAR: SharpCompress (`ReaderFactory.OpenAsyncReader`). Entradas são validadas contra path traversal antes de gravar.
+- Timestamps (`SetLastWriteTimeUtc`) e atributos (`SetAttributes`) dos arquivos copiados são preservados.
+- Pastas temporárias e de download usam `Path.GetTempPath()`; nada é gravado no diretório corrente.
 
-O botão Cancelar cancela as cópias/extrações que suportam `CancellationToken` e encerra a árvore do processo Firebird externo que estiver ativo, aguardando sua saída antes de finalizar o fluxo.
+### Firebird
+
+`FirebirdSql.Data.FirebirdClient` (10.3.4):
+
+- Conexão: `localhost`, usuário `SYSDBA`, dialeto 3, charset UTF8, `Pooling=false`, `ServerType=Default`, banco por caminho absoluto. Depende do **serviço Firebird local** (não do executável `isql`/`gbak`).
+- Execução de scripts: `FbScript` + `FbBatchExecution` (mesmo comportamento de `isql -i`, sem processo externo). O cancelamento fecha a conexão via `token.Register(() => connection.Close())`.
+- Consulta de versão: `SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE` em `ARQSIST.FDB`, `CommandTimeout=0`.
+- Restauração de `.FBK`: `FirebirdSql.Data.Services.FbRestore` com `FbRestore.ExecuteAsync(CancellationToken)` — anexada ao gerenciador de serviços (`service_mgr` em `localhost`, equivalente a `-se service_mgr`), com a mesma senha informada pelo operador. O destino é o `Database=` da connection string de serviço (`isc_spb_dbname`); a saída verbose do serviço é encaminhada para o log; as três restaurações rodam em paralelo (`Task.WhenAll`). Destino existente → `FbRestoreFlags.Replace` (equivalente a `-REP`); destino inexistente → `FbRestoreFlags.Create`. **Nenhum `gbak.exe`, `cmd` ou PowerShell é iniciado.**
 
 ### Registro do Windows
 
-Usar APIs de Registro do .NET, limitadas ao hive do usuário (`HKCU`) e à chave `SIC\CONEXAO`. Antes de gravar, exibir a base escolhida, registrar os valores anteriores e tratar falhas de acesso. Evitar gravar caminhos sem aspas ou validação conforme o formato esperado pela aplicação alvo.
+- Escopo: `HKCU\SIC\CONEXAO` apenas (`Registry.CurrentUser.CreateSubKey(..., writable: true)`).
+- Grava `BASE1`–`BASE4` e `EMPRESA` com o caminho completo da base + barra final; `SERVIDOR=LOCALHOST`; `TEMP=Path.GetTempPath()`.
+- Os valores anteriores **não** são lidos/salvos antes da gravação (sem backup do Registro).
+- Erros de acesso são propagados como exceção e exibidos em diálogo próprio.
 
-### Configuração
+### Configuração e segredos
 
-Armazenar caminhos nomeados em JSON na pasta de configuração do usuário, validar na inicialização e oferecer uma tela para corrigir cada item. A senha é opcional; quando o operador marca “Salvar senha”, armazená-la protegida pelo Windows DPAPI para a conta atual, nunca em texto puro. Os scripts SQL existentes podem ser selecionados/configurados por caminho e validados antes da execução.
+- JSON indentado em `%APPDATA%\TrazBase\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), bases dos comandos (`ArqEmpCommandDatabase`, `ArqSistCommandDatabase`), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`).
+- Senha opcional ("Salvar senha"): protegida com `ProtectedData` (DPAPI, `DataProtectionScope.CurrentUser`), armazenada em Base64; nunca em texto puro; nunca registrada em log. Se `Unprotect` falhar, o valor é descartado e a opção volta a desmarcada.
+- Migração: chaves antigas `ScriptArqEmp`/`ScriptArqSist` (arquivos `.sql` externos) são incorporadas aos comandos inline na primeira execução após a atualização.
+- Comandos SQL são editados e salvos dentro do aplicativo; nenhum arquivo `.sql` externo é exigido.
 
-### Acesso SQL direto
+### GitHub Releases (autoatualização)
 
-Abrir conexões `FbConnection` com o caminho absoluto do banco da pasta transferida. Processar os scripts com `FbScript`/`FbBatchExecution`; consultar `CONTROLE.NRO_SCRIPT` com `FbCommand` diretamente em `ARQSIST.FDB`. Não invocar `isql.exe` nem registrar a senha em logs ou mensagens. A conexão usa o serviço Firebird local.
+`GET https://api.github.com/repos/BrunoPasseti21/Traz-base/releases/latest` → `tag_name` (prefixo `v` ignorado) maior que a versão do assembly → asset cujo nome termina em `Setup.exe` (URL precisa ser HTTPS) → download para `%TEMP%` → execução elevada com `/VERYSILENT ...`. O instalador (`TrazBase.iss`) bloqueia versões mais antigas que as já instaladas e permite reinstalar a mesma versão.
 
 ## Segurança e integridade operacional
 
-- Validar destino e exibir caminho completo antes de exclusão, substituição ou restauração.
-- Nunca reutilizar uma variável de caminho sem normalizá-la e validar a pasta final.
-- Evitar depender do diretório corrente do processo; usar caminhos absolutos.
-- Não assumir que nome de arquivo identifica conteúdo válido de backup/base.
-- Fazer cópias/backup quando a operação puder sobrescrever uma base existente, se o fluxo de negócio permitir.
-- Não ocultar erros de processo com redirecionamento para `nul`.
+- Destino resolvido e validado antes de qualquer escrita (`BaseOperationRules.ResolveLocalBaseDirectory`); saída de arquivos compactados validada (`ArchivePathSafety.GetSafeEntryPath`).
+- Operações destrutivas (apagar/sobrescrever pasta existente, substituir `.FDB`) exigem escolha explícita: na transferência, três opções — **Cancelar**, **Criar backup** e **Substituir**; na restauração, um diálogo lista os `.FDB` que serão substituídos e só prossegue com confirmação. Sem confirmação, nada é removido.
+- `ARQSIST.FDB` ausente nunca é "adivinhado" nem renomeado: o operador escolhe o arquivo.
+- Movimentação de `.fdb` para a raiz falha explicitamente em caso de colisão de nomes.
+- Senhas não aparecem em logs, diálogos ou Registro.
+- A aplicação falha fechada: erros de conexão Firebird, Registro ou cópia interrompem o fluxo com mensagem; a etapa seguinte não é executada.
+- Limitações conhecidas: sem log em arquivo; sem verificação de espaço em disco; valores anteriores do Registro não são preservados; senha mantida em memória durante a execução.
+
+## Compilação e distribuição (resumo)
+
+```powershell
+dotnet build TrazBase.App/TrazBase.App.csproj -c Release
+dotnet publish TrazBase.App/TrazBase.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
+powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1   # gera Instalador/TrazBase-Setup.exe
+```
+
+O `.iss` publica em `Program Files\TrazBase` (padrão, exigindo admin/UAC), com ícone e atalho opcional na área de trabalho. Detalhes em [Desenvolvimento](DESENVOLVIMENTO.md).

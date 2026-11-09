@@ -2,62 +2,73 @@
 
 ## Objetivo do produto
 
-Substituir o fluxo interativo do `Traz-base-sl.bat` por uma aplicação desktop Windows que ajude a preparar e selecionar bases de solicitações para uso local com Firebird.
+Substituir o fluxo interativo do `Traz-base-sl.bat` por uma aplicação desktop Windows (Traz Base) que ajuda a preparar e selecionar bases de solicitações para uso local com Firebird.
+
+**Estado:** a aplicação está implementada e publicada na versão **0.3.0**. Este documento lista os requisitos e o status de cada um na versão atual.
 
 ## Usuários e ambiente
 
-- Usuário operador de suporte/desenvolvimento em Windows.
-- Bases de solicitações acessíveis por compartilhamento de rede.
-- Pastas locais para bases de trabalho, bases de apoio e arquivos temporários.
-- Serviço Firebird local instalado e em execução. A extração de RAR e ZIP é fornecida pelo próprio aplicativo e suas bibliotecas.
+- Usuário operador de suporte/desenvolvimento em Windows 10 ou superior.
+- Bases de solicitações acessíveis por compartilhamento de rede (origem configurável).
+- Pastas locais para bases de trabalho e bases de apoio.
+- Serviço Firebird local instalado e em execução. A extração de RAR e ZIP é fornecida pelo próprio aplicativo (SharpCompress e `ZipArchive`).
 
-## Requisitos funcionais
+## Requisitos funcionais — status
+
+Legenda: **OK** implementado · **Parcial** implementado com limitações · **Pendente** não implementado.
 
 ### Configuração
 
-- **RF-01** Permitir configurar e validar o diretório local de trabalho das bases.
-- **RF-02** Permitir configurar o diretório de bases de apoio.
-- **RF-03** Permitir configurar o diretório dos utilitários Firebird e o diretório temporário.
-- **RF-04** Permitir configurar o caminho de origem das solicitações na rede.
-- **RF-05** Persistir configuração em formato versionável e legível, sem depender da ordem das linhas de `Caminhos.txt`.
+- **RF-01 — OK.** Diretório local de trabalho das bases configurável e validado (`BasesRoot`).
+- **RF-02 — OK.** Diretório de bases de apoio configurável (`SupportRoot`), usado para copiar `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes.
+- **RF-03 — Parcial.** Não há diretórios separados de utilitários Firebird nem de temporários: o aplicativo conecta-se ao Firebird pelo serviço local (ADO.NET e serviços de gerenciamento do provider — `FbConnection` e `FbRestore`), sem `isql`/`gbak` externos; o temporário usado é `Path.GetTempPath()` (gravado em `TEMP` no Registro).
+- **RF-04 — OK.** Caminho de origem das solicitações na rede configurável (`SolicitationRoot`).
+- **RF-05 — OK.** Configuração persistida em JSON versionável e legível (`%APPDATA%\TrazBase\settings.json`), sem depender de ordem de linhas nem de `Caminhos.txt`.
 
 ### Operações de base
 
-- **RF-06** Buscar/obter uma base informando o número da solicitação e copiar seu conteúdo da origem de rede para o diretório local.
-- **RF-07** Mostrar andamento, saída relevante e resultado da cópia.
-- **RF-08** Detectar arquivos compactados RAR/ZIP e permitir escolher quais extrair quando houver mais de um.
-- **RF-09** Permitir selecionar uma base local existente.
-- **RF-10** Trocar os caminhos das bases usados pela aplicação alvo, atualizando as chaves necessárias em `HKCU\SIC\CONEXAO`.
-- **RF-11** Redefinir uma base para uma solicitação informada, validando presença dos arquivos Firebird esperados e permitindo identificar/renomear o arquivo de sistema quando necessário.
-- **RF-12** Restaurar os arquivos `.FBK` reconhecidos (`ARQEMP`, `ARQOCOR`, `ARQSIST`) para arquivos `.FDB` com `gbak`.
-- **RF-13** Executar os scripts SQL configurados diretamente em `ARQEMP.FDB` e `ARQSIST.FDB` usando o provider ADO.NET do Firebird, sem iniciar `isql.exe`.
-- **RF-14** Apresentar a versão do script/banco consultada em `CONTROLE.NRO_SCRIPT` quando a operação a solicitar.
-- **RF-15** Permitir cancelar operações longas de forma controlada quando o processo externo suportar cancelamento seguro.
-- **RF-16** Registrar histórico local das operações, com data/hora, SL/base, etapa e resultado, sem gravar senhas.
+- **RF-06 — OK.** Cópia recursiva da SL por streaming `FileStream` em blocos de 1 MB, com preservação de data de modificação e atributos dos arquivos.
+- **RF-07 — OK.** Andamento em bytes/MB e arquivos copiados na barra de progresso, com log textual da operação.
+- **RF-08 — OK.** Detecção de `*.rar` e `*.zip` na pasta copiada; com vários arquivos, o operador escolhe em uma lista (`CheckedListBox`) o que extrair; com um único arquivo, ele é extraído direto. Proteção contra path traversal nos caminhos das entradas.
+- **RF-09 — OK.** Seleção de base local existente na tela **Alterar base** (lista de pastas de `BasesRoot`).
+- **RF-10 — OK.** Atualização de `HKCU\SIC\CONEXAO`: `BASE1`…`BASE4` e `EMPRESA` recebem o caminho completo da base com barra final; `SERVIDOR=LOCALHOST`; `TEMP` recebe a pasta temporária do usuário.
+- **RF-11 — Parcial.** A tela **Redefinir base** valida a SL (somente dígitos) e a pasta local, exige `ARQSIST.FDB` presente (senão informa e interrompe), copia `ARQEMP.FDB`/`ARQOCOR.FDB` da pasta de apoio quando ausentes e executa os comandos SQL configurados. Não renomeia arquivos automaticamente e não copia a pasta inteira.
+- **RF-12 — OK.** Restaura os arquivos `.FBK` reconhecidos (`ARQEMP`, `ARQOCOR`, `ARQSIST`) da subpasta `BKP` quando ela existe (senão da própria pasta selecionada) para `.FDB` ao lado deles, pelo serviço de gerenciamento do Firebird (`FbRestore` do provider ADO.NET, `-se service_mgr`), em paralelo; sem `gbak.exe` nem processos externos. Substituição de `.FDB` existente exige confirmação.
+- **RF-13 — OK.** Comandos SQL configurados são executados diretamente em `ARQEMP.FDB` e `ARQSIST.FDB` via `FbConnection`/`FbScript`/`FbBatchExecution`, sem `isql.exe`. Conexão: servidor `localhost`, usuário `SYSDBA`, dialeto 3, charset UTF8, sem pooling.
+- **RF-14 — OK.** Versão consultada em `ARQSIST.FDB` (`SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE`) e exibida ao final do fluxo **Transferir**. A redefinição não consulta a versão.
+- **RF-15 — OK.** Cancelamento cooperativo por `CancellationToken` nas cópias e extrações; no SQL, o cancelamento fecha a conexão Firebird. Operações de Registro e movimentação de arquivos não são canceláveis no meio da etapa.
+- **RF-16 — Parcial.** Log de operação existe (painel com carimbo de hora e etapa), mas fica apenas em memória; não é gravado em arquivo. Senhas nunca são registradas.
 
-## Requisitos não funcionais
+## Requisitos não funcionais — status
 
-- **RNF-01** Interface em português, com nomes e mensagens claros.
-- **RNF-02** Operações demoradas não podem congelar a janela; exibir progresso e etapa atual.
-- **RNF-03** Validar caminhos, permissões, espaço disponível, ferramentas e arquivos esperados antes de iniciar ações relevantes.
-- **RNF-04** Tratar espaços e caracteres especiais em caminhos e argumentos de processos externos.
-- **RNF-05** Não apagar ou sobrescrever bases sem informar precisamente o caminho afetado e solicitar confirmação.
-- **RNF-06** Manter um log técnico útil para diagnóstico, com segredos e dados sensíveis omitidos.
-- **RNF-07** A aplicação deve explicar quando uma ação requer acesso ao compartilhamento ou ao Registro do usuário.
-- **RNF-08** Separar interface, regras de operação, configuração e integração com processos/Registro para facilitar manutenção.
-- **RNF-09** Se o operador optar por salvar a senha Firebird, protegê-la com DPAPI para o usuário Windows atual; nunca armazená-la em texto puro nem registrá-la em logs.
-- **RNF-10** Todos os botões interativos devem seguir o padrão visual documentado em [Padrões de interface](PADROES-DE-INTERFACE.md), usando a mesma paleta, tipografia e estilo plano.
+- **RNF-01 — OK.** Interface em português (pt-BR).
+- **RNF-02 — OK.** Operações longas rodam fora da thread da UI (`async`/`await`); progresso e etapa atual são exibidos.
+- **RNF-03 — OK (parcial).** Validação prévia de caminhos, existência de pastas/arquivos e senha obrigatória antes de iniciar. Não há verificação de espaço em disco disponível.
+- **RNF-04 — OK.** Argumentos de processos externos não são concatenados em shell (não há chamadas a executáveis externos no fluxo principal; a atualização inicia o instalador via `ProcessStartInfo` com `Verb="runas"`). Caminhos de arquivo usam APIs do .NET com `Path`.
+- **RNF-05 — OK.** Substituição de pasta existente exige confirmação contextual com três opções explícitas: **Cancelar**, **Criar backup** (renomeia para `.backup-yyyyMMdd-HHmmss`) ou **Substituir** (apaga sem cópia).
+- **RNF-06 — Parcial.** Mensagens técnicas aparecem no log e em diálogos próprios; não há arquivo de log persistente. Senhas nunca são exibidas.
+- **RNF-07 — Parcial.** O aplicativo indica a pasta/registro afetado antes de agir; a documentação de instalação explica a necessidade de acesso ao compartilhamento (origem) e ao Registro do usuário. Não há texto explicativo in-app sobre permissões de rede/Registro além das mensagens de erro.
+- **RNF-08 — Parcial.** Interface, regras puras (`BaseOperationRules`, `ArchivePathSafety`), configuração (`AppSettings`) e integrações (Firebird, Registro, GitHub) estão separadas em arquivos distintos, mas o projeto é um único assembly e a UI (`MainForm`) concentra a orquestração dos fluxos.
+- **RNF-09 — OK.** Senha opcionalmente salva protegida por DPAPI (`DataProtectionScope.CurrentUser`); nunca em texto puro nem em logs. Se a descriptografia falhar, a senha é descartada silenciosamente e a opção é desmarcada.
+- **RNF-10 — OK.** Todos os botões seguem o padrão documentado em [Padrões de interface](PADROES-DE-INTERFACE.md).
 
 ## Fora do escopo inicial
 
-- Alterar os próprios scripts SQL sem decisão explícita do responsável pelo banco.
-- Atualização automática do Firebird ou da aplicação alvo.
+- Alterar os próprios scripts SQL sem decisão explícita do responsável pelo banco (a aplicação edita/executa os comandos configurados, mas não versiona mudanças de conteúdo).
+- Atualização automática do Firebird ou da aplicação alvo (o Traz Base se autoatualiza via GitHub Releases; a aplicação alvo não).
 - Operação remota em outros computadores.
-- Gerenciamento de usuários ou senhas do Firebird.
+- Gerenciamento de usuários ou senhas do Firebird (a senha é informada pelo operador; o usuário é sempre `SYSDBA`).
 
-## Critérios gerais de aceite
+## Critérios gerais de aceite — status
 
-- O operador consegue configurar e validar dependências sem editar arquivos manualmente.
-- Cada operação mostra claramente a base e o caminho que serão usados antes de executar.
-- Falhas de cópia, extração, conexão SQL, `gbak` ou Registro aparecem com etapa, código de saída e orientação para diagnóstico.
-- Operações destrutivas têm confirmação contextual e não são iniciadas quando a validação prévia falha.
+- Configurar e validar dependências sem editar arquivos manualmente: **OK** (tela Configuração + validações no início de cada fluxo).
+- Mostrar a base e o caminho usados antes de executar: **OK** (confirmação de destino, diálogos de conflito, telas de resumo nas ações destrutivas).
+- Falhas com etapa, contexto e orientação: **Parcial** (mensagens com etapa e causa; não há código de saída de processos externos porque não há processos externos no caminho crítico; não há opção "copiar detalhes técnicos").
+- Confirmação contextual para operações destrutivas, sem iniciar após falha de validação: **OK**.
+
+## Lacunas conhecidas
+
+- A restauração cobre apenas `.FBK` reconhecidos por nome (`ARQEMP`/`ARQOCOR`/`ARQSIST`) ou escolhidos manualmente; `.FBK` multipartes e backups criptografados não foram validados.
+- Log não persistido em arquivo (RF-16/RNF-06).
+- Testes automatizados cobrem a lógica pura (`BaseOperationRules`, `ArchivePathSafety`, `GitHubReleaseUpdater.ParseLatestRelease`, `AppSettings`/DPAPI); a orquestração de UI em `MainForm` ainda não tem cobertura.
+- Verificação de espaço em disco não implementada (RNF-03).

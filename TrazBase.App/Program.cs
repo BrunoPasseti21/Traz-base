@@ -6,9 +6,8 @@ internal static class Program
     private static void Main()
     {
         var settings = AppSettings.Load();
-        Application.SetCompatibleTextRenderingDefault(true);
-        Application.SetColorMode(settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
         ApplicationConfiguration.Initialize();
+        Application.SetColorMode(settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
         Application.Run(new MainForm());
     }
 }

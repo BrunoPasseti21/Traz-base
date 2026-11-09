@@ -1,7 +1,8 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
+using FirebirdSql.Data.Services;
 using SharpCompress.Common;
 using SharpCompress.Readers;
 using System.Text.RegularExpressions;
@@ -32,6 +33,8 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _menuToggle = new() { Text = "", Image = SvgIconLoader.Load("menu.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 54, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _transferNav = new() { Text = "", Image = SvgIconLoader.Load("Transferir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _changeBaseNav = new() { Text = "", Image = SvgIconLoader.Load("Trocar-Base.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _resetNav = new() { Text = "", Image = SvgIconLoader.Load("Redefinir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _restoreNav = new() { Text = "", Image = SvgIconLoader.Load("Restaurar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
@@ -47,6 +50,8 @@ internal sealed class MainForm : Form
     private TableLayoutPanel _transferView = null!;
     private Control _settingsView = null!;
     private Control _changeBaseView = null!;
+    private Control _resetView = null!;
+    private Control _restoreView = null!;
     private Control _arqEmpView = null!;
     private Control _arqSistView = null!;
     private Panel _settingsFieldsHost = null!;
@@ -55,6 +60,20 @@ internal sealed class MainForm : Form
     private readonly TextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
     private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
+    private readonly Button _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Button _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(500, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedTextBox _resetLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private CancellationTokenSource? _resetCancellation;
+    private bool _resetRunning;
+    private readonly TextBox _restoreFolder = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+    private readonly Button _restoreBrowseButton = new() { Text = "Procurar", Size = new Size(110, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly Button _restoreButton = new() { Text = "Restaurar bases", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Button _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly ThemedTextBox _restoreLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private CancellationTokenSource? _restoreCancellation;
+    private bool _restoreRunning;
     private readonly TextBox _arqEmpDatabase = new();
     private readonly TextBox _arqSistDatabase = new();
     private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
@@ -93,12 +112,16 @@ internal sealed class MainForm : Form
         _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(_arqSistNav);
         _sidebar.Controls.Add(_arqEmpNav);
-        _sidebar.Controls.Add(_changeBaseNav);
+        _sidebar.Controls.Add(_restoreNav);
+        _sidebar.Controls.Add(_resetNav);
+        _sidebar.Controls.Add(_changeBaseNav);              
         _sidebar.Controls.Add(_transferNav);
         _sidebar.Controls.Add(_menuToggle);
         _transferView = BuildTransferView();
         _settingsView = BuildSettingsView();
         _changeBaseView = BuildChangeBaseView();
+        _resetView = BuildResetView();
+        _restoreView = BuildRestoreView();
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
         _arqEmpDatabase.Text = _settings.ArqEmpCommandDatabase;
@@ -109,6 +132,8 @@ internal sealed class MainForm : Form
         HighlightSql(_arqSistEditor);
         _contentHost.Controls.Add(_settingsView);
         _contentHost.Controls.Add(_changeBaseView);
+        _contentHost.Controls.Add(_resetView);
+        _contentHost.Controls.Add(_restoreView);
         _contentHost.Controls.Add(_arqEmpView);
         _contentHost.Controls.Add(_arqSistView);
         _contentHost.Controls.Add(_transferView);
@@ -139,11 +164,18 @@ internal sealed class MainForm : Form
         _start.Click += async (_, _) => await StartFlowAsync();
         _cancel.Click += (_, _) => { if (_running) { _runCancellation?.Cancel(); _cancel.Enabled = false; _status.Text = "Cancelando…"; } };
         _menuToggle.Click += (_, _) => SetMenuExpanded(!_menuExpanded);
+        _menuAnimationTimer.Tick += OnMenuAnimationTick;
         _updateButton.Click += async (_, _) => await InstallUpdateAsync();
         _menuToolTip.SetToolTip(_updateButton, "Baixar e instalar a atualização disponível");
         _transferNav.Click += (_, _) => ShowView(settings: false);
         _settingsNav.Click += (_, _) => ShowView(settings: true);
         _changeBaseNav.Click += (_, _) => ShowChangeBaseView();
+        _resetNav.Click += (_, _) => ShowResetView();
+        _restoreNav.Click += (_, _) => ShowRestoreView();
+        _restoreButton.Click += async (_, _) => await RestoreBaseAsync();
+        _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
+        _resetButton.Click += async (_, _) => await ResetBaseAsync();
+        _resetCancelButton.Click += (_, _) => _resetCancellation?.Cancel();
         _baseFolders.SelectedIndexChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
         _baseFolders.DoubleClick += async (_, _) => await ChangeSelectedBaseAsync();
         _changeBaseButton.Click += async (_, _) => await ChangeSelectedBaseAsync();
@@ -157,10 +189,15 @@ internal sealed class MainForm : Form
         };
         FormClosing += (sender, e) =>
         {
-            if (_running)
+            _menuAnimationTimer.Stop();
+            _menuAnimationClock.Stop();
+            if (_running || _resetRunning || _restoreRunning)
             {
                 e.Cancel = true;
-                MessageBox.Show(this, "Use o botão Cancelar e aguarde o encerramento da etapa atual.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (_running) _runCancellation?.Cancel();
+                if (_resetRunning) _resetCancellation?.Cancel();
+                if (_restoreRunning) _restoreCancellation?.Cancel();
+                MessageBox.Show(this, "A operação foi cancelada. Aguarde o encerramento da etapa atual antes de fechar.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
@@ -355,6 +392,116 @@ internal sealed class MainForm : Form
         return page;
     }
 
+    private Control BuildResetView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Redefinir base", "Valide e prepare uma base local existente para a SL informada"), 0, 0);
+
+        page.Controls.Add(BuildHelpCard(page, 1,
+            "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
+            "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
+            "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
+            "• Atualiza o Registro.\r\n" +
+            "• A redefinição não copia nem substitui a pasta inteira da base."), 0, 1);
+
+        var action = Card();
+        action.Controls.Add(new Label { Text = "Número da solicitação (SL)", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
+        _resetSl.Location = new Point(18, 42);
+        _resetSl.Width = 190;
+        _resetSl.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _resetButton.Location = new Point(224, 38);
+        _resetButton.Size = new Size(190, 36);
+        _resetButton.FlatAppearance.BorderSize = 0;
+        _resetCancelButton.Location = new Point(424, 38);
+        _resetCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _resetCancelButton.FlatAppearance.BorderSize = 1;
+        action.Controls.Add(_resetSl);
+        action.Controls.Add(_resetButton);
+        action.Controls.Add(_resetCancelButton);
+        _resetRootLabel.Location = new Point(434, 48);
+        _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
+        action.Controls.Add(_resetRootLabel);
+        action.Resize += (_, _) => _resetRootLabel.MaximumSize = new Size(Math.Max(100, action.ClientSize.Width - _resetRootLabel.Left - 18), 0);
+        page.Controls.Add(action, 0, 2);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da redefinição", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _resetLog.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_resetLog);
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 3);
+        return page;
+    }
+
+    private Control BuildRestoreView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Restaurar base", "Restaure os .FBK da pasta selecionada (ou da subpasta BKP, se existir) para .FDB ao lado deles"), 0, 0);
+
+        page.Controls.Add(BuildHelpCard(page, 1,
+            "• Selecione a pasta; os arquivos .FBK são procurados na subpasta BKP — se ela não existir, na própria pasta selecionada.\r\n" +
+            "• Arquivos com ARQEMP, ARQOCOR ou ARQSIST no nome viram ARQEMP.FDB, ARQOCOR.FDB ou ARQSIST.FDB na mesma pasta do .FBK.\r\n" +
+            "• Arquivos .FBK sem nome conhecido pedem a escolha do destino; \"Pular\" ignora o arquivo.\r\n" +
+            "• As três restaurações rodam em paralelo e um .FDB existente é substituído somente após confirmação.\r\n" +
+            "• Ao final, você escolhe se deseja apontar o Registro para a pasta restaurada."), 0, 1);
+
+        var action = Card();
+        action.Controls.Add(new Label { Text = "Pasta da base", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
+        _restoreFolder.Location = new Point(18, 38);
+        action.Resize += (_, _) => _restoreFolder.Width = Math.Max(120, action.ClientSize.Width - 18 - _restoreBrowseButton.Width - 24);
+        action.Controls.Add(_restoreFolder);
+        _restoreBrowseButton.Location = new Point(0, 37);
+        _restoreBrowseButton.FlatAppearance.BorderSize = 0;
+        _restoreBrowseButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        _restoreBrowseButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        action.Resize += (_, _) => _restoreBrowseButton.Left = action.ClientSize.Width - _restoreBrowseButton.Width - 18;
+        _restoreBrowseButton.Click += (_, _) => BrowseRestoreFolder();
+        action.Controls.Add(_restoreBrowseButton);
+        _restoreButton.Location = new Point(18, 74);
+        _restoreButton.FlatAppearance.BorderSize = 0;
+        action.Controls.Add(_restoreButton);
+        _restoreCancelButton.Location = new Point(204, 74);
+        _restoreCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _restoreCancelButton.FlatAppearance.BorderSize = 1;
+        action.Controls.Add(_restoreCancelButton);
+        _restoreFolder.Width = 600;
+        page.Controls.Add(action, 0, 2);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da restauração", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _restoreLog.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_restoreLog);
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 3);
+        return page;
+    }
+
+    private void BrowseRestoreFolder()
+    {
+        var seed = _restoreFolder.Text.Trim();
+        if (string.IsNullOrWhiteSpace(seed)) seed = _settings.BasesRoot;
+        using var dialog = new FolderBrowserDialog { Description = "Selecione a pasta da base (com subpasta BKP) ou a pasta com os .FBK", ShowNewFolderButton = false, SelectedPath = seed };
+        if (dialog.ShowDialog(this) == DialogResult.OK) _restoreFolder.Text = dialog.SelectedPath;
+    }
+
     private void RefreshBaseFolders()
     {
         _baseFolders.Items.Clear();
@@ -391,6 +538,296 @@ internal sealed class MainForm : Form
         finally { _changeBaseButton.Enabled = true; }
     }
 
+    private async Task ResetBaseAsync()
+    {
+        if (_resetRunning) return;
+        ReadFields();
+        var sl = _resetSl.Text.Trim();
+        if (sl.Length == 0 || sl.Any(character => !char.IsAsciiDigit(character)))
+        {
+            MessageBox.Show(this, "Informe o número da SL usando somente dígitos.", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot))
+        {
+            MessageBox.Show(this, "Configure a pasta local das bases e a pasta de bases de apoio.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot))
+        {
+            MessageBox.Show(this, "A pasta local das bases e a pasta de apoio precisam existir e estar acessíveis.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de redefinir a base.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        string target;
+        try { target = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            return;
+        }
+        if (!Directory.Exists(target))
+        {
+            MessageBox.Show(this, $"A pasta local da SL não foi encontrada:\n{target}", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        if (!File.Exists(Path.Combine(target, "ARQSIST.FDB")))
+        {
+            MessageBox.Show(this, "A base ARQSIST.FDB não foi encontrada na pasta local da SL. A redefinição exige essa base para executar os scripts.", "ARQSIST não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        _resetRunning = true;
+        _resetCancellation = new CancellationTokenSource();
+        _resetSl.Enabled = false;
+        _resetButton.Enabled = false;
+        _resetCancelButton.Visible = true;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        _resetLog.Clear();
+        var token = _resetCancellation.Token;
+        try
+        {
+            AppendResetLog($"Iniciando redefinição da SL {sl} em {target}");
+            foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(target, _settings.SupportRoot))
+            {
+                token.ThrowIfCancellationRequested();
+                await CopyFileAsync(supportFile.Source, supportFile.Destination, token);
+                AppendResetLog($"Arquivo copiado da pasta de apoio: {supportFile.Name}");
+            }
+            foreach (var databaseName in new[] { "ARQEMP.FDB", "ARQOCOR.FDB" })
+                if (File.Exists(Path.Combine(target, databaseName))) AppendResetLog($"Arquivo validado: {databaseName}");
+
+            token.ThrowIfCancellationRequested();
+            await RunSqlIfConfiguredAsync(_arqEmpEditor.Text, Path.Combine(target, "ARQEMP.FDB"), "Comandos ARQEMP", token, AppendResetLog);
+            await RunSqlIfConfiguredAsync(_arqSistEditor.Text, Path.Combine(target, "ARQSIST.FDB"), "Comandos ARQSIST", token, AppendResetLog);
+            token.ThrowIfCancellationRequested();
+            await UpdateRegistryAsync(target, AppendResetLog);
+            AppendResetLog("Redefinição concluída com sucesso.");
+            MessageBox.Show(this, $"A base da SL {sl} foi validada e selecionada no Registro.", "Redefinição concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (OperationCanceledException)
+        {
+            AppendResetLog("Redefinição cancelada.");
+        }
+        catch (Exception ex)
+        {
+            AppendResetLog("ERRO: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Falha ao redefinir a base", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _resetCancellation.Dispose();
+            _resetCancellation = null;
+            _resetRunning = false;
+            _resetSl.Enabled = true;
+            _resetButton.Enabled = true;
+            _resetCancelButton.Visible = false;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+        }
+    }
+
+    private void AppendResetLog(string message)
+    {
+        _resetLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _resetLog.SelectionStart = _resetLog.TextLength;
+        _resetLog.ScrollToCaret();
+    }
+
+    private async Task RestoreBaseAsync()
+    {
+        if (_restoreRunning) return;
+        ReadFields();
+        var folder = _restoreFolder.Text.Trim();
+        if (folder.Length == 0 || !Directory.Exists(folder))
+        {
+            MessageBox.Show(this, "Selecione uma pasta de base existente.", "Pasta não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var backupDirectory = RestoreOperationRules.ResolveBackupDirectory(folder);
+        if (!Directory.Exists(backupDirectory))
+        {
+            MessageBox.Show(this, $"A pasta não foi encontrada:\n{folder}", "Pasta indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var fbkFiles = Directory.GetFiles(backupDirectory, "*.fbk");
+        if (fbkFiles.Length == 0)
+        {
+            MessageBox.Show(this, $"Nenhum arquivo .FBK foi encontrado em:\n{backupDirectory}", "Nada para restaurar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de restaurar.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var plan = new List<RestorePlanItem>(RestoreOperationRules.BuildPlan(fbkFiles));
+        var skipped = new List<string>();
+        for (var i = 0; i < plan.Count; i++)
+        {
+            if (plan[i].Database is not null) continue;
+            var fileName = Path.GetFileName(plan[i].FbkPath);
+            var choice = AppMessageBox.ShowRestoreDestinationChoice(this, fileName);
+            if (choice is null) { skipped.Add(fileName); plan.RemoveAt(i); i--; continue; }
+            plan[i] = new RestorePlanItem(plan[i].FbkPath, choice, RestoreOperationRules.GetDestinationPath(plan[i].FbkPath, choice));
+        }
+
+        if (plan.Count == 0)
+        {
+            MessageBox.Show(this, "Nenhum arquivo .FBK foi selecionado para restauração.", "Nada para restaurar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var duplicates = RestoreOperationRules.GetDuplicateDestinations(plan);
+        if (duplicates.Count > 0)
+        {
+            MessageBox.Show(this,
+                "Mais de um .FBK será restaurado para o mesmo destino:\n\n" + string.Join("\n", duplicates) + "\n\nRenomeie os arquivos ou ajuste a escolha e tente novamente.",
+                "Destino duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var existing = plan.Select(item => item.DestinationPath).Where(File.Exists).ToList();
+        if (existing.Count > 0)
+        {
+            var answer = MessageBox.Show(this,
+                "Os arquivos .FDB já existem e serão substituídos:\n\n" + string.Join("\n", existing) + "\n\nDeseja continuar?",
+                "Confirmar substituição", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+            if (answer != DialogResult.Yes) return;
+        }
+
+        _restoreRunning = true;
+        _restoreCancellation = new CancellationTokenSource();
+        _restoreFolder.Enabled = false;
+        _restoreBrowseButton.Enabled = false;
+        _restoreButton.Enabled = false;
+        _restoreCancelButton.Visible = true;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        _restoreLog.Clear();
+        var token = _restoreCancellation.Token;
+        try
+        {
+            AppendRestoreLog($"Iniciando restauração de {plan.Count} base(s) a partir de {backupDirectory}");
+            if (string.Equals(backupDirectory, folder, StringComparison.OrdinalIgnoreCase))
+                AppendRestoreLog("Subpasta BKP não encontrada; usando a pasta selecionada.");
+            if (skipped.Count > 0) AppendRestoreLog("Ignorados: " + string.Join(", ", skipped));
+
+            var tasks = plan.Select(async item =>
+            {
+                AppendRestoreLog($"Restaurando {Path.GetFileName(item.FbkPath)} → {item.DestinationPath}");
+                try
+                {
+                    await RestoreDatabaseAsync(item, token, AppendRestoreLog);
+                    AppendRestoreLog($"{item.Database}: restauração concluída.");
+                    return (Item: item, Error: (string?)null);
+                }
+                catch (Exception ex) when (ex is OperationCanceledException)
+                {
+                    AppendRestoreLog($"{item.Database}: cancelada.");
+                    return (Item: item, Error: "cancelada");
+                }
+                catch (Exception ex)
+                {
+                    AppendRestoreLog($"{item.Database}: ERRO — {ex.Message}");
+                    return (Item: item, Error: ex.Message);
+                }
+            }).ToList();
+
+            var results = await Task.WhenAll(tasks);
+            var failures = results.Where(result => result.Error is not null).ToList();
+            var cancelled = token.IsCancellationRequested;
+
+            if (cancelled)
+                AppendRestoreLog("Restauração cancelada.");
+            else if (failures.Count == 0)
+                AppendRestoreLog("Restauração concluída com sucesso.");
+            else
+                AppendRestoreLog($"Restauração concluída com {failures.Count} falha(s): " + string.Join(", ", failures.Select(failure => failure.Item.Database)));
+
+            if (results.Any(result => result.Error is null) && !cancelled)
+            {
+                var restoredFolder = Path.GetDirectoryName(plan[0].DestinationPath)!;
+                var answer = MessageBox.Show(this,
+                    $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
+                    "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+                if (answer == DialogResult.Yes) await UpdateRegistryAsync(restoredFolder, AppendRestoreLog);
+            }
+
+            if (cancelled)
+            {
+                // O cancelamento já foi registrado no log; nenhuma ação adicional.
+            }
+            else if (failures.Count == 0)
+            {
+                MessageBox.Show(this, $"{results.Length} base(s) restaurada(s) com sucesso.", "Restauração concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                MessageBox.Show(this, "A restauração terminou com falhas. Veja o log para detalhes.", "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            AppendRestoreLog("ERRO: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _restoreCancellation?.Dispose();
+            _restoreCancellation = null;
+            _restoreRunning = false;
+            _restoreFolder.Enabled = true;
+            _restoreBrowseButton.Enabled = true;
+            _restoreButton.Enabled = true;
+            _restoreCancelButton.Visible = false;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+        }
+    }
+
+    private async Task RestoreDatabaseAsync(RestorePlanItem item, CancellationToken token, Action<string> log)
+    {
+        var connectionString = BuildFirebirdServiceConnectionString(item.DestinationPath);
+        var restore = new FbRestore(connectionString)
+        {
+            Options = File.Exists(item.DestinationPath) ? FbRestoreFlags.Replace : FbRestoreFlags.Create,
+            Verbose = true
+        };
+        restore.ServiceOutput += (_, args) => log(args.Message);
+        restore.BackupFiles.Add(new FbBackupFile(Path.GetFullPath(item.FbkPath), null));
+        await restore.ExecuteAsync(token);
+    }
+
+    private string BuildFirebirdServiceConnectionString(string databasePath)
+    {
+        var builder = new FbConnectionStringBuilder
+        {
+            DataSource = "localhost",
+            Database = Path.GetFullPath(databasePath),
+            UserID = "SYSDBA",
+            Password = _password.Text,
+            Charset = "UTF8",
+            Pooling = false,
+            ServerType = FbServerType.Default
+        };
+        return builder.ToString();
+    }
+
+    private void AppendRestoreLog(string message)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => AppendRestoreLog(message))); return; }
+        _restoreLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _restoreLog.SelectionStart = _restoreLog.TextLength;
+        _restoreLog.ScrollToCaret();
+    }
+
     private void OpenSelectedBaseFolder()
     {
         var folder = _selectedBasePath.Text.Trim();
@@ -408,15 +845,60 @@ internal sealed class MainForm : Form
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = true;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.FromArgb(231, 240, 255);
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _changeBaseButton;
         RefreshBaseFolders();
+        ApplyNavigationColors();
+    }
+
+    private void ShowResetView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = true;
+        _restoreView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.FromArgb(231, 240, 255);
+        _restoreNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        AcceptButton = _resetButton;
+        ApplyNavigationColors();
+    }
+
+    private void ShowRestoreView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = true;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.FromArgb(231, 240, 255);
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        AcceptButton = _restoreRunning ? null : _restoreButton;
         ApplyNavigationColors();
     }
 
@@ -625,10 +1107,54 @@ internal sealed class MainForm : Form
         output.ScrollToCaret();
     }
 
-    private void SetMenuExpanded(bool expanded)
+    private const int MenuCollapsedWidth = 68;
+    private const int MenuExpandedWidth = 300;
+    private const double MenuAnimationDurationMs = 220;
+    private readonly System.Windows.Forms.Timer _menuAnimationTimer = new() { Interval = 15 };
+    private readonly System.Diagnostics.Stopwatch _menuAnimationClock = new();
+    private int _menuAnimationFromWidth = MenuCollapsedWidth;
+    private int _menuAnimationTargetWidth = MenuCollapsedWidth;
+    private bool _menuAnimationTargetExpanded;
+
+    private void SetMenuExpanded(bool expanded, bool animate = true)
     {
+        var changed = expanded != _menuExpanded;
         _menuExpanded = expanded;
-        _shell.ColumnStyles[0].Width = expanded ? 300 : 68;
+        if (animate && changed && IsHandleCreated)
+        {
+            if (!expanded) ApplyMenuExpansionText(expanded); // rótulos somem imediatamente ao recolher
+            StartMenuAnimation(expanded);
+            return;
+        }
+        ApplyMenuExpansionState(expanded);
+    }
+
+    private void StartMenuAnimation(bool expanded)
+    {
+        _menuAnimationTimer.Stop();
+        _menuAnimationFromWidth = Math.Clamp((int)_shell.ColumnStyles[0].Width, MenuCollapsedWidth, MenuExpandedWidth);
+        _menuAnimationTargetWidth = expanded ? MenuExpandedWidth : MenuCollapsedWidth;
+        _menuAnimationTargetExpanded = expanded;
+        _menuAnimationClock.Restart();
+        _menuAnimationTimer.Start();
+    }
+
+    private void OnMenuAnimationTick(object? sender, EventArgs e)
+    {
+        var progress = Math.Clamp(_menuAnimationClock.Elapsed.TotalMilliseconds / MenuAnimationDurationMs, 0, 1);
+        var eased = 1 - Math.Pow(1 - progress, 3); // ease-out cúbico
+        _shell.ColumnStyles[0].Width = (int)Math.Round(_menuAnimationFromWidth + (_menuAnimationTargetWidth - _menuAnimationFromWidth) * eased);
+        if (progress >= 1)
+        {
+            _menuAnimationTimer.Stop();
+            _shell.ColumnStyles[0].Width = _menuAnimationTargetWidth;
+            ApplyMenuExpansionState(_menuAnimationTargetExpanded, applyWidth: false);
+        }
+    }
+
+    private void ApplyMenuExpansionState(bool expanded, bool applyWidth = true)
+    {
+        if (applyWidth) _shell.ColumnStyles[0].Width = expanded ? MenuExpandedWidth : MenuCollapsedWidth;
         _menuFooter.Visible = true;
         _menuFooter.Padding = expanded ? new Padding(12, 6, 12, 8) : new Padding(6, 4, 6, 6);
         _menuFooter.Height = expanded
@@ -641,13 +1167,20 @@ internal sealed class MainForm : Form
         if (_updateButton.Tag is ReleaseUpdate update)
         {
             _updateRow.Visible = true;
-            _updateRow.Height = expanded ? 34 : 30;
-            _updateButton.Font = UiTypography.BodySemibold(expanded ? 9f : 14f);
+            _updateRow.Height = 34;
+            _updateButton.Font = UiTypography.BodySemibold(14f);
             UpdateDownloadButtonText();
         }
+        ApplyMenuExpansionText(expanded);
+    }
+
+    private void ApplyMenuExpansionText(bool expanded)
+    {
         _menuToggle.Text = expanded ? "Menu" : "";
         _transferNav.Text = expanded ? "Transferir" : "";
         _changeBaseNav.Text = expanded ? "Alterar base" : "";
+        _resetNav.Text = expanded ? "Redefinir base" : "";
+        _restoreNav.Text = expanded ? "Restaurar base" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
@@ -656,7 +1189,7 @@ internal sealed class MainForm : Form
         _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
         _menuToggle.FlatAppearance.BorderSize = 0;
         _menuToggle.Font = UiTypography.Body(12f);
-        foreach (var button in new[] { _transferNav, _changeBaseNav, _settingsNav, _arqEmpNav, _arqSistNav })
+        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav })
         {
             button.Font = UiTypography.Body(12f);
             button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -671,11 +1204,15 @@ internal sealed class MainForm : Form
         _transferView.Visible = !settings;
         _settingsView.Visible = settings;
         _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
         _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
         _settingsNav.BackColor = settings ? Color.FromArgb(231, 240, 255) : Color.White;
+        _restoreNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         AcceptButton = settings ? null : _start;
@@ -687,10 +1224,14 @@ internal sealed class MainForm : Form
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
         _arqEmpView.Visible = arqEmp;
         _arqSistView.Visible = !arqEmp;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = arqEmp ? Color.FromArgb(231, 240, 255) : Color.White;
         _arqSistNav.BackColor = arqEmp ? Color.White : Color.FromArgb(231, 240, 255);
@@ -847,6 +1388,36 @@ internal sealed class MainForm : Form
 
     private static Panel Card() => new() { Dock = DockStyle.Fill, BackColor = Surface, Padding = new Padding(16), BorderStyle = BorderStyle.FixedSingle };
 
+    private static Control BuildHelpCard(TableLayoutPanel page, int rowIndex, string text)
+    {
+        var padding = new Padding(16, 10, 16, 10);
+        var card = Card();
+        card.Padding = padding;
+        var label = new Label
+        {
+            Text = text,
+            Dock = DockStyle.Fill,
+            ForeColor = Muted,
+            Font = UiTypography.Body(9f),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        card.Controls.Add(label);
+
+        void Fit()
+        {
+            var width = page.ClientSize.Width - page.Padding.Left - page.Padding.Right - padding.Left - padding.Right - 2;
+            if (width < 50) width = 50;
+            var measured = TextRenderer.MeasureText(text, label.Font, new Size(width, int.MaxValue),
+                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
+            // Margem extra de 8 px além da medição para não cortar a última linha.
+            page.RowStyles[rowIndex].Height = measured.Height + padding.Top + padding.Bottom + 10;
+        }
+
+        page.Resize += (_, _) => Fit();
+        Fit();
+        return card;
+    }
+
     private void ApplyTheme()
     {
         var dark = _settings.DarkMode;
@@ -860,7 +1431,7 @@ internal sealed class MainForm : Form
         ApplyTitleBarTheme();
         foreach (var control in EnumerateControls(this))
         {
-            if (control == _log || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput)
+            if (control == _log || control == _resetLog || control == _restoreLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput)
                 continue; // SQL editors and the log retain their high-contrast palette.
             if (control is Panel panel)
             {
@@ -901,8 +1472,8 @@ internal sealed class MainForm : Form
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
-                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
-                var isSecondaryAction = button == _openBaseFolderButton;
+                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _resetCancelButton || button == _restoreCancelButton;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
                 {
@@ -935,9 +1506,11 @@ internal sealed class MainForm : Form
     {
         var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
         var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
-        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
+        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
         if (_transferView.Visible) _transferNav.BackColor = active;
         else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
+        else if (_resetView.Visible) _resetNav.BackColor = active;
+        else if (_restoreView.Visible) _restoreNav.BackColor = active;
         else if (_settingsView.Visible) _settingsNav.BackColor = active;
         else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
         else if (_arqSistView.Visible) _arqSistNav.BackColor = active;
@@ -1079,14 +1652,18 @@ internal sealed class MainForm : Form
         catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a configuração: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
 
         var source = Path.GetFullPath(Path.Combine(_settings.SolicitationRoot, sl));
-        var destination = Path.GetFullPath(Path.Combine(_settings.BasesRoot, sl));
-        var baseRoot = Path.GetFullPath(_settings.BasesRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        if (!destination.StartsWith(baseRoot, StringComparison.OrdinalIgnoreCase)) { MessageBox.Show(this, "O destino calculado está fora da pasta local configurada.", "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+        string destination;
+        try { destination = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
         if (!Directory.Exists(source)) { MessageBox.Show(this, $"A pasta de origem não foi encontrada:\n{source}", "SL não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        var destinationConflictChoice = ExistingDestinationAction.Cancel;
         if (Directory.Exists(destination))
         {
-            var answer = MessageBox.Show(this, $"A pasta de destino já existe:\n{destination}\n\nPara evitar perda de dados, ela será renomeada para uma cópia de segurança antes da nova cópia. Continuar?", "Confirmar substituição", MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
-            if (answer != DialogResult.Yes) return;
+            var conflictResult = AppMessageBox.ShowFolderConflict(this,
+                $"A pasta de destino já existe:\n{destination}\n\n" +
+                "Substituir remove a pasta atual sem guardar uma cópia. Criar backup preserva a pasta atual e continua a transferência.");
+            destinationConflictChoice = BaseOperationRules.GetDestinationAction(conflictResult);
+            if (destinationConflictChoice == ExistingDestinationAction.Cancel) return;
         }
 
         _running = true;
@@ -1100,9 +1677,17 @@ internal sealed class MainForm : Form
             Log($"Iniciando preparação da SL {sl}");
             if (Directory.Exists(destination))
             {
-                var backup = destination + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
-                Directory.Move(destination, backup);
-                Log($"Pasta anterior preservada em: {backup}");
+                if (destinationConflictChoice == ExistingDestinationAction.CreateBackup)
+                {
+                    var backup = destination + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                    Directory.Move(destination, backup);
+                    Log($"Pasta anterior preservada em: {backup}");
+                }
+                else
+                {
+                    Directory.Delete(destination, recursive: true);
+                    Log("Pasta de destino anterior substituída sem backup, conforme solicitado.");
+                }
             }
             Directory.CreateDirectory(destination);
             SetStatus("Transferindo arquivos…");
@@ -1206,15 +1791,7 @@ internal sealed class MainForm : Form
 
     private static string GetSafeArchiveEntryPath(string destinationRoot, string entryKey)
     {
-        var normalized = entryKey.Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-        if (Path.IsPathRooted(normalized) || normalized.Split(Path.DirectorySeparatorChar).Any(part => part == ".."))
-            throw new InvalidOperationException("O arquivo compactado contém um caminho de saída inválido.");
-
-        var root = Path.GetFullPath(destinationRoot).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        var output = Path.GetFullPath(Path.Combine(root, normalized));
-        if (!output.StartsWith(root, StringComparison.OrdinalIgnoreCase))
-            throw new InvalidOperationException("O arquivo compactado contém um caminho fora da pasta de destino.");
-        return output;
+        return ArchivePathSafety.GetSafeEntryPath(destinationRoot, entryKey);
     }
 
     private string[] SelectArchives(string title, string[] files)
@@ -1331,16 +1908,11 @@ internal sealed class MainForm : Form
             await CopyFileAsync(dialog.FileName, systemDb, token);
             Log("ARQSIST.FDB criado a partir do arquivo selecionado.");
         }
-        foreach (var name in new[] { "ARQEMP.FDB", "ARQOCOR.FDB" })
+        foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(root, _settings.SupportRoot))
         {
-            var target = Path.Combine(root, name);
-            var source = Path.Combine(_settings.SupportRoot, name);
-            if (!File.Exists(target))
-            {
-                if (!File.Exists(source)) throw new FileNotFoundException($"Arquivo obrigatório não encontrado na base nem na pasta de apoio: {name}", source);
-                await CopyFileAsync(source, target, token);
-                Log($"Arquivo de apoio copiado: {name}");
-            }
+            token.ThrowIfCancellationRequested();
+            await CopyFileAsync(supportFile.Source, supportFile.Destination, token);
+            Log($"Arquivo de apoio copiado: {supportFile.Name}");
         }
         if (!File.Exists(Path.Combine(root, "ARQEMP.FDB")) || !File.Exists(systemDb)) throw new InvalidOperationException("A validação das bases obrigatórias falhou.");
     }
@@ -1351,12 +1923,12 @@ internal sealed class MainForm : Form
         await RunSqlIfConfiguredAsync(_arqSistEditor.Text, Path.Combine(root, "ARQSIST.FDB"), "Comandos ARQSIST", token);
     }
 
-    private async Task RunSqlIfConfiguredAsync(string commands, string database, string label, CancellationToken token)
+    private async Task RunSqlIfConfiguredAsync(string commands, string database, string label, CancellationToken token, Action<string>? operationLog = null)
     {
-        if (string.IsNullOrWhiteSpace(commands)) { Log($"{label}: ignorados (nenhum comando informado)."); return; }
+        if (string.IsNullOrWhiteSpace(commands)) { WriteOperationLog(operationLog, $"{label}: ignorados (nenhum comando informado)."); return; }
         token.ThrowIfCancellationRequested();
         SetStatus($"Conectando a {Path.GetFileName(database)}…");
-        Log($"Conectando diretamente a {database}");
+        WriteOperationLog(operationLog, $"Conectando diretamente a {database}");
         var connectionString = BuildFirebirdConnectionString(database);
         await using var connection = new FbConnection(connectionString);
         await connection.OpenAsync(token);
@@ -1367,7 +1939,7 @@ internal sealed class MainForm : Form
         batch.AppendSqlStatements(parsedScript);
 
         SetStatus($"Executando {label} diretamente no banco…");
-        Log($"Executando {label} pela conexão ADO.NET.");
+        WriteOperationLog(operationLog, $"Executando {label} pela conexão ADO.NET.");
         using var cancelRegistration = token.Register(() =>
         {
             try { connection.Close(); } catch { }
@@ -1375,7 +1947,7 @@ internal sealed class MainForm : Form
         try { await Task.Run(() => batch.Execute(), CancellationToken.None); }
         catch (Exception) when (token.IsCancellationRequested) { throw new OperationCanceledException(token); }
         token.ThrowIfCancellationRequested();
-        Log($"{label} concluído.");
+        WriteOperationLog(operationLog, $"{label} concluído.");
     }
 
     private string BuildFirebirdConnectionString(string databasePath)
@@ -1394,16 +1966,22 @@ internal sealed class MainForm : Form
         return builder.ToString();
     }
 
-    private async Task UpdateRegistryAsync(string root)
+    private async Task UpdateRegistryAsync(string root, Action<string>? operationLog = null)
     {
-        Log("Atualizando HKCU\\SIC\\CONEXAO...");
+        WriteOperationLog(operationLog, "Atualizando HKCU\\SIC\\CONEXAO...");
         using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível abrir HKCU\\SIC\\CONEXAO.");
         var basePath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         foreach (var name in new[] { "BASE1", "BASE2", "BASE3", "BASE4", "EMPRESA" }) key.SetValue(name, basePath, RegistryValueKind.String);
         key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
         key.SetValue("TEMP", Path.GetTempPath(), RegistryValueKind.String);
-        Log("Registro atualizado.");
+        WriteOperationLog(operationLog, "Registro atualizado.");
         await Task.CompletedTask;
+    }
+
+    private void WriteOperationLog(Action<string>? operationLog, string message)
+    {
+        if (operationLog is null) Log(message);
+        else operationLog(message);
     }
 
     private async Task ShowVersionAsync(string root, CancellationToken token)
@@ -1432,8 +2010,12 @@ internal sealed class MainForm : Form
         _transferView.ResumeLayout(true);
         _start.Enabled = !busy;
         _sl.Enabled = !busy;
+        _menuToggle.Enabled = true;
+        _transferNav.Enabled = true;
+        _changeBaseNav.Enabled = !busy;
+        _resetNav.Enabled = !busy;
+        _restoreNav.Enabled = !busy;
         _settingsNav.Enabled = !busy;
-        _transferNav.Enabled = !busy;
         _arqEmpNav.Enabled = !busy;
         _arqSistNav.Enabled = !busy;
         _cancel.Visible = busy;

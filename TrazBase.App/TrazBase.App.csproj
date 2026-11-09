@@ -8,12 +8,15 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>TrazBase.App</RootNamespace>
     <AssemblyName>TrazBase</AssemblyName>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <ApplicationIcon>..\Imagens\icone\icone_supra.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.50.7" />
     <PackageReference Include="FirebirdSql.Data.FirebirdClient" Version="10.3.4" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="TrazBase.Tests" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\Imagens\*.svg" Link="Imagens\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

@@ -1,4 +1,4 @@
-# Traz Base
+﻿# Traz Base
 
 Aplicação desktop para Windows que copia arquivos de solicitações, extrai pacotes e prepara bases Firebird por uma interface visual.
 
@@ -54,6 +54,7 @@ O script operacional legado foi excluído deste repositório porque contém cred
 - Cópia com progresso e cancelamento.
 - Extração de ZIP nativa e de RAR pela biblioteca SharpCompress.
 - Edição e teste de comandos SQL em bases ARQEMP e ARQSIST.
+- Restauração de bases `.FBK` (ARQEMP, ARQOCOR, ARQSIST) em paralelo para `.FDB`, via serviços do Firebird, sem `gbak` externo.
 - Consulta e exibição da versão do banco ARQSIST.
 - Preferência de tema claro/escuro persistida.
 - Instalador que permite escolher a pasta de instalação.
@@ -65,5 +66,8 @@ O script operacional legado foi excluído deste repositório porque contém cred
 - [Padrões de interface](docs/PADROES-DE-INTERFACE.md)
 - [Fluxos](docs/FLUXOS.md)
 - [Arquitetura](docs/ARQUITETURA.md)
+- [Configuração](docs/CONFIGURACAO.md)
+- [Desenvolvimento](docs/DESENVOLVIMENTO.md)
+- [Testes](docs/TESTES.md)
 - [Plano](docs/PLANO.md)
 - [Riscos e decisões](docs/RISCOS-E-DECISOES.md)

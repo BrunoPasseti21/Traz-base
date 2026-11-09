@@ -1,50 +1,62 @@
-# Plano de implementação
+# Plano de implementação — status
 
-## Fase 1 — Confirmar o comportamento
+As fases originais foram executadas; o aplicativo está funcional na versão **0.3.0**. Este documento registra o que foi entregue e o que ainda falta.
 
-- Validar com operadores o significado de cada opção do menu legado.
-- Confirmar caminhos de origem, destino, apoio e temporário usados atualmente.
-- Confirmar quando os scripts SQL devem rodar e quais bases cada um altera.
-- Confirmar comportamento esperado para múltiplos arquivos compactados e arquivos `.FBK` não reconhecidos.
-- Definir política de credenciais Firebird e sobrescrita/restauração.
+## Fase 1 — Confirmar o comportamento — **concluída**
 
-## Fase 2 — Fundação da aplicação
+- A aplicação nasceu do script legado `Traz-base-sl.bat`; o significado das opções foi traduzido diretamente em telas (Transferir, Alterar base, Redefinir base, Comandos ARQEMP/ARQSIST).
+- Decisões de negócio tomadas e implementadas: ver [Riscos e decisões](RISCOS-E-DECISOES.md).
 
-- Criar solução WinForms em C#/.NET para Windows.
-- Criar configuração nomeada e tela de diagnóstico das dependências.
-- Implementar log local e captura de exceções.
-- Implementar serviço central de execução de processos com saída, código de retorno, cancelamento e timeout configurável.
+## Fase 2 — Fundação da aplicação — **concluída**
 
-## Fase 3 — Operações locais
+- Solução WinForms em C#/.NET 10 criada (`TrazBase.App`).
+- Configuração nomeada em JSON (`%APPDATA%\TrazBase\settings.json`) com DPAPI para a senha.
+- Captura de exceções e exibição via diálogos próprios; **log apenas em memória** (painel por tela) — ver lacunas.
+- Serviço central de processos **não foi criado**: optou-se por eliminar dependências de executáveis externos (cópia nativa, `ZipArchive`, SharpCompress, `FbConnection`), restando como único processo o instalador da atualização.
 
-- Implementar listagem e seleção de bases.
-- Implementar validação estrutural de pastas e arquivos esperados.
-- Implementar atualização das chaves do Registro com confirmação e relatório do resultado.
+## Fase 3 — Operações locais — **concluída**
 
-## Fase 4 — Cópia e extração
+- Listagem e seleção de bases na tela **Alterar base**.
+- Validação estrutural de pastas/arquivos em todos os fluxos (SL somente dígitos, existência de pastas, `ARQSIST.FDB` obrigatório, bases de apoio).
+- Atualização de `HKCU\SIC\CONEXAO` com relatório do resultado (fluxos Transferir, Redefinir e Alterar base).
 
-- Implementar cópia nativa de uma SL da rede com progresso por bytes e cancelamento.
-- Implementar detecção e seleção de arquivos ZIP/RAR.
-- Implementar extração monitorada e validação dos arquivos resultantes.
+## Fase 4 — Cópia e extração — **concluída**
 
-## Fase 5 — Firebird
+- Cópia nativa com progresso por bytes, cancelamento e preservação de timestamps/atributos.
+- Detecção e seleção de ZIP/RAR (lista marcável quando há vários; extração direta quando há um).
+- Proteção contra path traversal nas entradas; movimentação de `.fdb` para a raiz com detecção de conflito.
 
-- Implementar execução configurável dos scripts SQL por conexão direta com provider ADO.NET do Firebird.
-- Implementar consulta de versão.
-- Implementar restauração `.FBK` para `.FDB` com `gbak`, incluindo confirmação do destino.
-- Apresentar falhas e saída de diagnóstico sem avançar etapas automaticamente.
+## Fase 5 — Firebird — **parcialmente concluída**
 
-## Fase 6 — Preparação para uso
+- Execução configurável dos SQLs em `ARQEMP.FDB`/`ARQSIST.FDB` via ADO.NET (`FbScript`/`FbBatchExecution`), com confirmação e saída visível: **OK**.
+- Consulta de versão (`CONTROLE.NRO_SCRIPT`) ao final do fluxo Transferir: **OK**.
+- Restauração `.FBK` → `.FDB`: **OK** — tela **Restaurar base** porta a opção 4 do BAT (arquivos reconhecidos na subpasta `BKP` quando existe, senão na própria pasta selecionada, em paralelo via `FbRestore.ExecuteAsync`, substituição apenas após confirmação).
+- Falhas sem avanço automático: **OK** (exceção interrompe o fluxo com diálogo; na restauração, falhas individuais são isoladas por base e aparecem no log e no resumo).
 
-- Revisar mensagens e acessibilidade básica da interface.
-- Definir publicação/instalação e documentação para operadores.
-- Fazer validação manual com cópias descartáveis de bases e ambientes sem cada dependência.
-- Comparar os resultados com o script legado antes de aposentar qualquer opção do BAT.
+## Fase 6 — Preparação para uso — **parcialmente concluída**
 
-## Entregáveis esperados
+- Interface em pt-BR com tema claro/escuro, DPI PerMonitorV2, diálogos próprios: **OK**.
+- Instalador (Inno Setup) com escolha de pasta, bloqueio de downgrade e atualização silenciosa via GitHub Releases: **OK**.
+- Documentação para operadores: este diretório (`docs/`).
+- Validação manual com bases descartáveis e comparação com o BAT: responsabilidade contínua do operador; não há matriz formal preenchida.
+- Testes automatizados: **parciais** — `TrazBase.Tests` cobre a lógica pura (`BaseOperationRules`, `ArchivePathSafety`, `GitHubReleaseUpdater.ParseLatestRelease`, proteção DPAPI de senha em `AppSettings`); a UI e os fluxos de `MainForm` não têm cobertura.
 
-- Aplicação Windows e código-fonte.
-- Configuração inicial documentada.
-- Log de operações e instruções para diagnóstico.
-- Guia de instalação/atualização para os computadores operadores.
-- Matriz de validação manual por fluxo.
+## Entregáveis — status
+
+| Entregável | Status |
+|---|---|
+| Aplicação Windows e código-fonte | OK (v0.3.0) |
+| Configuração inicial documentada | OK ([Configuração](CONFIGURACAO.md)) |
+| Log de operações e instruções de diagnóstico | Parcial (log em tela; sem arquivo) |
+| Guia de instalação/atualização | OK ([Desenvolvimento](DESENVOLVIMENTO.md) + `README.md` + `Instalador/LEIA-ME.txt`) |
+| Matriz de validação manual por fluxo | Pendente |
+
+## Próximos passos (ordem sugerida)
+
+1. **Ampliar a cobertura de testes** para os fluxos menos óbvios (`MainForm`) ou, ao extrair lógica de `MainForm`, cobrir a nova lógica pura; manter `BaseOperationRules`/`ArchivePathSafety` sempre cobertos.
+2. **Log persistente** em arquivo (ex.: `%APPDATA%\TrazBase\logs\`), com rotação simples e nível de detalhe; nunca registrar a senha.
+3. **Restauração com segurança adicional**: opcional backup dos `.FDB` substituídos antes da restauração e suporte/validação de `.FBK` multipartes e protegidos por senha.
+4. **Backup do Registro** antes de gravar `HKCU\SIC\CONEXAO` (ler e registrar valores anteriores).
+5. **Verificação de espaço em disco** antes de copiar/extrair.
+6. **Validação manual documentada** por fluxo, com cópias descartáveis de bases.
+7. Avaliar modularização (extrair Application/Infrastructure para assemblies próprios) somente se o tamanho de `MainForm.cs` se tornar impeditivo.
