@@ -1070,13 +1070,13 @@ internal sealed class MainForm : Form
             return;
         }
         if (MessageBox.Show(this,
-            $"O SQL será executado diretamente em {databaseName} na base:\n{database}\n\nComandos de alteração podem modificar os dados. Deseja continuar?",
+            $"O SQL será executado na base {databaseName}:\n{database}\n\nComandos de alteração podem modificar os dados. Deseja continuar?",
             "Confirmar execução SQL", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
             return;
 
         testButton.Enabled = false;
         output.Clear();
-        AppendCommandOutput(output, $"Conectando a {database}...");
+        AppendCommandOutput(output, $"Conectando em {Path.GetFileName(database)}…");
         try
         {
             var connectionString = BuildFirebirdConnectionString(database);
@@ -1090,11 +1090,11 @@ internal sealed class MainForm : Form
                 batch.AppendSqlStatements(script);
                 batch.Execute();
             });
-            AppendCommandOutput(output, "Comando(s) executado(s) com sucesso.");
+            AppendCommandOutput(output, "Comandos executados com sucesso.");
         }
         catch (Exception ex)
         {
-            AppendCommandOutput(output, "Falha ao executar o SQL:");
+            AppendCommandOutput(output, "Não foi possível executar o SQL:");
             AppendCommandOutput(output, ex.Message);
         }
         finally { testButton.Enabled = true; }
@@ -1643,25 +1643,24 @@ internal sealed class MainForm : Form
         if (_running) return;
         ReadFields();
         var sl = _sl.Text.Trim();
-        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c))) { MessageBox.Show(this, "Informe o número da SL usando somente dígitos.", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot)) { MessageBox.Show(this, "Configure a pasta local das bases e a pasta de bases de apoio.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (!Directory.Exists(_settings.SolicitationRoot)) { MessageBox.Show(this, "A pasta de origem das solicitações não está acessível.", "Origem indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot)) { MessageBox.Show(this, "A pasta local das bases e a pasta de apoio precisam existir e estar acessíveis.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (string.IsNullOrWhiteSpace(_password.Text)) { MessageBox.Show(this, "Informe a senha Firebird para continuar.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c))) { MessageBox.Show(this, "Digite o número da solicitação usando apenas números.\n\nExemplo: 123456", "Número inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot)) { MessageBox.Show(this, "Antes de começar, defina estas pastas na tela Configuração:\n• Pasta local das bases\n• Pasta de bases de apoio", "Configuração necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (!Directory.Exists(_settings.SolicitationRoot)) { MessageBox.Show(this, "Não foi possível acessar a pasta de origem das solicitações.\n\nVerifique se o compartilhamento de rede está disponível e tente novamente.", "Origem indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot)) { MessageBox.Show(this, $"As pastas configuradas precisam existir e estar acessíveis:\n• Pasta local das bases: {_settings.BasesRoot}\n• Pasta de bases de apoio: {_settings.SupportRoot}\n\nConfira os caminhos na tela Configuração.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_password.Text)) { MessageBox.Show(this, "Para conectar ao Firebird, informe a senha na tela Configuração.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
         try { PersistSettings(); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a configuração: {ex.Message}", "Erro", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações.\n\nDetalhe: {ex.Message}", "Configuração não salva", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
 
         var source = Path.GetFullPath(Path.Combine(_settings.SolicitationRoot, sl));
         string destination;
         try { destination = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
-        if (!Directory.Exists(source)) { MessageBox.Show(this, $"A pasta de origem não foi encontrada:\n{source}", "SL não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Não foi possível definir a pasta de destino", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+        if (!Directory.Exists(source)) { MessageBox.Show(this, $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", "SL não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
         var destinationConflictChoice = ExistingDestinationAction.Cancel;
         if (Directory.Exists(destination))
         {
             var conflictResult = AppMessageBox.ShowFolderConflict(this,
-                $"A pasta de destino já existe:\n{destination}\n\n" +
-                "Substituir remove a pasta atual sem guardar uma cópia. Criar backup preserva a pasta atual e continua a transferência.");
+                $"A pasta desta solicitação já existe:\n{destination}\n\n• Criar backup guarda uma cópia da pasta atual e continua.\n• Substituir apaga a pasta atual, sem guardar cópia.\n\nDeseja continuar?");
             destinationConflictChoice = BaseOperationRules.GetDestinationAction(conflictResult);
             if (destinationConflictChoice == ExistingDestinationAction.Cancel) return;
         }
@@ -1673,28 +1672,28 @@ internal sealed class MainForm : Form
         SetBusy(true);
         try
         {
-            SetStatus("Iniciando transferência…");
-            Log($"Iniciando preparação da SL {sl}");
+            SetStatus("Preparando tudo para começar…");
+            Log($"Iniciando a preparação da SL {sl}…");
             if (Directory.Exists(destination))
             {
                 if (destinationConflictChoice == ExistingDestinationAction.CreateBackup)
                 {
                     var backup = destination + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
                     Directory.Move(destination, backup);
-                    Log($"Pasta anterior preservada em: {backup}");
+                    Log($"A pasta anterior foi preservada em: {backup}");
                 }
                 else
                 {
                     Directory.Delete(destination, recursive: true);
-                    Log("Pasta de destino anterior substituída sem backup, conforme solicitado.");
+                    Log("A pasta anterior foi substituída, sem cópia de segurança, conforme você escolheu.");
                 }
             }
             Directory.CreateDirectory(destination);
-            SetStatus("Transferindo arquivos…");
-            Log("Iniciando cópia nativa do .NET.");
+            SetStatus("Copiando os arquivos da solicitação…");
+            Log("Copiando os arquivos — isso pode levar alguns minutos.");
             await CopyDirectoryAsync(source, destination, _runCancellation.Token);
-            Log("Cópia da solicitação concluída.");
-            SetStatus("Transferência concluída. Preparando a base…");
+            Log("Cópia concluída.");
+            SetStatus("Preparando a base…");
 
             await ExtractArchivesAsync(destination, _runCancellation.Token);
             MoveDatabasesToRoot(destination, _runCancellation.Token);
@@ -1702,12 +1701,12 @@ internal sealed class MainForm : Form
             await RunSqlScriptsAsync(destination, _runCancellation.Token);
             await UpdateRegistryAsync(destination);
             await ShowVersionAsync(destination, _runCancellation.Token);
-            Log("Fluxo concluído com sucesso.");
-            _status.Text = "Concluído";
-            MessageBox.Show(this, $"A base da SL {sl} foi preparada e selecionada.", "Concluído", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            Log("Base preparada com sucesso. Ela já está selecionada para uso.");
+            _status.Text = "Tudo pronto!";
+            MessageBox.Show(this, $"A base da SL {sl} foi preparada e selecionada.\n\nÉ só abrir o sistema e trabalhar normalmente.", "Pronto!", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
-        catch (OperationCanceledException) { Log("Operação cancelada."); _status.Text = "Cancelado"; }
-        catch (Exception ex) { Log("ERRO: " + ex.Message); _status.Text = "Falha na operação"; MessageBox.Show(this, ex.Message, "Falha ao preparar a base", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
+        catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; MessageBox.Show(this, $"Algo não saiu como esperado:\n{ex.Message}\n\nVeja o log acima para saber em que etapa aconteceu.", "Não foi possível preparar a base", MessageBoxButtons.OK, MessageBoxIcon.Error); }
         finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; SetBusy(false); }
     }
 
@@ -1716,7 +1715,7 @@ internal sealed class MainForm : Form
         var rars = Directory.GetFiles(root, "*.rar", SearchOption.AllDirectories);
         if (rars.Length > 0)
         {
-            var selected = SelectArchives("Selecione os arquivos RAR para extrair", rars);
+            var selected = SelectArchives("Quais arquivos RAR você quer extrair?", rars);
             token.ThrowIfCancellationRequested();
             if (selected.Length > 0)
             {
@@ -1727,12 +1726,12 @@ internal sealed class MainForm : Form
         var zips = Directory.GetFiles(root, "*.zip", SearchOption.AllDirectories);
         if (zips.Length > 0)
         {
-            var selected = SelectArchives("Selecione os arquivos ZIP para extrair", zips);
+            var selected = SelectArchives("Quais arquivos ZIP você quer extrair?", zips);
             token.ThrowIfCancellationRequested();
             foreach (var zip in selected)
             {
-                Log("Extraindo ZIP: " + Path.GetFileName(zip));
-                SetArchiveProgress(0, "Extraindo ZIP: " + Path.GetFileName(zip));
+                Log("Extraindo " + Path.GetFileName(zip));
+                SetArchiveProgress(0, "Extraindo " + Path.GetFileName(zip));
                 using var archive = ZipFile.OpenRead(zip);
                 foreach (var entry in archive.Entries)
                 {
@@ -1744,21 +1743,21 @@ internal sealed class MainForm : Form
                     await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
                     await input.CopyToAsync(output, 1024 * 1024, token);
                 }
-                SetArchiveProgress(100, "Extração ZIP concluída");
+                SetArchiveProgress(100, "ZIP extraído com sucesso");
             }
         }
     }
 
     private async Task ExtractRarArchiveAsync(string archivePath, string destinationRoot, CancellationToken token)
     {
-        Log("Extraindo RAR com SharpCompress: " + Path.GetFileName(archivePath));
-        SetArchiveProgress(0, "Extraindo RAR: " + Path.GetFileName(archivePath));
+        Log("Extraindo " + Path.GetFileName(archivePath));
+        SetArchiveProgress(0, "Extraindo " + Path.GetFileName(archivePath));
         await using var archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         var extractionProgress = new Progress<ProgressReport>(report =>
         {
             var percent = (int)Math.Clamp(Math.Round(report.PercentComplete ?? 0), 0d, 100d);
             var entryName = string.IsNullOrWhiteSpace(report.EntryPath) ? Path.GetFileName(archivePath) : Path.GetFileName(report.EntryPath);
-            SetArchiveProgress(percent, $"Extraindo RAR: {entryName} ({percent}%)");
+            SetArchiveProgress(percent, $"Extraindo {entryName} ({percent}%)");
         });
         var readerOptions = ReaderOptions.ForExternalStream.WithProgress(extractionProgress);
         await using var reader = await ReaderFactory.OpenAsyncReader(archiveStream, readerOptions, token);
@@ -1766,8 +1765,8 @@ internal sealed class MainForm : Form
         {
             token.ThrowIfCancellationRequested();
             var entry = reader.Entry;
-            var entryKey = entry.Key ?? throw new InvalidOperationException("O arquivo RAR contém uma entrada sem nome.");
-            SetStatus("Extraindo RAR: " + Path.GetFileName(entryKey));
+            var entryKey = entry.Key ?? throw new InvalidOperationException("Há um arquivo sem nome dentro do RAR. Recompacte o arquivo ou extraia manualmente.");
+            SetStatus("Extraindo " + Path.GetFileName(entryKey));
             var outputPath = GetSafeArchiveEntryPath(destinationRoot, entryKey);
             if (entry.IsDirectory)
             {
@@ -1779,7 +1778,7 @@ internal sealed class MainForm : Form
             await using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
             await reader.WriteEntryToAsync(output, token);
         }
-        SetArchiveProgress(100, "Extração RAR concluída");
+        SetArchiveProgress(100, "RAR extraído com sucesso");
     }
 
     private void SetArchiveProgress(int percent, string status)
@@ -1874,7 +1873,7 @@ internal sealed class MainForm : Form
         UpdateProgressFill();
         var copiedMb = bytesCopied / 1024d / 1024d;
         var totalMb = totalBytes / 1024d / 1024d;
-        _status.Text = $"Transferindo: {percent}%  |  {copiedMb:N1} / {totalMb:N1} MB  |  {filesCopied} / {totalFiles} arquivos";
+        _status.Text = $"Copiando: {percent}%  ·  {copiedMb:N1} de {totalMb:N1} MB  ·  {filesCopied} de {totalFiles} arquivos";
     }
 
     private void UpdateProgressFill()
@@ -1891,9 +1890,9 @@ internal sealed class MainForm : Form
         {
             token.ThrowIfCancellationRequested();
             var target = Path.Combine(root, Path.GetFileName(file));
-            if (File.Exists(target)) throw new IOException($"Já existe {Path.GetFileName(target)} na raiz e também em uma subpasta. Resolva o conflito antes de continuar.");
+            if (File.Exists(target)) throw new IOException($"Encontrei dois arquivos {Path.GetFileName(target)}: um na pasta raiz e outro numa subpasta.\nRemova um deles e tente novamente.");
             File.Move(file, target);
-            Log("Base movida para raiz: " + Path.GetFileName(target));
+            Log("A base " + Path.GetFileName(target) + " foi movida para a raiz da pasta.");
         }
     }
 
@@ -1903,10 +1902,10 @@ internal sealed class MainForm : Form
         var systemDb = Path.Combine(root, "ARQSIST.FDB");
         if (!File.Exists(systemDb))
         {
-            using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB", Filter = "Firebird database (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
-            if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("É necessário selecionar o arquivo ARQSIST.");
+            using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
+            if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
             await CopyFileAsync(dialog.FileName, systemDb, token);
-            Log("ARQSIST.FDB criado a partir do arquivo selecionado.");
+            Log("ARQSIST.FDB criado com o arquivo que você selecionou.");
         }
         foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(root, _settings.SupportRoot))
         {
@@ -1914,7 +1913,7 @@ internal sealed class MainForm : Form
             await CopyFileAsync(supportFile.Source, supportFile.Destination, token);
             Log($"Arquivo de apoio copiado: {supportFile.Name}");
         }
-        if (!File.Exists(Path.Combine(root, "ARQEMP.FDB")) || !File.Exists(systemDb)) throw new InvalidOperationException("A validação das bases obrigatórias falhou.");
+        if (!File.Exists(Path.Combine(root, "ARQEMP.FDB")) || !File.Exists(systemDb)) throw new InvalidOperationException("Faltam a ARQEMP.FDB ou a ARQSIST.FDB na pasta da base e elas também não existem na pasta de apoio.");
     }
 
     private async Task RunSqlScriptsAsync(string root, CancellationToken token)
@@ -1925,10 +1924,10 @@ internal sealed class MainForm : Form
 
     private async Task RunSqlIfConfiguredAsync(string commands, string database, string label, CancellationToken token, Action<string>? operationLog = null)
     {
-        if (string.IsNullOrWhiteSpace(commands)) { WriteOperationLog(operationLog, $"{label}: ignorados (nenhum comando informado)."); return; }
+        if (string.IsNullOrWhiteSpace(commands)) { WriteOperationLog(operationLog, $"{label}: nada a executar (campo vazio)."); return; }
         token.ThrowIfCancellationRequested();
-        SetStatus($"Conectando a {Path.GetFileName(database)}…");
-        WriteOperationLog(operationLog, $"Conectando diretamente a {database}");
+        SetStatus($"Conectando em {Path.GetFileName(database)}…");
+        WriteOperationLog(operationLog, $"Conectando ao banco {database}");
         var connectionString = BuildFirebirdConnectionString(database);
         await using var connection = new FbConnection(connectionString);
         await connection.OpenAsync(token);
@@ -1938,8 +1937,8 @@ internal sealed class MainForm : Form
         var batch = new FbBatchExecution(connection);
         batch.AppendSqlStatements(parsedScript);
 
-        SetStatus($"Executando {label} diretamente no banco…");
-        WriteOperationLog(operationLog, $"Executando {label} pela conexão ADO.NET.");
+        SetStatus($"Executando {label} no banco…");
+        WriteOperationLog(operationLog, $"{label}: executando os comandos no banco…");
         using var cancelRegistration = token.Register(() =>
         {
             try { connection.Close(); } catch { }
@@ -1947,7 +1946,7 @@ internal sealed class MainForm : Form
         try { await Task.Run(() => batch.Execute(), CancellationToken.None); }
         catch (Exception) when (token.IsCancellationRequested) { throw new OperationCanceledException(token); }
         token.ThrowIfCancellationRequested();
-        WriteOperationLog(operationLog, $"{label} concluído.");
+        WriteOperationLog(operationLog, $"{label}: comandos executados com sucesso.");
     }
 
     private string BuildFirebirdConnectionString(string databasePath)
@@ -1968,13 +1967,13 @@ internal sealed class MainForm : Form
 
     private async Task UpdateRegistryAsync(string root, Action<string>? operationLog = null)
     {
-        WriteOperationLog(operationLog, "Atualizando HKCU\\SIC\\CONEXAO...");
-        using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível abrir HKCU\\SIC\\CONEXAO.");
+        WriteOperationLog(operationLog, "Apontando o sistema para esta base (Registro do Windows)…");
+        using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível atualizar o Registro do Windows (HKCU\\SIC\\CONEXAO).\nVerifique as permissões do seu usuário e tente novamente.");
         var basePath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         foreach (var name in new[] { "BASE1", "BASE2", "BASE3", "BASE4", "EMPRESA" }) key.SetValue(name, basePath, RegistryValueKind.String);
         key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
         key.SetValue("TEMP", Path.GetTempPath(), RegistryValueKind.String);
-        WriteOperationLog(operationLog, "Registro atualizado.");
+        WriteOperationLog(operationLog, "O Registro foi atualizado; o sistema já aponta para esta base.");
         await Task.CompletedTask;
     }
 
@@ -1988,8 +1987,8 @@ internal sealed class MainForm : Form
     {
         token.ThrowIfCancellationRequested();
         var database = Path.Combine(root, "ARQSIST.FDB");
-        SetStatus("Consultando versão de ARQSIST.FDB…");
-        Log($"Consultando a versão diretamente em {database}");
+        SetStatus("Consultando a versão da base ARQSIST…");
+        Log("Consultando a versão da base ARQSIST…");
         await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
         await connection.OpenAsync(token);
         await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)
@@ -1997,7 +1996,7 @@ internal sealed class MainForm : Form
             CommandTimeout = 0
         };
         await using var reader = await command.ExecuteReaderAsync(token);
-        var version = await reader.ReadAsync(token) ? Convert.ToString(reader["VERSAO"]) : "(sem registro de versão)";
+        var version = await reader.ReadAsync(token) ? Convert.ToString(reader["VERSAO"]) : "sem versão registrada";
         _versionLabel.Text = "Versão atual: " + version;
         _versionLabel.Visible = true;
     }
@@ -2026,7 +2025,7 @@ internal sealed class MainForm : Form
         {
             _progressPercent = 0;
             UpdateProgressFill();
-            SetStatus("Preparando operação…");
+            SetStatus("Só um instante…");
         }
     }
 
