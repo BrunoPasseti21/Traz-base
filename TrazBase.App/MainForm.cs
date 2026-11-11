@@ -18,7 +18,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly CheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly CheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly CheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o primeiro nome da nota promissória do cliente", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly CheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o primeiro nome da nota promissória do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
@@ -119,6 +119,7 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
     private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
     private bool _menuExpanded;
+    private Form? _hintPopup;
 
     private static readonly Color Ink = Color.FromArgb(29, 42, 61);
     private static readonly Color Muted = Color.FromArgb(97, 113, 134);
@@ -291,10 +292,12 @@ internal sealed class MainForm : Form
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
+        Deactivate += (_, _) => HideHintPopup();
         FormClosing += (sender, e) =>
         {
             _menuAnimationTimer.Stop();
             _menuAnimationClock.Stop();
+            HideHintPopup();
             if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
             {
                 e.Cancel = true;
@@ -1748,6 +1751,65 @@ internal sealed class MainForm : Form
         ShowChangelogDialog();
     }
 
+    private void ShowHintPopup(Control anchor, string text)
+    {
+        HideHintPopup();
+        var dark = _settings.DarkMode;
+        var background = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var foreground = dark ? Color.FromArgb(232, 237, 245) : Ink;
+        var border = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
+
+        const int width = 484; // 484 + 16 de margens internas = 500px de largura total
+
+        var surfacePanel = new Panel { Dock = DockStyle.Fill, BackColor = background };
+        var body = new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(width, 0),
+            Location = new Point(8, 8),
+            Text = text,
+            ForeColor = foreground,
+            BackColor = background,
+            Font = UiTypography.Body(9f),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        surfacePanel.Controls.Add(body);
+        var height = body.PreferredSize.Height + 16;
+
+        var popup = new Form
+        {
+            FormBorderStyle = FormBorderStyle.None,
+            ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual,
+            TopMost = true,
+            Size = new Size(width + 16, height),
+            BackColor = border,
+            Padding = new Padding(1)
+        };
+        popup.Controls.Add(surfacePanel);
+
+        var screen = Screen.FromControl(anchor);
+        var preferred = anchor.PointToScreen(new Point(anchor.Width + 8, 0));
+        if (preferred.X + popup.Width > screen.WorkingArea.Right)
+            preferred = new Point(screen.WorkingArea.Right - popup.Width, preferred.Y);
+        if (preferred.Y + popup.Height > screen.WorkingArea.Bottom)
+            preferred = new Point(preferred.X, Math.Max(screen.WorkingArea.Top, screen.WorkingArea.Bottom - popup.Height));
+        popup.Location = preferred;
+
+        popup.Show();
+        _hintPopup = popup;
+    }
+
+    private void HideHintPopup()
+    {
+        var current = _hintPopup;
+        _hintPopup = null;
+        if (current is not null && !current.IsDisposed)
+        {
+            try { current.Close(); } catch { current.Dispose(); }
+        }
+    }
+
     private void ShowView(bool settings)
     {
         _transferView.Visible = !settings;
@@ -1815,6 +1877,9 @@ internal sealed class MainForm : Form
             new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
+        const string supportHelpText =
+            "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
+            "Se a base de uma solicitação não trouxer esses arquivos (compactada sem eles ou sem ARQSIST.FDB, por exemplo), a aplicação copia automaticamente dessa pasta para a pasta local da base, sem intervenção do operador.";
         var supportHelp = new PictureBox
         {
             Size = new Size(16, 16),
@@ -1823,9 +1888,8 @@ internal sealed class MainForm : Form
             Image = SvgIconLoader.Load("Ajuda.svg", 16),
             Cursor = Cursors.Hand
         };
-        _menuToolTip.SetToolTip(supportHelp,
-            "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
-            "Se a base de uma solicitação não trouxer esses arquivos (compactada sem eles ou sem ARQSIST.FDB, por exemplo), a aplicação copia automaticamente dessa pasta para a pasta local da base, sem intervenção do operador.");
+        supportHelp.MouseEnter += (_, _) => ShowHintPopup(supportHelp, supportHelpText);
+        supportHelp.MouseLeave += (_, _) => HideHintPopup();
         var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot), nameof(AppSettings.TempPath) };
         var emptyTempHint = TryGetSicTempPath() is string registryTemp
             ? $"(Vazio = valor do Registro: {registryTemp})"
