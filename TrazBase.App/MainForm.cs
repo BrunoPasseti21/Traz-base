@@ -103,6 +103,7 @@ internal sealed class MainForm : Form
     private readonly TextBox _updateSicVersion = new() { Width = 160, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly Button _updateSicBrowseSource = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly Button _updateSicBrowseDestination = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly CheckBox _updateSicRename = new() { Text = "Renomear executáveis com a versão (ex.: SIC_146.exe)", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly Button _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
@@ -259,6 +260,8 @@ internal sealed class MainForm : Form
         _updateSicSource.TextChanged += (_, _) => QueueSettingsSave();
         _updateSicDestination.TextChanged += (_, _) => QueueSettingsSave();
         _updateSicVersion.TextChanged += (_, _) => QueueSettingsSave();
+        _updateSicRename.Checked = _settings.SicRenameWithVersion;
+        _updateSicRename.CheckedChanged += (_, _) => { _settings.SicRenameWithVersion = _updateSicRename.Checked; QueueSettingsSave(); };
         _restoreButton.Click += async (_, _) => await RestoreBaseAsync();
         _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
         _resetButton.Click += async (_, _) => await ResetBaseAsync();
@@ -955,7 +958,7 @@ internal sealed class MainForm : Form
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 246));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 276));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
@@ -1006,6 +1009,8 @@ internal sealed class MainForm : Form
         _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _updateSicCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_updateSicCancelButton);
+        _updateSicRename.Location = new Point(18, 238);
+        action.Controls.Add(_updateSicRename);
         page.Controls.Add(action, 0, 2);
 
         _updateSicProgressStatus.Location = new Point(2, 0);
@@ -1066,6 +1071,19 @@ internal sealed class MainForm : Form
         }
     }
 
+    private static string? NormalizeVersionTag(string raw)
+    {
+        var s = (raw ?? "").Trim();
+        if (s.Length == 0) return null;
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (var c in s)
+        {
+            if (char.IsLetterOrDigit(c) || c == '_') sb.Append(c);
+        }
+        var tag = sb.ToString();
+        return tag.Length == 0 ? null : tag;
+    }
+
     private async Task UpdateSicAsync()
     {
         if (_updateSicRunning) return;
@@ -1104,6 +1122,7 @@ internal sealed class MainForm : Form
         _updateSicSource.Enabled = false;
         _updateSicDestination.Enabled = false;
         _updateSicVersion.Enabled = false;
+        _updateSicRename.Enabled = false;
         _updateSicBrowseSource.Enabled = false;
         _updateSicBrowseDestination.Enabled = false;
         _updateSicButton.Enabled = false;
@@ -1178,6 +1197,42 @@ internal sealed class MainForm : Form
                 }
             }
 
+            if (_updateSicRename.Checked)
+            {
+                var tag = NormalizeVersionTag(version);
+                if (tag is null)
+                {
+                    AppendUpdateSicLog("Renomeamento ignorado: versão inválida (esperado apenas letras/dígitos/_ ou vazio).");
+                }
+                else
+                {
+                    AppendUpdateSicLog($"Renomeando executáveis com a versão {tag}…");
+                    foreach (var exe in Directory.EnumerateFiles(destinationRoot, "*.exe", SearchOption.TopDirectoryOnly))
+                    {
+                        var name = Path.GetFileName(exe);
+                        var stem = Path.GetFileNameWithoutExtension(name);
+                        var suffix = "_" + tag;
+                        if (stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) continue;
+                        var newName = stem + suffix + ".exe";
+                        var newPath = Path.Combine(destinationRoot, newName);
+                        try
+                        {
+                            if (File.Exists(newPath))
+                            {
+                                AppendUpdateSicLog($"Mantido sem renomear: {name} (já existe '{newName}').");
+                                continue;
+                            }
+                            File.Move(exe, newPath);
+                            AppendUpdateSicLog($"Renomeado: {name} → {newName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            AppendUpdateSicLog($"Não foi possível renomear '{name}': {ex.Message}");
+                        }
+                    }
+                }
+            }
+
             _updateSicBytesDone = _updateSicTotalBytes; // força a barra chegar em 100%
             SetUpdateSicProgress("Concluído.");
             if (failures.Count == 0)
@@ -1212,6 +1267,7 @@ internal sealed class MainForm : Form
             _updateSicSource.Enabled = true;
             _updateSicDestination.Enabled = true;
             _updateSicVersion.Enabled = true;
+            _updateSicRename.Enabled = true;
             _updateSicBrowseSource.Enabled = true;
             _updateSicBrowseDestination.Enabled = true;
             _updateSicButton.Enabled = true;
@@ -2103,6 +2159,7 @@ internal sealed class MainForm : Form
         _settings.UpdateSicSourceRoot = _updateSicSource.Text.Trim();
         _settings.UpdateSicDestinationRoot = _updateSicDestination.Text.Trim();
         _settings.UpdateSicSicVersion = _updateSicVersion.Text.Trim();
+        _settings.SicRenameWithVersion = _updateSicRename.Checked;
         _settings.ArqEmpCommands = _arqEmpEditor.Text;
         _settings.ArqSistCommands = _arqSistEditor.Text;
     }

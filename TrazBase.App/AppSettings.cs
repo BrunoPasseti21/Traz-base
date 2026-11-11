@@ -43,6 +43,7 @@ internal sealed class AppSettings
     public string UpdateSicSourceRoot { get; set; } = "";
     public string UpdateSicDestinationRoot { get; set; } = "";
     public string UpdateSicSicVersion { get; set; } = "";
+    public bool SicRenameWithVersion { get; set; }
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");

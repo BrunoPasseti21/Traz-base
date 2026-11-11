@@ -30,6 +30,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `UpdateSicSourceRoot` | string | `""` | Pasta base da origem dos executáveis SIC (ex.: `...\Sistemas\SIC`); a versão vem de `UpdateSicSicVersion`. |
 | `UpdateSicDestinationRoot` | string | `""` | Pasta que recebe os executáveis SIC extraídos (ex.: `C:\projetos\SIC\sic\desenvolvimento`). |
 | `UpdateSicSicVersion` | string | `""` | Versão do SIC usada como subpasta na origem (ex.: `s126`); vazio → `s126` no runtime. |
+| `SicRenameWithVersion` | bool | `false` | Se verdadeiro, renomeia os `.exe` diretos na pasta de destino ao concluir a atualização: `SIC.exe` → `SIC_146.exe` (sufixo `_<versão>`). |
 | `ForceMultiBase` | bool | `false` | Sempre criar a estrutura multi-base (`ARQ01`/`ARQ00`), mesmo em SLs sem pastas `ARQ##`. |
 | `BaseCount` | number | `4` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (quando "Sempre criar estrutura multi-base" não está marcada). Entre 1 e 99. |
 | `DefaultScreen` | string | `"Transferir"` | Tela aberta ao iniciar a aplicação. Valores: `Transferir`, `AlterarBase`, `RedefinirBase`, `RestaurarBase`, `AtualizarSic`, `Configuracao`, `ComandosArqEmp`, `ComandosArqSist`. |

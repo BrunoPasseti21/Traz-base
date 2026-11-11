@@ -121,7 +121,8 @@ Porta a ideia do script `Atualiza_Tudo.cmd` (já no repositório é chamado a pa
    - abre o `.zip` **direto da pasta de origem** (somente leitura; o arquivo nunca é copiado para o destino) e extrai os arquivos sobre o destino;
    - **se qualquer etapa do arquivo falhar, avisa pelo log e continua com o próximo arquivo** (não aborta os demais). Cancelamento pelo operador encerra a operação.
 6. Ao final, o resultado é resumido: sucesso total ou um aviso listando os arquivos que falharam (e o motivo de cada um); os demais foram atualizados normalmente. **Cancelar** interrompe o loop entre blocos; navegação desabilitada enquanto roda.
-7. As configurações da ação são **próprias e separadas**: `UpdateSicSourceRoot`, `UpdateSicDestinationRoot`, `UpdateSicSicVersion` — nada a ver com as configurações das bases (SL); salvas como as demais (debounce + ao fechar/iniciar operações). A parte EDE do `.cmd` está comentada e não foi portada.
+7. **Renomear com a versão** (`SicRenameWithVersion`, checkbox na própria tela): após a extração, os `*.exe` diretos na pasta de destino recebem o sufixo `_<versao>` (ex.: `SIC.exe` → `SIC_146.exe`). Se o destino já tiver um arquivo com o nome final, mantém o original e registra no log; limita-se à pasta raiz do destino (não renomeia em subpastas, arquivos não `.exe`, ou `.exe` ainda com o sufixo). A versão usada é a informada no campo "Versão do SIC" (somente letras/dígitos/`_`; caracteres inválidos são descartados).
+8. As configurações da ação são **próprias e separadas**: `UpdateSicSourceRoot`, `UpdateSicDestinationRoot`, `UpdateSicSicVersion`, `SicRenameWithVersion` — nada a ver com as configurações das bases (SL); salvas como as demais (debounce + ao fechar/iniciar operações). A parte EDE do `.cmd` está comentada e não foi portada.
 
 ## Fluxo 6 — Comandos ARQEMP / Comandos ARQSIST
 
