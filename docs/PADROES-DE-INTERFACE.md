@@ -82,9 +82,9 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 
 Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`), nunca o `MessageBox` nativo. Posicionamento: `StartPosition = Manual` e calculado no centro da área de trabalho do monitor onde a janela-mãe está — nunca `CenterParent`, para que o diálogo permaneça centralizado mesmo com a janela minimizada. Estrutura do diálogo:
 
-- Janela sem moldura, borda de 1 px, cabeçalho azul `#1F6FEB` (claro) / `#1C232F` (escuro) com o título em semibold branco e botão de fechar `×` (hover vermelho `#BE3741`/(190,55,65)).
-- Cabeçalho também é área de arraste: clicar e arrastar a barra de título (incluindo o espaço entre o título e o botão de fechar) move o diálogo pela tela; o cursor fica como `SizeAll` sobre a área de arraste. O botão `×` preserva o hover padrão e não dispara o arraste.
-- Ícone como glifo (`×`, `!`, `?`, `i`) em círculo colorido com 15% de opacidade.
+- Janela sem moldura, borda de 1 px, cabeçalho azul `#1F6FEB` (claro) / `#1C232F` (escuro) com o título em semibold branco e botão de fechar `×` (hover e pressionar idênticos ao botão de fechar do Windows: `#C42B1C` no hover, `#A11F15` pressionado).
+- Cabeçalho também é área de arraste: clicar e arrastar a barra de título (incluindo o espaço entre o título e o botão de fechar) move o diálogo pela tela; o cursor fica como `Arrow` sobre a área de arraste. O botão `×` preserva o hover padrão e não dispara o arraste.
+- Ýcone como glifo (`×`, `!`, `?`, `i`) em círculo colorido com 15% de opacidade.
 - Botões à direita, altura 32 px; ação primária azul `#1F6FEB` com texto branco; demais primários com borda fina; `Esc` fecha; foco inicial na ação padrão (configurável por diálogo).
 - O diálogo de conflito de destino usa três ações: **Criar backup** (primária), **Substituir**, **Cancelar** — com texto explicando que "Substituir remove a pasta atual sem guardar uma cópia".
 - Largura fixa de 560 px, altura ajustada ao texto medido (máx. 300 px de mensagem).
@@ -102,7 +102,7 @@ Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`),
 - Realce de sintaxe: comentários `#6A9955`, strings `#CE9178`, palavras-chave `#569CD6`, números `#B5CEA8`.
 - Log somente leitura, fonte 10 pt; com botão **Limpar** no cabeçalho do card.
 
-## Ícones
+## Ýcones
 
 - SVGs próprios em `Imagens/` (menu sanduíche, Transferir, Trocar-Base, Redefinir, Configuração, SQL, Atualizar), renderizados por `SvgIconLoader` (suporta apenas `<path fill>` e `translate()`).
 - Para ícones novos, exporte SVG com `fill` explícito e apenas paths simples; registre o arquivo em `TrazBase.App.csproj` como `Content` (já coberto pelo glob `..\Imagens\*.svg`).

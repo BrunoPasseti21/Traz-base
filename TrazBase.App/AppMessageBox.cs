@@ -125,7 +125,7 @@ internal sealed class AppMessageDialog : Form
 
         var dialogWidth = ClientSize.Width - 2;
         var dialogHeight = ClientSize.Height - 2;
-        var header = new Panel { Location = Point.Empty, Size = new Size(dialogWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor, Cursor = Cursors.SizeAll };
+        var header = new Panel { Location = Point.Empty, Size = new Size(dialogWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor, Cursor = Cursors.Arrow };
         surface.Controls.Add(header);
         var captionLabel = new Label
         {
@@ -137,7 +137,7 @@ internal sealed class AppMessageDialog : Form
             AutoEllipsis = true,
             Location = new Point(18, 0),
             Size = new Size(ClientSize.Width - 70, 44),
-            Cursor = Cursors.SizeAll
+            Cursor = Cursors.Arrow
         };
         header.Controls.Add(captionLabel);
         WireDrag(header);
@@ -156,7 +156,9 @@ internal sealed class AppMessageDialog : Form
             TabStop = false
         };
         close.FlatAppearance.BorderSize = 0;
-        close.FlatAppearance.MouseOverBackColor = Color.FromArgb(190, 55, 65);
+        // idêntico ao botão de fechar da janela do Windows (hover vermelho #C42B1C, pressionar #A11F15)
+        close.FlatAppearance.MouseOverBackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.FlatAppearance.MouseDownBackColor = Color.FromArgb(0xA1, 0x1F, 0x15);
         close.Click += (_, _) => CloseWithDefaultCancelResult();
         header.Controls.Add(close);
 
