@@ -1012,7 +1012,7 @@ internal sealed class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_updateSicLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 4);
+        page.Controls.Add(logCard, 0, 3);
         return page;
     }
 
