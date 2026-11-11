@@ -2326,7 +2326,8 @@ internal sealed class MainForm : Form
                 var newDestination = await TryGetPromissoryClientNameAsync(arqSistDatabase, _runCancellation.Token);
                 if (newDestination is not null)
                 {
-                    var sanitized = SanitizeFolderName(newDestination);
+                    var firstName = GetFirstWord(newDestination);
+                    var sanitized = SanitizeFolderName(firstName);
                     if (string.IsNullOrWhiteSpace(sanitized))
                     {
                         Log("O primeiro nome retornado contém caracteres inválidos para pasta; a renomeação foi ignorada.");
@@ -2863,6 +2864,18 @@ internal sealed class MainForm : Form
             Log($"Não foi possível consultar a nota promissória ({ex.Message}); renomeação ignorada.");
             return null;
         }
+    }
+
+    private static string GetFirstWord(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        var trimmed = name.Trim();
+        var index = -1;
+        for (var i = 0; i < trimmed.Length; i++)
+        {
+            if (char.IsWhiteSpace(trimmed[i])) { index = i; break; }
+        }
+        return index < 0 ? trimmed : trimmed[..index];
     }
 
     private static string SanitizeFolderName(string name)
