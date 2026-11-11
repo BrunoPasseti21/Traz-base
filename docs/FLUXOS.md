@@ -6,7 +6,7 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → campo SL da redefinição; **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → campo Origem dos executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
 
-1. **Transferir** (visão inicial) — trazer e preparar a base por número de SL.
+1. **Transferir** (tela inicial padrão; configurável em Configurações → "Tela inicial") — trazer e preparar a base por número de SL.
 2. **Alterar base** — apontar o Registro para uma base local já existente.
 3. **Redefinir base** — validar/preparar uma base local existente para a SL.
 4. **Restaurar base** — restaurar os `.FBK` da pasta selecionada (ou da subpasta `BKP`, se existir) para `.FDB` ao lado deles.
@@ -143,6 +143,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Usar modo escuro** (persiste `DarkMode` e reaplica o tema na hora)
 - **Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)** (`ForceMultiBase`) — mesmo quando a SL não traz pastas `ARQ##`: o fluxo cria `ARQ01\` e move a `ARQSIST.FDB` para lá, cria `ARQ00\` e move `ARQEMP.FDB`/`ARQOCOR.FDB` para lá (ou copia da pasta de apoio/aninhadas), e usa o Registro no formato multi-base (`BASE1`…`BASE99` apenas com correspondente + `EMPRESA` = `ARQ00`). Os arquivos `*.fdb` são procurados também em subpastas (fora das pastas `ARQ##`); mais de uma candidata interrompe com aviso.
 - **Quantidade de bases** (`BaseCount`, padrão 4) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
+- **Tela inicial** (`DefaultScreen`, padrão "Transferir") — define qual tela o app exibe ao abrir. Opções: Transferir, Alterar base, Redefinir base, Restaurar base, Atualizar SIC, Configuração, Comandos ARQEMP, Comandos ARQSIST.
 - **Notificações de perguntas/mensagens** — com a aplicação **minimizada**, qualquer pergunta/mensagem pendente dispara sempre um balloon da bandeja ("Traz Base") com o título do diálogo e a primeira linha do texto; clicar no balloon restaura a janela.
 
 Alterações de tema, senha, multi-base forçado e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.

@@ -1,4 +1,4 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
@@ -20,6 +20,18 @@ internal sealed class MainForm : Form
     private readonly CheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
+    private static readonly (StartScreen Value, string Text)[] StartScreenItems =
+    [
+        (StartScreen.Transferir, "Transferir"),
+        (StartScreen.AlterarBase, "Alterar base"),
+        (StartScreen.RedefinirBase, "Redefinir base"),
+        (StartScreen.RestaurarBase, "Restaurar base"),
+        (StartScreen.AtualizarSic, "Atualizar SIC"),
+        (StartScreen.Configuracao, "Configuração"),
+        (StartScreen.ComandosArqEmp, "Comandos ARQEMP"),
+        (StartScreen.ComandosArqSist, "Comandos ARQSIST"),
+    ];
+    private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 220, Height = 30 };
     private readonly TextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
     private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
@@ -183,7 +195,7 @@ internal sealed class MainForm : Form
         WireEnterNavigation([_arqEmpDatabase], _arqEmpEditor);
         WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
-        ShowView(settings: false);
+        ShowStartScreen();
         _darkMode.Checked = _settings.DarkMode;
         _darkMode.CheckedChanged += (_, _) =>
         {
@@ -434,7 +446,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 352));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 392));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -945,9 +957,8 @@ internal sealed class MainForm : Form
         page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Baixa os executáveis SIC da origem (somente leitura) e extrai sobre o destino.\r\n" +
-            "• Configuração própria e independente das bases. Versão do SIC: ex. s126 (subpasta da origem).\r\n" +
-            "• Nada é salvo no Registro do Windows."), 0, 1);
+            "• Baixa os executáveis (SIC, Obra, PCP, Atualizador) da origem extrai sobre o destino.\r\n" +
+            "• Versão do SIC: ex. s145/146 (subpasta da origem)."), 0, 1);
 
         var action = Card();
         var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 10) };
@@ -1636,6 +1647,22 @@ internal sealed class MainForm : Form
         }
     }
 
+    private void ShowStartScreen()
+    {
+        switch (_settings.DefaultScreen)
+        {
+            case StartScreen.AlterarBase: ShowChangeBaseView(); break;
+            case StartScreen.RedefinirBase: ShowResetView(); break;
+            case StartScreen.RestaurarBase: ShowRestoreView(); break;
+            case StartScreen.AtualizarSic: ShowUpdateSicView(); break;
+            case StartScreen.Configuracao: ShowView(settings: true); break;
+            case StartScreen.ComandosArqEmp: ShowCommandView(arqEmp: true); break;
+            case StartScreen.ComandosArqSist: ShowCommandView(arqEmp: false); break;
+            case StartScreen.Transferir:
+            default: ShowView(settings: false); break;
+        }
+    }
+
     private void ShowView(bool settings)
     {
         _transferView.Visible = !settings;
@@ -1691,7 +1718,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 288),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 322),
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Margin = Padding.Empty
         };
@@ -1757,6 +1784,18 @@ internal sealed class MainForm : Form
         host.Controls.Add(_darkMode);
         _forceMultiBase.Location = new Point(0, 249);
         host.Controls.Add(_forceMultiBase);
+
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 286) });
+        foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
+        var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
+        _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
+        _defaultScreen.Location = new Point(180, 281);
+        _defaultScreen.SelectionChangeCommitted += (_, _) =>
+        {
+            _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
+            QueueSettingsSave();
+        };
+        host.Controls.Add(_defaultScreen);
 
         void LayoutSettingsRows()
         {
@@ -1928,6 +1967,7 @@ internal sealed class MainForm : Form
             }
             else if (control is TextBox textBox) { textBox.BackColor = input; textBox.ForeColor = text; }
             else if (control is NumericUpDown numeric) { numeric.BackColor = input; numeric.ForeColor = text; }
+            else if (control is ComboBox combo) { combo.BackColor = input; combo.ForeColor = text; }
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {

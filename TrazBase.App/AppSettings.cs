@@ -5,6 +5,18 @@ using System.Text;
 
 namespace TrazBase.App;
 
+internal enum StartScreen
+{
+    Transferir,
+    AlterarBase,
+    RedefinirBase,
+    RestaurarBase,
+    AtualizarSic,
+    Configuracao,
+    ComandosArqEmp,
+    ComandosArqSist
+}
+
 internal sealed class AppSettings
 {
     public string SolicitationRoot { get; set; } = "";
@@ -23,6 +35,8 @@ internal sealed class AppSettings
     public string TempPath { get; set; } = "";
     public bool ForceMultiBase { get; set; }
     public int BaseCount { get; set; } = 4;
+    [JsonConverter(typeof(JsonStringEnumConverter))]
+    public StartScreen DefaultScreen { get; set; } = StartScreen.Transferir;
 
     // Configurações da ação "Atualizar SIC" (separadas das demais).
     public string UpdateSicSourceRoot { get; set; } = "";
