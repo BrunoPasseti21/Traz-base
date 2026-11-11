@@ -2323,7 +2323,7 @@ internal sealed class MainForm : Form
 
             if (_settings.RenameSlFolderToClientName)
             {
-                var newDestination = await TryGetPromissoryClientNameAsync(arqEmpDatabase, _runCancellation.Token);
+                var newDestination = await TryGetPromissoryClientNameAsync(arqSistDatabase, _runCancellation.Token);
                 if (newDestination is not null)
                 {
                     var sanitized = SanitizeFolderName(newDestination);
@@ -2843,11 +2843,11 @@ internal sealed class MainForm : Form
         else operationLog(message);
     }
 
-    private async Task<string?> TryGetPromissoryClientNameAsync(string arqEmpDatabase, CancellationToken token)
+    private async Task<string?> TryGetPromissoryClientNameAsync(string arqSistDatabase, CancellationToken token)
     {
         try
         {
-            await using var connection = new FbConnection(BuildFirebirdConnectionString(arqEmpDatabase));
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(arqSistDatabase));
             await connection.OpenAsync(token);
             await using var command = new FbCommand("SELECT FIRST 1 C.NOME FROM ARQCAD C WHERE C.TIPOC = 'N'", connection)
             {
