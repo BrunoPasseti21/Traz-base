@@ -1080,7 +1080,7 @@ internal sealed class MainForm : Form
         foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
         _updateSicLog.Clear();
         var token = _updateSicCancellation.Token;
-        var failures = new List<string>();
+        var failures = new List<(string File, string Reason)>();
         try
         {
             AppendUpdateSicLog($"Iniciando a atualização do SIC {version}");
@@ -1091,28 +1091,42 @@ internal sealed class MainForm : Form
                 var source = Path.Combine(sourceFolder, zip);
                 if (!File.Exists(source))
                 {
-                    failures.Add(zip);
-                    AppendUpdateSicLog($"{zip}: NÃO ENCONTRADO na origem — ignorado.");
+                    const string reason = "arquivo não encontrado na origem";
+                    failures.Add((zip, reason));
+                    AppendUpdateSicLog($"{zip}: {reason} — AVISO e seguindo para o próximo arquivo.");
                     continue;
                 }
-                var destination = UpdateSicOperationRules.GetDestinationZip(destinationRoot, zip);
-                AppendUpdateSicLog($"Copiando {zip} ({new FileInfo(source).Length / 1024d / 1024d:N1} MB)…");
-                await CopyFileAsync(source, destination, token, mode: FileMode.Create);
 
-                AppendUpdateSicLog($"Extraindo {zip}…");
-                using var archive = ZipFile.OpenRead(destination);
-                foreach (var entry in archive.Entries)
+                var destination = UpdateSicOperationRules.GetDestinationZip(destinationRoot, zip);
+                try
                 {
-                    token.ThrowIfCancellationRequested();
-                    var target = ArchivePathSafety.GetSafeEntryPath(destinationRoot, entry.FullName);
-                    if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
-                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
-                    await using var input = entry.Open();
-                    await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                    await input.CopyToAsync(output, 1024 * 1024, token);
+                    AppendUpdateSicLog($"Copiando {zip} ({new FileInfo(source).Length / 1024d / 1024d:N1} MB)…");
+                    await CopyFileAsync(source, destination, token, mode: FileMode.Create);
+
+                    AppendUpdateSicLog($"Extraindo {zip}…");
+                    using var archive = ZipFile.OpenRead(destination);
+                    foreach (var entry in archive.Entries)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var target = ArchivePathSafety.GetSafeEntryPath(destinationRoot, entry.FullName);
+                        if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
+                        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                        await using var input = entry.Open();
+                        await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        await input.CopyToAsync(output, 1024 * 1024, token);
+                    }
+                    File.Delete(destination);
+                    AppendUpdateSicLog($"{zip}: executável atualizado (o .zip foi removido).");
                 }
-                File.Delete(destination);
-                AppendUpdateSicLog($"{zip}: executável atualizado (o .zip foi removido).");
+                catch (OperationCanceledException)
+                {
+                    throw; // cancelamento do usuário encerra a operação inteira
+                }
+                catch (Exception ex)
+                {
+                    failures.Add((zip, ex.Message));
+                    AppendUpdateSicLog($"{zip}: ERRO — {ex.Message} — AVISO e seguindo para o próximo arquivo.");
+                }
             }
 
             if (failures.Count == 0)
@@ -1122,8 +1136,11 @@ internal sealed class MainForm : Form
             }
             else
             {
-                AppendUpdateSicLog($"Atualização incompleta: {failures.Count} arquivo(s) não encontrado(s) na origem: {string.Join(", ", failures)}.");
-                MessageBox.Show(this, $"{failures.Count} arquivo(s) não foram encontrados na origem e foram ignorados:\n\n{string.Join("\n", failures)}", "Atualização incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                var detail = string.Join("\n", failures.Select(failure => $"• {failure.File}: {failure.Reason}"));
+                AppendUpdateSicLog($"Concluído com {failures.Count} falha(s): {string.Join(" | ", failures.Select(f => $"{f.File}: {f.Reason}"))}.");
+                MessageBox.Show(this,
+                    $"Não foi possível atualizar {failures.Count} arquivo(s); os demais foram normalmente:\n\n{detail}\n\nVeja o log para mais detalhes.",
+                    "Atualização incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
         catch (OperationCanceledException)
