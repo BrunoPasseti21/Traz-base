@@ -18,6 +18,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly CheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly CheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly CheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o primeiro nome da nota promissória do cliente", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
@@ -215,6 +216,13 @@ internal sealed class MainForm : Form
             _settings.ForceMultiBase = _forceMultiBase.Checked;
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de estrutura: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _renameSl.Checked = _settings.RenameSlFolderToClientName;
+        _renameSl.CheckedChanged += (_, _) =>
+        {
+            _settings.RenameSlFolderToClientName = _renameSl.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de renomeação: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
         AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
         _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
@@ -453,7 +461,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 392));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 422));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -1795,7 +1803,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 322),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 352),
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Margin = Padding.Empty
         };
@@ -1874,6 +1882,8 @@ internal sealed class MainForm : Form
         host.Controls.Add(_darkMode);
         _forceMultiBase.Location = new Point(0, 276);
         host.Controls.Add(_forceMultiBase);
+        _renameSl.Location = new Point(0, 306);
+        host.Controls.Add(_renameSl);
 
         void LayoutSettingsRows()
         {
@@ -2155,6 +2165,7 @@ internal sealed class MainForm : Form
         _settings.BasesRoot = _fields[nameof(AppSettings.BasesRoot)].Text.Trim();
         _settings.SupportRoot = _fields[nameof(AppSettings.SupportRoot)].Text.Trim();
         _settings.TempPath = _fields[nameof(AppSettings.TempPath)].Text.Trim();
+        _settings.RenameSlFolderToClientName = _renameSl.Checked;
         _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
         _settings.UpdateSicSourceRoot = _updateSicSource.Text.Trim();
         _settings.UpdateSicDestinationRoot = _updateSicDestination.Text.Trim();
@@ -2309,6 +2320,58 @@ internal sealed class MainForm : Form
                 ? Path.Combine(MultiBaseOperationRules.GetCompanyDirectory(destination), MultiBaseOperationRules.CompanyDatabaseEmp)
                 : Path.Combine(destination, "ARQEMP.FDB");
             await RunSqlScriptsAsync(arqEmpDatabase, arqSistDatabase, destination, multiBase, _runCancellation.Token);
+
+            if (_settings.RenameSlFolderToClientName)
+            {
+                var newDestination = await TryGetPromissoryClientNameAsync(arqEmpDatabase, _runCancellation.Token);
+                if (newDestination is not null)
+                {
+                    var sanitized = SanitizeFolderName(newDestination);
+                    if (string.IsNullOrWhiteSpace(sanitized))
+                    {
+                        Log("O primeiro nome retornado contém caracteres inválidos para pasta; a renomeação foi ignorada.");
+                    }
+                    else
+                    {
+                        var parent = Path.GetDirectoryName(destination)!;
+                        var target = Path.Combine(parent, sanitized);
+                        if (string.Equals(target, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+                        {
+                            Log($"A pasta já está nomeada como '{sanitized}'; nada a renomear.");
+                        }
+                        else if (Directory.Exists(target))
+                        {
+                            var fallback = target + "_" + sl;
+                            if (Directory.Exists(fallback))
+                                Log($"Já existe uma pasta com o nome '{sanitized}'; renomeação ignorada.");
+                            else
+                            {
+                                Directory.Move(destination, fallback);
+                                Log($"Pasta da solicitação renomeada para: {Path.GetFileName(fallback)}");
+                                destination = fallback;
+                            }
+                        }
+                        else
+                        {
+                            Directory.Move(destination, target);
+                            Log($"Pasta da solicitação renomeada para: {sanitized}");
+                            destination = target;
+                        }
+                    }
+                }
+            }
+
+            if (multiBase)
+            {
+                arqSistDatabase = MultiBaseOperationRules.GetArqSistPath(destination);
+                arqEmpDatabase = Path.Combine(MultiBaseOperationRules.GetCompanyDirectory(destination), MultiBaseOperationRules.CompanyDatabaseEmp);
+            }
+            else
+            {
+                arqSistDatabase = Path.Combine(destination, "ARQSIST.FDB");
+                arqEmpDatabase = Path.Combine(destination, "ARQEMP.FDB");
+            }
+
             if (multiBase) await UpdateRegistryForMultiBaseAsync(destination); else await UpdateRegistryAsync(destination);
             await ShowVersionAsync(arqSistDatabase, _runCancellation.Token);
             Log("Base preparada com sucesso. Ela já está selecionada para uso.");
@@ -2778,6 +2841,43 @@ internal sealed class MainForm : Form
     {
         if (operationLog is null) Log(message);
         else operationLog(message);
+    }
+
+    private async Task<string?> TryGetPromissoryClientNameAsync(string arqEmpDatabase, CancellationToken token)
+    {
+        try
+        {
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(arqEmpDatabase));
+            await connection.OpenAsync(token);
+            await using var command = new FbCommand("SELECT FIRST 1 C.NOME FROM ARQCAD C WHERE C.TIPOC = 'N'", connection)
+            {
+                CommandTimeout = 0
+            };
+            var value = await command.ExecuteScalarAsync(token);
+            if (value is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
+            Log("Consulta de nota promissória não retornou nomes; renomeação ignorada.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log($"Não foi possível consultar a nota promissória ({ex.Message}); renomeação ignorada.");
+            return null;
+        }
+    }
+
+    private static string SanitizeFolderName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(name.Length);
+        foreach (var character in name.Trim())
+        {
+            if (char.IsWhiteSpace(character)) builder.Append(' ');
+            else if (Array.IndexOf(invalid, character) < 0 && character != '\\' && character != '/') builder.Append(character);
+        }
+        var result = builder.ToString();
+        while (result.Contains("  ", StringComparison.Ordinal)) result = result.Replace("  ", " ");
+        result = result.Trim().TrimEnd('.', ' ');
+        return result;
     }
 
     private async Task ShowVersionAsync(string database, CancellationToken token)

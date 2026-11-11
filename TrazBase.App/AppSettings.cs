@@ -34,6 +34,7 @@ internal sealed class AppSettings
     public string? ProtectedFirebirdPassword { get; set; }
     public string TempPath { get; set; } = "";
     public bool ForceMultiBase { get; set; }
+    public bool RenameSlFolderToClientName { get; set; }
     public int BaseCount { get; set; } = 4;
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public StartScreen DefaultScreen { get; set; } = StartScreen.Transferir;
