@@ -76,6 +76,8 @@ internal sealed class MainForm : Form
     private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private readonly TextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
+    private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly Label _resetBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
@@ -276,7 +278,18 @@ internal sealed class MainForm : Form
         _resetButton.Click += async (_, _) => await ResetBaseAsync();
         _resetCancelButton.Click += (_, _) => _resetCancellation?.Cancel();
         _baseFolders.SelectedIndexChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+        _resetBaseFolders.SelectedIndexChanged += (_, _) =>
+        {
+            if (_resetBaseFolders.SelectedItems.Count == 0) return;
+            if (_resetBaseFolders.SelectedItems[0].Tag is not string folder) return;
+            var name = Path.GetFileName(folder);
+            var parts = name.Split('_', StringSplitOptions.RemoveEmptyEntries);
+            var tail = parts.Length == 0 ? name : parts[^1];
+            // Em pastas renomeadas durante a transferência (<nome>_<SL>), a SL é o sufixo numérico.
+            _resetSl.Text = tail.Length > 0 && tail.All(char.IsAsciiDigit) ? tail : name;
+        };
         _baseFolders.DoubleClick += async (_, _) => await ChangeSelectedBaseAsync();
+        _resetBaseFolders.DoubleClick += async (_, _) => await ResetBaseAsync();
         _changeBaseButton.Click += async (_, _) => await ChangeSelectedBaseAsync();
         _openBaseFolderButton.Click += (_, _) => OpenSelectedBaseFolder();
         _arqEmpNav.Click += (_, _) => ShowCommandView(arqEmp: true);
@@ -504,19 +517,28 @@ internal sealed class MainForm : Form
 
     private Control BuildResetView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
         page.Controls.Add(BuildHeader("Redefinir base", "Valide e prepare uma base local existente para a SL informada"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
+            "• Selecione a base na lista (ou digite a SL); em pastas renomeadas (<nome>_<SL>) a SL é preenchida sozinha.\r\n" +
             "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
             "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
             "• Atualiza o Registro.\r\n" +
             "• A redefinição não copia nem substitui a pasta inteira da base."), 0, 1);
+
+        page.Controls.Add(_resetBaseFoldersRootLabel, 0, 2);
+        var listCard = Card();
+        _resetBaseFolders.Font = UiTypography.Body(11f);
+        listCard.Controls.Add(_resetBaseFolders);
+        page.Controls.Add(listCard, 0, 3);
 
         var action = Card();
         action.Controls.Add(new Label { Text = "Número da solicitação (SL)", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
@@ -536,7 +558,7 @@ internal sealed class MainForm : Form
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
         action.Controls.Add(_resetRootLabel);
         action.Resize += (_, _) => _resetRootLabel.MaximumSize = new Size(Math.Max(100, action.ClientSize.Width - _resetRootLabel.Left - 18), 0);
-        page.Controls.Add(action, 0, 2);
+        page.Controls.Add(action, 0, 4);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -548,7 +570,7 @@ internal sealed class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_resetLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 3);
+        page.Controls.Add(logCard, 0, 5);
         return page;
     }
 
@@ -618,38 +640,58 @@ internal sealed class MainForm : Form
     private void RefreshBaseFolders()
     {
         _baseFolders.Items.Clear();
+        _resetBaseFolders.Items.Clear();
         var root = _settings.BasesRoot?.Trim();
-        _baseFoldersRootLabel.Text = "Pastas encontradas em: " + (string.IsNullOrWhiteSpace(root) ? "(pasta local não configurada)" : root);
+        var rootText = "Pastas encontradas em: " + (string.IsNullOrWhiteSpace(root) ? "(pasta local não configurada)" : root);
+        _baseFoldersRootLabel.Text = rootText;
+        _resetBaseFoldersRootLabel.Text = rootText;
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
         foreach (var folder in Directory.GetDirectories(root).OrderBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase))
         {
-            var item = new ListViewItem(Path.GetFileName(folder)) { Tag = folder };
-            _baseFolders.Items.Add(item);
+            var name = Path.GetFileName(folder);
+            _baseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
+            _resetBaseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
         }
     }
 
-    private void SelectBaseMatchingRegistry()
+    private static string? FindRegistryBasePath()
     {
         try
         {
             using var key = Registry.CurrentUser.OpenSubKey(@"SIC\CONEXAO", writable: false);
             var baseValue = key?.GetValue("BASE1") as string;
-            if (string.IsNullOrWhiteSpace(baseValue)) return;
-            var normalized = Path.GetFullPath(baseValue.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            for (var i = 0; i < _baseFolders.Items.Count; i++)
+            if (string.IsNullOrWhiteSpace(baseValue)) return null;
+            return Path.GetFullPath(baseValue.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        }
+        catch { return null; }
+    }
+
+    private static void SelectMatchingRegistryEntry(ThemedListView list, Action<string> onSelected)
+    {
+        var normalized = FindRegistryBasePath();
+        if (normalized is null) return;
+        try
+        {
+            for (var i = 0; i < list.Items.Count; i++)
             {
-                var folder = _baseFolders.Items[i].Tag as string;
+                var folder = list.Items[i].Tag as string;
                 if (folder is not null && string.Equals(Path.GetFullPath(folder), normalized, StringComparison.OrdinalIgnoreCase))
                 {
-                    _baseFolders.Items[i].Selected = true;
-                    _baseFolders.EnsureVisible(i);
-                    _selectedBasePath.Text = folder;
+                    list.Items[i].Selected = true;
+                    list.EnsureVisible(i);
+                    onSelected(folder);
                     break;
                 }
             }
         }
         catch { /* destaque best-effort; a lista funciona sem ele */ }
     }
+
+    private void SelectBaseMatchingRegistry() =>
+        SelectMatchingRegistryEntry(_baseFolders, folder => _selectedBasePath.Text = folder);
+
+    private void SelectResetBaseMatchingRegistry() =>
+        SelectMatchingRegistryEntry(_resetBaseFolders, _ => { }); // SL preenchida pelo SelectedIndexChanged
 
     private async Task ChangeSelectedBaseAsync()
     {
@@ -701,7 +743,7 @@ internal sealed class MainForm : Form
         }
 
         string target;
-        try { target = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
+        try { target = BaseOperationRules.FindLocalBaseDirectory(_settings.BasesRoot, sl); }
         catch (Exception ex)
         {
             MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -1396,7 +1438,9 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _resetButton;
         ApplyNavigationColors();
-        _resetSl.Focus();
+        RefreshBaseFolders();
+        SelectResetBaseMatchingRegistry();
+        _resetBaseFolders.Focus();
     }
 
     private void ShowRestoreView()

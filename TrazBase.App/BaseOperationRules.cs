@@ -27,6 +27,35 @@ internal static class BaseOperationRules
         return destination;
     }
 
+    /// <summary>
+    /// Localiza a pasta local de uma base: primeiro a exata (<c>BasesRoot\SL</c>); se não existir,
+    /// qualquer subpasta terminada em <c>_&lt;SL&gt;</c> (p. ex. "JOAO_123456", renomeada durante a
+    /// transferência). Quando nada existe, devolve a exata, para que o chamador exiba a mensagem
+    /// de "pasta não encontrada" para o caminho esperado.
+    /// </summary>
+    internal static string FindLocalBaseDirectory(string basesRoot, string solicitationNumber)
+    {
+        var exact = ResolveLocalBaseDirectory(basesRoot, solicitationNumber);
+        if (Directory.Exists(exact)) return exact;
+
+        try
+        {
+            var root = Path.GetFullPath(basesRoot)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!Directory.Exists(root)) return exact;
+
+            var suffix = "_" + solicitationNumber;
+            return Directory.GetDirectories(root)
+                .Where(dir => Path.GetFileName(dir).EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                .OrderBy(dir => Path.GetFileName(dir), StringComparer.CurrentCultureIgnoreCase)
+                .FirstOrDefault() ?? exact;
+        }
+        catch
+        {
+            return exact;
+        }
+    }
+
     internal static IReadOnlyList<(string Name, string Source, string Destination)> GetSupportFilesToCopy(
         string localBaseDirectory,
         string supportDirectory)

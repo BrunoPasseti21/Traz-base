@@ -4,7 +4,7 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 ## Estrutura da janela e navegação
 
-Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → campo SL da redefinição; **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → campo Origem dos executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
+Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → campo Origem dos executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
 
 1. **Transferir** (tela inicial padrão; configurável em Configurações → "Tela inicial") — trazer e preparar a base por número de SL.
 2. **Alterar base** — apontar o Registro para uma base local já existente.
@@ -80,10 +80,10 @@ Observações: os valores anteriores **não** são salvos antes da gravação (a
 
 ## Fluxo 3 — Redefinir base
 
-Tela com instruções e campo de SL. Ao clicar em **Redefinir base**:
+Tela com instruções, **listagem idêntica à da tela Alterar base** (pastas encontradas em `BasesRoot`, com a base indicada pelo Registro — `HKCU\SIC\CONEXAO\BASE1` — já pré-selecionada) e campo de SL. Selecionar uma pasta na lista preenche o campo SL; em pastas renomeadas na transferência (`<nome>_<SL>`), a SL é o sufixo numérico do nome. Também é possível digitar a SL manualmente; duplo clique na lista inicia a redefinição. A tela mantém o log próprio ("Andamento da redefinição", com carimbo de hora). Ao clicar em **Redefinir base**:
 
 1. SL somente dígitos; `BasesRoot` e `SupportRoot` configuradas e existentes; senha Firebird informada.
-2. Pasta alvo = `BasesRoot\<SL>` — precisa existir (a redefinição não copia nem substitui a pasta inteira).
+2. Pasta alvo = `BasesRoot\<SL>`; se não existir, o primeiro correspondente em `<nome>_<SL>` (base renomeada) — a pasta precisa existir (a redefinição não copia nem substitui a pasta inteira).
 3. `ARQSIST.FDB` precisa existir na pasta alvo; caso contrário, o fluxo é interrompido com aviso.
 4. `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes são copiados da pasta de apoio.
 5. Comandos SQL dos editores ARQEMP/ARQSIST são executados (como no Fluxo 1, etapas 8).
