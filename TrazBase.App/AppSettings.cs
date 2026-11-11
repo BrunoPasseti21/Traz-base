@@ -14,13 +14,15 @@ internal sealed class AppSettings
     public string? ScriptArqEmp { get; set; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public string? ScriptArqSist { get; set; }
-    public string ArqEmpCommandDatabase { get; set; } = "";
-    public string ArqSistCommandDatabase { get; set; } = "";
+
     public string ArqEmpCommands { get; set; } = "";
     public string ArqSistCommands { get; set; } = "";
     public bool CommandScriptsMigrated { get; set; }
     public bool DarkMode { get; set; }
     public string? ProtectedFirebirdPassword { get; set; }
+    public string TempPath { get; set; } = "";
+    public bool ForceMultiBase { get; set; }
+    public int BaseCount { get; set; } = 4;
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");

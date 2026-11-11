@@ -4,7 +4,7 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 ## Estrutura da janela e navegação
 
-Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Itens do menu:
+Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → campo SL da redefinição; **Restaurar base** → campo da pasta selecionada; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Itens do menu:
 
 1. **Transferir** (visão inicial) — trazer e preparar a base por número de SL.
 2. **Alterar base** — apontar o Registro para uma base local já existente.
@@ -32,13 +32,15 @@ Execução:
 2. Se a origem não existe → aviso e fim.
 3. **Conflito de destino**: se `BasesRoot\<SL>` já existe, diálogo próprio com três opções — **Cancelar**, **Criar backup** (renomeia para `<destino>.backup-yyyyMMdd-HHmmss`) ou **Substituir** (`Directory.Delete` recursivo). Sem escolha explícita, nada é apagado.
 4. Cria a pasta de destino e copia recursivamente com barra de progresso por bytes (`Transferindo: N% | MB copiados / total | arquivos copiados / total`), preservando timestamps e atributos.
-5. **Extração**: procura `*.rar` e `*.zip` na pasta destino (recursivo). Com mais de um arquivo, o operador seleciona quais extrair numa lista (padrão: todos marcados; **Pular extração** cancela o diálogo). Com um único arquivo, extrai direto. ZIP usa `ZipArchive`; RAR usa `SharpCompress` (`ReaderFactory`) com relatório de progresso por entrada. Entradas com caminhos absolutos ou `..` são rejeitadas (`ArchivePathSafety`).
-6. **Bases na raiz**: todo `*.fdb` encontrado em subpastas é movido para a raiz do destino; se já existe um arquivo com o mesmo nome na raiz, o fluxo falha com mensagem explícita.
-7. **Garantir bases obrigatórias**: `ARQSIST.FDB` ausente → abre `OpenFileDialog` para o operador escolher o arquivo (se cancelar, o fluxo é cancelado); o arquivo escolhido é **copiado** (não renomeado no lugar) para `ARQSIST.FDB`. `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes são copiados da pasta de apoio; se também faltarem lá, o fluxo falha.
-8. **Comandos SQL**: se o editor **Comandos ARQEMP** tiver conteúdo, executa em `ARQEMP.FDB`; idem **Comandos ARQSIST** em `ARQSIST.FDB`. Conexão `localhost`/`SYSDBA`, dialeto 3, charset UTF8. Se os editores estiverem vazios, a etapa é ignorada com registro no log.
-9. **Registro**: atualiza `HKCU\SIC\CONEXAO` (ver abaixo).
-10. **Versão**: consulta `SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE` em `ARQSIST.FDB` e exibe "Versão atual: …" ao lado do campo SL.
-11. Mensagem de conclusão. O painel de progresso some; o log permanece.
+5. **Extração**: procura `*.rar` e `*.zip` na pasta destino (recursivo). Com mais de um arquivo, o operador seleciona quais extrair numa lista (padrão: todos marcados; **Pular extração** cancela o diálogo). Com um único arquivo, extrai direto. A estrutura de pastas recebidas (ex.: `ARQ01`, `ARQ05`) é mantida. ZIP usa `ZipArchive`; RAR usa `SharpCompress` (`ReaderFactory`) com relatório de progresso por entrada. Entradas com caminhos absolutos ou `..` são rejeitadas (`ArchivePathSafety`).
+6. **Escolha do caminho**: após a extração, o fluxo detecta pastas `ARQ##` (dois dígitos, na raiz da SL). Se existirem, aplica o **tratamento multi-base** (ver abaixo); caso contrário, todo `*.fdb` encontrado em subpastas é movido para a raiz do destino (se já existir um arquivo com o mesmo nome na raiz, o fluxo falha com mensagem explícita).
+6a. **Garantir bases obrigatórias (modo simples)**: `ARQSIST.FDB` ausente → abre `OpenFileDialog` para o operador escolher o arquivo (se cancelar, o fluxo é cancelado); o arquivo escolhido é **copiado** para a raiz. `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes são copiados da pasta de apoio para a raiz; se também faltarem lá, o fluxo falha.
+6b. **Garantir bases obrigatórias (multi-base)**: `ARQEMP.FDB`/`ARQOCOR.FDB` vindos na raiz são **movidos** para a pasta `ARQ00\` (criada se necessário); se faltarem, são copiados da pasta de apoio **para `ARQ00\`**. A `ARQSIST` usada é sempre a de `ARQ01\ARQSIST.FDB` (criada via `OpenFileDialog` se não existir). Conflito entre raiz e `ARQ00` interrompe a preparação.
+7. **Comandos SQL**: se o editor **Comandos ARQEMP** tiver conteúdo, executa em `ARQEMP.FDB` (raiz no modo simples, `ARQ00\ARQEMP.FDB` no multi-base). Conexão `localhost`/`SYSDBA`, dialeto 3, charset UTF8. Se os editores estiverem vazios, a etapa é ignorada com registro no log.
+7a. **Comandos ARQSIST**: com conteúdo, no modo multi-base e havendo **mais de uma** base ARQSIST entre as pastas `ARQ##` que possuem `ARQSIST.FDB`, o fluxo **pergunta** se o operador deseja executar os comandos em todas elas (Sim = executa em todas, sequencialmente; Não = somente na `ARQ01`). Pastas `ARQ##` sem `ARQSIST.FDB` são ignoradas e aparecem no log; a pergunta só é feita quando há mais de uma ARQSIST e o editor tem conteúdo. Fora do multi-base (ou sem conteúdo), executa somente na ARQSIST do modo ativo.
+8. **Registro**: modo simples → atualiza `HKCU\SIC\CONEXAO` (ver abaixo). Multi-base → ver "Registro multi-base".
+9. **Versão**: consulta `SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE` na ARQSIST do modo ativo e exibe "Versão atual: …" ao lado do campo SL.
+10. Mensagem de conclusão. O painel de progresso some; o log permanece.
 
 Cancelamento (botão **Cancelar operação** ou fechamento da janela): define o `CancellationToken`; cópias/extrações/SQL abortam cooperativamente, o SQL fecha a conexão; a tela registra "Operação cancelada." O fechamento da janela durante a execução é bloqueado até a operação terminar.
 
@@ -49,16 +51,29 @@ Cancelamento (botão **Cancelar operação** ou fechamento da janela): define o 
 3. **Trocar base** (ou duplo clique) grava no Registro e confirma com mensagem; **Abrir pasta** abre o Explorer.
 4. A mesma etapa de Registro do Fluxo 1 é reutilizada (`UpdateRegistryAsync`).
 
-Valores gravados em `HKCU\SIC\CONEXAO` (em todas as trocas/preparações):
+Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações):
 
 | Valor    | Conteúdo                                        |
 |----------|-------------------------------------------------|
-| `BASE1`…`BASE4` | caminho completo da pasta da base, com `\` final |
+| `BASE1`…`BASE<n>` | caminho completo da pasta da base, com `\` final — quantidade definida em **Quantidade de bases** nas Configurações (padrão 4) |
 | `EMPRESA` | idem (mesmo caminho)                           |
 | `SERVIDOR` | `LOCALHOST`                                   |
-| `TEMP`   | `Path.GetTempPath()` do usuário                 |
+| `TEMP`   | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
 
-Observações: os valores anteriores **não** são salvos antes da gravação (a proposta original previa isso; não foi implementado). O Registro é do usuário atual; não exige elevação para `HKCU`.
+## Registro — modo multi-base
+
+Quando a SL traz pastas `ARQ##`:
+
+| Valor | Conteúdo |
+|---|---|
+| `BASE<n>` | caminho completo da pasta `ARQ##`, com `\` final — uma chave por pasta (ex.: `ARQ01`→`BASE1`, `ARQ05`→`BASE5`) |
+| `EMPRESA` | caminho completo da pasta `ARQ00` (onde ficam `ARQEMP.FDB` e `ARQOCOR.FDB`), com `\` final |
+| `SERVIDOR` | `LOCALHOST` |
+| `TEMP` | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
+
+Além de gravar, as chaves `BASE1`…`BASE99` **sem pasta correspondente são removidas** (ex.: só `ARQ01` e `ARQ05` → `BASE2`, `BASE3`, `BASE4`, `BASE6`… são apagadas). `ARQ00` não gera chave `BASE` — alimenta apenas `EMPRESA`. SLs sem pastas `ARQ##` mantêm o comportamento anterior (`BASE1`…`BASE4` e `EMPRESA` = pasta da SL).
+
+Observações: os valores anteriores **não** são salvos antes da gravação (a proposta original previa isso; não foi implementado). O Registro é do usuário atual; não exige elevação para `HKCU`. As exclusões no modo multi-base só apagam chaves `BASE1`…`BASE99` inexistentes na SL.
 
 ## Fluxo 3 — Redefinir base
 
@@ -97,7 +112,7 @@ Duas telas idênticas para os dois bancos. Cada uma tem:
 - Campo "Base Firebird (.FDB)" com botão **Procurar** (filtro `*.fdb;*.gdb`).
 - Editor SQL com realce de sintaxe (comentários, strings, palavras-chave, números) em paleta escura fixa.
 - **Testar comando**: exige base existente, SQL não vazio e senha; pede confirmação explícita (avisa que comandos de alteração modificam dados); executa via `FbScript`/`FbBatchExecution` e mostra o resultado em painel de saída ("Resultado do teste").
-- Comandos e caminho da base são salvos automaticamente ~700 ms após a última digitação (`_commandSaveTimer`) e na saída do aplicativo.
+- Comandos são salvos automaticamente ~700 ms após a última digitação (`_commandSaveTimer`) e na saída do aplicativo. A base Firebird (.FDB) escolhida para testar **não é persistida** — vale apenas para a sessão atual.
 - Migração automática: configurações antigas que apontavam para arquivos `.sql` externos (`ScriptArqEmp`/`ScriptArqSist`) são incorporadas aos comandos inline na primeira execução após a atualização (`CommandScriptsMigrated`).
 
 ## Fluxo 6 — Configuração
@@ -107,10 +122,14 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Origem das solicitações** (`SolicitationRoot`)
 - **Pasta local das bases** (`BasesRoot`)
 - **Pasta de bases de apoio** (`SupportRoot`)
+- **Pasta temporária** (`TempPath` — usada no Registro `TEMP`; vazio = `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows)
 - **Senha Firebird** (campo protegido; caixa **Salvar senha** grava protegida por DPAPI)
 - **Usar modo escuro** (persiste `DarkMode` e reaplica o tema na hora)
+- **Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)** (`ForceMultiBase`) — mesmo quando a SL não traz pastas `ARQ##`: o fluxo cria `ARQ01\` e move a `ARQSIST.FDB` para lá, cria `ARQ00\` e move `ARQEMP.FDB`/`ARQOCOR.FDB` para lá (ou copia da pasta de apoio/aninhadas), e usa o Registro no formato multi-base (`BASE1`…`BASE99` apenas com correspondente + `EMPRESA` = `ARQ00`). Os arquivos `*.fdb` são procurados também em subpastas (fora das pastas `ARQ##`); mais de uma candidata interrompe com aviso.
+- **Quantidade de bases** (`BaseCount`, padrão 4) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
+- **Notificações de perguntas/mensagens** — com a aplicação **minimizada**, qualquer pergunta/mensagem pendente dispara sempre um balloon da bandeja ("Traz Base") com o título do diálogo e a primeira linha do texto; clicar no balloon restaura a janela.
 
-Alterações de tema e senha são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
+Alterações de tema, senha, multi-base forçado e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
 
 ## Fluxo 7 — Atualização do aplicativo
 

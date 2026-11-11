@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
@@ -17,6 +17,9 @@ internal sealed class MainForm : Form
     private readonly TextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly CheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly CheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly CheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
+    private NotifyIcon? _notifyIcon;
+    private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private readonly TextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
     private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
@@ -81,6 +84,7 @@ internal sealed class MainForm : Form
     private readonly RichTextBox _arqEmpOutput = CreateSqlOutput();
     private readonly RichTextBox _arqSistOutput = CreateSqlOutput();
     private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
+    private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
     private bool _menuExpanded;
 
     private static readonly Color Ink = Color.FromArgb(29, 42, 61);
@@ -124,8 +128,7 @@ internal sealed class MainForm : Form
         _restoreView = BuildRestoreView();
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
-        _arqEmpDatabase.Text = _settings.ArqEmpCommandDatabase;
-        _arqSistDatabase.Text = _settings.ArqSistCommandDatabase;
+        // A base selecionada (.FDB) NÃO é persistida: fica apenas na sessão atual.
         _arqEmpEditor.Text = _settings.ArqEmpCommands;
         _arqSistEditor.Text = _settings.ArqSistCommands;
         HighlightSql(_arqEmpEditor);
@@ -152,8 +155,27 @@ internal sealed class MainForm : Form
         };
         HandleCreated += (_, _) => ApplyTitleBarTheme();
         ApplyTheme();
+        _forceMultiBase.Checked = _settings.ForceMultiBase;
+        _forceMultiBase.CheckedChanged += (_, _) =>
+        {
+            _settings.ForceMultiBase = _forceMultiBase.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de estrutura: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
+        _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
+        _baseCount.ValueChanged += (_, _) =>
+        {
+            _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a quantidade de bases: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
         _appVersionLabel.Text = GetCurrentVersion().ToString(3);
-        Shown += async (_, _) => await CheckForUpdatesAsync();
+        Shown += async (_, _) =>
+        {
+            _sl.Focus(); // ao abrir o sistema, o cursor já fica no campo da SL
+            await CheckForUpdatesAsync();
+        };
         _password.Text = _settings.GetFirebirdPassword() ?? "";
         _savePassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedFirebirdPassword);
         _savePassword.CheckedChanged += (_, _) => SavePasswordPreference();
@@ -187,6 +209,12 @@ internal sealed class MainForm : Form
             _commandSaveTimer.Stop();
             SaveCommandSettings();
         };
+        _settingsSaveTimer.Tick += (_, _) =>
+        {
+            _settingsSaveTimer.Stop();
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
         FormClosing += (sender, e) =>
         {
             _menuAnimationTimer.Stop();
@@ -202,6 +230,8 @@ internal sealed class MainForm : Form
             else
             {
                 _commandSaveTimer.Stop();
+                _settingsSaveTimer.Stop();
+                _notifyIcon?.Visible = false;
                 try
                 {
                     PersistSettings();
@@ -354,7 +384,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 260));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 352));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -513,6 +543,29 @@ internal sealed class MainForm : Form
             var item = new ListViewItem(Path.GetFileName(folder)) { Tag = folder };
             _baseFolders.Items.Add(item);
         }
+    }
+
+    private void SelectBaseMatchingRegistry()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SIC\CONEXAO", writable: false);
+            var baseValue = key?.GetValue("BASE1") as string;
+            if (string.IsNullOrWhiteSpace(baseValue)) return;
+            var normalized = Path.GetFullPath(baseValue.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+            for (var i = 0; i < _baseFolders.Items.Count; i++)
+            {
+                var folder = _baseFolders.Items[i].Tag as string;
+                if (folder is not null && string.Equals(Path.GetFullPath(folder), normalized, StringComparison.OrdinalIgnoreCase))
+                {
+                    _baseFolders.Items[i].Selected = true;
+                    _baseFolders.EnsureVisible(i);
+                    _selectedBasePath.Text = folder;
+                    break;
+                }
+            }
+        }
+        catch { /* destaque best-effort; a lista funciona sem ele */ }
     }
 
     private async Task ChangeSelectedBaseAsync()
@@ -859,6 +912,8 @@ internal sealed class MainForm : Form
         AcceptButton = _changeBaseButton;
         RefreshBaseFolders();
         ApplyNavigationColors();
+        SelectBaseMatchingRegistry();
+        _baseFolders.Focus();
     }
 
     private void ShowResetView()
@@ -880,6 +935,7 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _resetButton;
         ApplyNavigationColors();
+        _resetSl.Focus();
     }
 
     private void ShowRestoreView()
@@ -900,6 +956,7 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _restoreRunning ? null : _restoreButton;
         ApplyNavigationColors();
+        if (!_restoreRunning) _restoreFolder.Focus();
     }
 
     private Control BuildCommandView(string title, TextBox databasePath, RichTextBox editor, RichTextBox output, string databaseName)
@@ -949,7 +1006,7 @@ internal sealed class MainForm : Form
             HighlightSql(editor);
             QueueCommandSettingsSave();
         };
-        databasePath.TextChanged += (_, _) => QueueCommandSettingsSave();
+
         page.Controls.Add(BuildEditorCard("Resultado do teste", output), 0, 3);
 
         var actions = new Panel { Dock = DockStyle.Fill };
@@ -1217,6 +1274,8 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = Color.White;
         AcceptButton = settings ? null : _start;
         ApplyNavigationColors();
+        if (settings) _fields[nameof(AppSettings.SolicitationRoot)].Focus();
+        else _sl.Focus();
     }
 
     private void ShowCommandView(bool arqEmp)
@@ -1237,6 +1296,7 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = arqEmp ? Color.White : Color.FromArgb(231, 240, 255);
         AcceptButton = null;
         ApplyNavigationColors();
+        (arqEmp ? _arqEmpEditor : _arqSistEditor).Focus();
     }
 
     private Control BuildSettingsPanel()
@@ -1247,7 +1307,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 192),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 288),
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Margin = Padding.Empty
         };
@@ -1256,14 +1316,19 @@ internal sealed class MainForm : Form
             new Label { Text = "Origem das solicitações", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Pasta local das bases", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Pasta de bases de apoio", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
+            new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
-        var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot) };
+        var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot), nameof(AppSettings.TempPath) };
+        var emptyTempHint = TryGetSicTempPath() is string registryTemp
+            ? $"(Vazio = valor do Registro: {registryTemp})"
+            : "(Vazio = pasta temporária do Windows)";
         var pathFields = keys.Select(key => new TextBox
         {
             Text = GetSetting(key),
             BorderStyle = BorderStyle.FixedSingle,
             BackColor = Color.FromArgb(249, 251, 254),
+            PlaceholderText = key == nameof(AppSettings.TempPath) ? emptyTempHint : "",
             Height = 30
         }).ToArray();
         var browseButtons = keys.Select(key =>
@@ -1292,15 +1357,22 @@ internal sealed class MainForm : Form
             host.Controls.Add(pathFields[keyIndex]);
             host.Controls.Add(browseButtons[keyIndex]);
         }
+        foreach (var field in pathFields) field.TextChanged += (_, _) => QueueSettingsSave();
+        // usuário que digita vê as mudanças gravadas na hora; Procurar também grava ao confirmar
         _password.BorderStyle = BorderStyle.FixedSingle;
         _password.BackColor = Color.FromArgb(249, 251, 254);
         _password.Margin = Padding.Empty;
         _savePassword.Margin = Padding.Empty;
-        host.Controls.Add(labels[3]);
+        host.Controls.Add(labels[4]);
         host.Controls.Add(_password);
         host.Controls.Add(_savePassword);
-        _darkMode.Location = new Point(0, 151);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 187) });
+        _baseCount.Location = new Point(180, 180);
+        host.Controls.Add(_baseCount);
+        _darkMode.Location = new Point(0, 219);
         host.Controls.Add(_darkMode);
+        _forceMultiBase.Location = new Point(0, 249);
+        host.Controls.Add(_forceMultiBase);
 
         void LayoutSettingsRows()
         {
@@ -1322,10 +1394,10 @@ internal sealed class MainForm : Form
                 else
                 {
                     _password.Location = new Point(fieldLeft, y);
-                    _password.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - _savePassword.Width - rightInset - 18);
+                    _password.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
                     _password.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                     _password.Height = 30;
-                    _savePassword.Location = new Point(host.ClientSize.Width - _savePassword.Width - rightInset, y + 6);
+                    _savePassword.Location = new Point(host.ClientSize.Width - buttonWidth, y + 6);
                     _savePassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
                 }
             }
@@ -1469,6 +1541,7 @@ internal sealed class MainForm : Form
                 listView.ForeColor = text;
             }
             else if (control is TextBox textBox) { textBox.BackColor = input; textBox.ForeColor = text; }
+            else if (control is NumericUpDown numeric) { numeric.BackColor = input; numeric.ForeColor = text; }
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
@@ -1553,6 +1626,7 @@ internal sealed class MainForm : Form
         nameof(AppSettings.SolicitationRoot) => _settings.SolicitationRoot,
         nameof(AppSettings.BasesRoot) => _settings.BasesRoot,
         nameof(AppSettings.SupportRoot) => _settings.SupportRoot,
+        nameof(AppSettings.TempPath) => _settings.TempPath,
         _ => ""
     };
 
@@ -1561,7 +1635,12 @@ internal sealed class MainForm : Form
         if (kind == "folder")
         {
             using var dialog = new FolderBrowserDialog { SelectedPath = _fields[key].Text, ShowNewFolderButton = true };
-            if (dialog.ShowDialog(this) == DialogResult.OK) _fields[key].Text = dialog.SelectedPath;
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _fields[key].Text = dialog.SelectedPath;
+                try { PersistSettings(); }
+                catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            }
         }
     }
 
@@ -1570,8 +1649,8 @@ internal sealed class MainForm : Form
         _settings.SolicitationRoot = _fields[nameof(AppSettings.SolicitationRoot)].Text.Trim();
         _settings.BasesRoot = _fields[nameof(AppSettings.BasesRoot)].Text.Trim();
         _settings.SupportRoot = _fields[nameof(AppSettings.SupportRoot)].Text.Trim();
-        _settings.ArqEmpCommandDatabase = _arqEmpDatabase.Text.Trim();
-        _settings.ArqSistCommandDatabase = _arqSistDatabase.Text.Trim();
+        _settings.TempPath = _fields[nameof(AppSettings.TempPath)].Text.Trim();
+        _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
         _settings.ArqEmpCommands = _arqEmpEditor.Text;
         _settings.ArqSistCommands = _arqSistEditor.Text;
     }
@@ -1583,6 +1662,12 @@ internal sealed class MainForm : Form
         _settings.Save();
     }
 
+    private void QueueSettingsSave()
+    {
+        _settingsSaveTimer.Stop();
+        _settingsSaveTimer.Start();
+    }
+
     private void QueueCommandSettingsSave()
     {
         _commandSaveTimer.Stop();
@@ -1591,8 +1676,6 @@ internal sealed class MainForm : Form
 
     private void SaveCommandSettings()
     {
-        _settings.ArqEmpCommandDatabase = _arqEmpDatabase.Text.Trim();
-        _settings.ArqSistCommandDatabase = _arqSistDatabase.Text.Trim();
         _settings.ArqEmpCommands = _arqEmpEditor.Text;
         _settings.ArqSistCommands = _arqSistEditor.Text;
         try { _settings.Save(); }
@@ -1696,11 +1779,29 @@ internal sealed class MainForm : Form
             SetStatus("Preparando a base…");
 
             await ExtractArchivesAsync(destination, _runCancellation.Token);
-            MoveDatabasesToRoot(destination, _runCancellation.Token);
-            await EnsureRequiredDatabasesAsync(destination, _runCancellation.Token);
-            await RunSqlScriptsAsync(destination, _runCancellation.Token);
-            await UpdateRegistryAsync(destination);
-            await ShowVersionAsync(destination, _runCancellation.Token);
+            var databaseFolders = MultiBaseOperationRules.FindDatabaseFolders(destination);
+            var forced = !MultiBaseOperationRules.IsMultiBase(destination) && _settings.ForceMultiBase;
+            var multiBase = forced || databaseFolders.Count > 0;
+            string arqSistDatabase;
+            if (multiBase)
+            {
+                if (forced) Log("Opção 'Sempre criar estrutura multi-base' ativa: aplicando o tratamento multi-base.");
+                else Log("Pastas ARQ## encontradas: " + string.Join(", ", databaseFolders.Select(folder => Path.GetFileName(folder.DirectoryPath))) + ". Aplicando o tratamento multi-base.");
+                Log("A ARQSIST usada será a da pasta ARQ01.");
+                arqSistDatabase = await PrepareMultiBaseDatabasesAsync(destination, _runCancellation.Token);
+            }
+            else
+            {
+                MoveDatabasesToRoot(destination, _runCancellation.Token);
+                await EnsureRequiredDatabasesAsync(destination, _runCancellation.Token);
+                arqSistDatabase = Path.Combine(destination, "ARQSIST.FDB");
+            }
+            var arqEmpDatabase = multiBase
+                ? Path.Combine(MultiBaseOperationRules.GetCompanyDirectory(destination), MultiBaseOperationRules.CompanyDatabaseEmp)
+                : Path.Combine(destination, "ARQEMP.FDB");
+            await RunSqlScriptsAsync(arqEmpDatabase, arqSistDatabase, destination, multiBase, _runCancellation.Token);
+            if (multiBase) await UpdateRegistryForMultiBaseAsync(destination); else await UpdateRegistryAsync(destination);
+            await ShowVersionAsync(arqSistDatabase, _runCancellation.Token);
             Log("Base preparada com sucesso. Ela já está selecionada para uso.");
             _status.Text = "Tudo pronto!";
             MessageBox.Show(this, $"A base da SL {sl} foi preparada e selecionada.\n\nÉ só abrir o sistema e trabalhar normalmente.", "Pronto!", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1796,7 +1897,12 @@ internal sealed class MainForm : Form
     private string[] SelectArchives(string title, string[] files)
     {
         if (files.Length == 1) return files;
-        using var dialog = new Form { Text = title, Size = new Size(650, 440), StartPosition = FormStartPosition.CenterParent, MinimizeBox = false, MaximizeBox = false, FormBorderStyle = FormBorderStyle.FixedDialog, BackColor = Color.White };
+        if (files.Length > 1) NotifyIfMinimized(title, "O Traz Base aguarda a sua escolha dos arquivos.");
+        var screen = Screen.FromControl(this);
+        var dialogLocation = new Point(
+            screen.WorkingArea.Left + Math.Max(0, (screen.WorkingArea.Width - 650) / 2),
+            screen.WorkingArea.Top + Math.Max(0, (screen.WorkingArea.Height - 440) / 2));
+        using var dialog = new Form { Text = title, Size = new Size(650, 440), Location = dialogLocation, StartPosition = FormStartPosition.Manual, MinimizeBox = false, MaximizeBox = false, FormBorderStyle = FormBorderStyle.FixedDialog, BackColor = Color.White };
         var list = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, IntegralHeight = false, Font = Font };
         foreach (var file in files) list.Items.Add(file, true);
         var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 54, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(8) };
@@ -1902,6 +2008,7 @@ internal sealed class MainForm : Form
         var systemDb = Path.Combine(root, "ARQSIST.FDB");
         if (!File.Exists(systemDb))
         {
+            NotifyIfMinimized("Selecione a ARQSIST.FDB", "O Traz Base precisa que você escolha o arquivo ARQSIST.");
             using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
             if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
             await CopyFileAsync(dialog.FileName, systemDb, token);
@@ -1916,10 +2023,111 @@ internal sealed class MainForm : Form
         if (!File.Exists(Path.Combine(root, "ARQEMP.FDB")) || !File.Exists(systemDb)) throw new InvalidOperationException("Faltam a ARQEMP.FDB ou a ARQSIST.FDB na pasta da base e elas também não existem na pasta de apoio.");
     }
 
-    private async Task RunSqlScriptsAsync(string root, CancellationToken token)
+    private async Task<string> PrepareMultiBaseDatabasesAsync(string root, CancellationToken token)
     {
-        await RunSqlIfConfiguredAsync(_arqEmpEditor.Text, Path.Combine(root, "ARQEMP.FDB"), "Comandos ARQEMP", token);
-        await RunSqlIfConfiguredAsync(_arqSistEditor.Text, Path.Combine(root, "ARQSIST.FDB"), "Comandos ARQSIST", token);
+        token.ThrowIfCancellationRequested();
+        var companyDirectory = MultiBaseOperationRules.GetCompanyDirectory(root);
+        Directory.CreateDirectory(companyDirectory);
+
+        foreach (var databaseName in new[] { MultiBaseOperationRules.CompanyDatabaseEmp, MultiBaseOperationRules.CompanyDatabaseOcor })
+        {
+            token.ThrowIfCancellationRequested();
+            var destination = Path.Combine(companyDirectory, databaseName);
+            string? source = File.Exists(Path.Combine(root, databaseName)) ? Path.Combine(root, databaseName) : null;
+            if (source is null)
+            {
+                var nested = MultiBaseOperationRules.FindFilesOutsideManagedFolders(root, databaseName);
+                if (nested.Count > 1)
+                    throw new IOException($"Encontrei mais de uma {databaseName} em subpastas:\n{string.Join("\n", nested)}\nRemova as extras ou mantenha apenas uma e tente novamente.");
+                source = nested.Count == 1 ? nested[0] : null;
+            }
+
+            if (source is not null)
+            {
+                if (File.Exists(destination))
+                    throw new IOException($"Encontrei {databaseName} em {Path.GetDirectoryName(source)} e também na pasta ARQ00. Resolva o conflito antes de continuar.");
+                File.Move(source, destination);
+                Log($"{databaseName} movida para a pasta ARQ00.");
+            }
+            else if (!File.Exists(destination))
+            {
+                var support = Path.Combine(_settings.SupportRoot, databaseName);
+                if (!File.Exists(support))
+                    throw new FileNotFoundException($"{databaseName} não existe na raiz nem em subpastas, nem na pasta ARQ00, nem na pasta de apoio.", support);
+                await CopyFileAsync(support, destination, token);
+                Log($"Arquivo de apoio copiado para ARQ00: {databaseName}");
+            }
+            else
+            {
+                Log($"{databaseName} já existe na pasta ARQ00 — mantida.");
+            }
+        }
+
+        var arqSist = MultiBaseOperationRules.GetArqSistPath(root);
+        var sistCandidates = MultiBaseOperationRules.FindFilesOutsideManagedFolders(root, "ARQSIST.FDB");
+        if (sistCandidates.Count > 1)
+            throw new IOException($"Encontrei mais de uma ARQSIST.FDB fora das pastas ARQ01/ARQ00:\n{string.Join("\n", sistCandidates)}\nRemova as extras ou mantenha apenas uma e tente novamente.");
+        if (sistCandidates.Count == 1 && File.Exists(arqSist))
+            throw new IOException($"Encontrei ARQSIST.FDB em {Path.GetDirectoryName(sistCandidates[0])} e também na pasta ARQ01. Resolva o conflito antes de continuar.");
+
+        if (sistCandidates.Count == 1 && !File.Exists(arqSist))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(arqSist)!);
+            File.Move(sistCandidates[0], arqSist);
+            Log("ARQSIST.FDB movida para a pasta ARQ01.");
+        }
+        else if (!File.Exists(arqSist))
+        {
+            NotifyIfMinimized("Selecione a ARQSIST.FDB", "O Traz Base precisa que você escolha o arquivo ARQSIST para a pasta ARQ01.");
+            using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB (pasta ARQ01)", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
+            if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
+            Directory.CreateDirectory(Path.GetDirectoryName(arqSist)!);
+            await CopyFileAsync(dialog.FileName, arqSist, token);
+            Log("ARQSIST.FDB criado em ARQ01 com o arquivo que você selecionou.");
+        }
+        else
+        {
+            Log("ARQSIST.FDB encontrada na pasta ARQ01.");
+        }
+
+        if (!File.Exists(Path.Combine(companyDirectory, MultiBaseOperationRules.CompanyDatabaseEmp)) ||
+            !File.Exists(Path.Combine(companyDirectory, MultiBaseOperationRules.CompanyDatabaseOcor)) ||
+            !File.Exists(arqSist))
+            throw new InvalidOperationException("A validação das bases obrigatórias falhou: confira ARQEMP.FDB/ARQOCOR.FDB na pasta ARQ00 e ARQSIST.FDB na pasta ARQ01.");
+
+        return arqSist;
+    }
+
+    private async Task RunSqlScriptsAsync(string arqEmpDatabase, string arqSistDatabase, string destination, bool multiBase, CancellationToken token)
+    {
+        await RunSqlIfConfiguredAsync(_arqEmpEditor.Text, arqEmpDatabase, "Comandos ARQEMP", token);
+
+        var targets = GetArqSistTargetsForSql(destination, multiBase, arqSistDatabase);
+        foreach (var database in targets)
+        {
+            var label = targets.Count == 1
+                ? "Comandos ARQSIST"
+                : "Comandos ARQSIST (" + Path.GetFileName(Path.GetDirectoryName(database)!) + ")";
+            await RunSqlIfConfiguredAsync(_arqSistEditor.Text, database, label, token);
+        }
+    }
+
+    private IReadOnlyList<string> GetArqSistTargetsForSql(string destination, bool multiBase, string defaultArqSist)
+    {
+        if (!multiBase || string.IsNullOrWhiteSpace(_arqSistEditor.Text))
+            return new[] { defaultArqSist };
+
+        foreach (var folder in MultiBaseOperationRules.GetFolderNamesWithoutArqSist(destination))
+            Log($"{folder}: sem ARQSIST.FDB — os comandos ARQSIST não serão executados nessa pasta.");
+
+        var existing = MultiBaseOperationRules.GetArqSistDatabases(destination);
+        if (existing.Count <= 1) return new[] { defaultArqSist };
+
+        var names = existing.Select(database => Path.GetFileName(Path.GetDirectoryName(database)!) ?? database).ToList();
+        var answer = MessageBox.Show(this,
+            $"Executar os comandos ARQSIST em todas as {existing.Count} bases ARQSIST?\n\nPastas: {string.Join(", ", names)}\n\nSim = executa em todas, uma após a outra.\nNão = executa somente na ARQ01.",
+            "Comandos ARQSIST", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        return answer == DialogResult.Yes ? existing : new[] { defaultArqSist };
     }
 
     private async Task RunSqlIfConfiguredAsync(string commands, string database, string label, CancellationToken token, Action<string>? operationLog = null)
@@ -1949,6 +2157,54 @@ internal sealed class MainForm : Form
         WriteOperationLog(operationLog, $"{label}: comandos executados com sucesso.");
     }
 
+    private void NotifyIfMinimized(string caption, string? body = null)
+    {
+        // Sempre ativa: notificar quando há perguntas/mensagens pendentes com a janela minimizada.
+        if (WindowState != FormWindowState.Minimized) return;
+        ShowBalloon(caption, body);
+    }
+
+    private void ShowBalloon(string caption, string? body)
+    {
+        if (_notifyIcon is null)
+        {
+            _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = true };
+            _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
+        }
+        var message = body is { Length: > 0 }
+            ? body + "\nClique aqui para abrir a janela."
+            : "O Traz Base precisa da sua atenção.\nClique aqui para abrir a janela.";
+        _notifyIcon.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+    }
+
+    private void RestoreFromMinimized()
+    {
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        BringToFront();
+        Activate();
+    }
+
+    private string GetConfiguredTempPath()
+    {
+        var custom = _settings.TempPath?.Trim();
+        if (!string.IsNullOrWhiteSpace(custom)) return custom;
+        return TryGetSicTempPath() ?? Path.GetTempPath();
+    }
+
+    private static string? TryGetSicTempPath()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SIC\CONEXAO", writable: false);
+            var value = key?.GetValue("TEMP") as string;
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+        catch
+        {
+            return null; // Registro inacessível/ausente — cai no padrão do Windows.
+        }
+    }
+
     private string BuildFirebirdConnectionString(string databasePath)
     {
         var builder = new FbConnectionStringBuilder
@@ -1970,10 +2226,42 @@ internal sealed class MainForm : Form
         WriteOperationLog(operationLog, "Apontando o sistema para esta base (Registro do Windows)…");
         using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível atualizar o Registro do Windows (HKCU\\SIC\\CONEXAO).\nVerifique as permissões do seu usuário e tente novamente.");
         var basePath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
-        foreach (var name in new[] { "BASE1", "BASE2", "BASE3", "BASE4", "EMPRESA" }) key.SetValue(name, basePath, RegistryValueKind.String);
+        var baseCount = Math.Clamp(_settings.BaseCount, 1, 99);
+        for (var number = 1; number <= baseCount; number++)
+            key.SetValue("BASE" + number, basePath, RegistryValueKind.String);
+        WriteOperationLog(operationLog, $"{baseCount} base(s) configurada(s): BASE1…BASE{baseCount} = {basePath}");
+        key.SetValue("EMPRESA", basePath, RegistryValueKind.String);
         key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
-        key.SetValue("TEMP", Path.GetTempPath(), RegistryValueKind.String);
+        key.SetValue("TEMP", GetConfiguredTempPath(), RegistryValueKind.String);
         WriteOperationLog(operationLog, "O Registro foi atualizado; o sistema já aponta para esta base.");
+        await Task.CompletedTask;
+    }
+
+    private async Task UpdateRegistryForMultiBaseAsync(string root, Action<string>? operationLog = null)
+    {
+        WriteOperationLog(operationLog, "Apontando o sistema para as bases ARQ## (Registro do Windows)…");
+        using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível atualizar o Registro do Windows (HKCU\\SIC\\CONEXAO).\nVerifique as permissões do seu usuário e tente novamente.");
+
+        foreach (var (name, value) in MultiBaseOperationRules.GetBaseKeyWrites(root))
+        {
+            key.SetValue(name, value, RegistryValueKind.String);
+            WriteOperationLog(operationLog, $"{name} = {value}");
+        }
+        foreach (var name in MultiBaseOperationRules.GetBaseKeyDeletions(root))
+        {
+            if (key.GetValue(name) is not null)
+            {
+                key.DeleteValue(name, throwOnMissingValue: false);
+                WriteOperationLog(operationLog, $"{name} removida (nenhuma pasta correspondente na SL).");
+            }
+        }
+
+        var companyPath = MultiBaseOperationRules.WithTrailingSeparator(MultiBaseOperationRules.GetCompanyDirectory(root));
+        key.SetValue("EMPRESA", companyPath, RegistryValueKind.String);
+        key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
+        key.SetValue("TEMP", GetConfiguredTempPath(), RegistryValueKind.String);
+        WriteOperationLog(operationLog, $"EMPRESA = {companyPath}");
+        WriteOperationLog(operationLog, "SIC apontando para as bases recebidas (Registro atualizado).");
         await Task.CompletedTask;
     }
 
@@ -1983,12 +2271,11 @@ internal sealed class MainForm : Form
         else operationLog(message);
     }
 
-    private async Task ShowVersionAsync(string root, CancellationToken token)
+    private async Task ShowVersionAsync(string database, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        var database = Path.Combine(root, "ARQSIST.FDB");
         SetStatus("Consultando a versão da base ARQSIST…");
-        Log("Consultando a versão da base ARQSIST…");
+        Log($"Consultando a versão em {database}");
         await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
         await connection.OpenAsync(token);
         await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)

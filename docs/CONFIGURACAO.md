@@ -21,12 +21,14 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `SupportRoot` | string | `""` | Pasta de bases de apoio de onde `ARQEMP.FDB` e `ARQOCOR.FDB` são copiados quando ausentes. |
 | `ScriptArqEmp` | string? | omitida | **Legado.** Caminho de um `.sql` para ARQEMP; migrado para `ArqEmpCommands` na primeira execução. |
 | `ScriptArqSist` | string? | omitida | **Legado.** Caminho de um `.sql` para ARQSIST; migrado para `ArqSistCommands` na primeira execução. |
-| `ArqEmpCommandDatabase` | string | `""` | Caminho da base Firebird usada pelo botão **Testar comando** da tela Comandos ARQEMP. |
-| `ArqSistCommandDatabase` | string | `""` | Idem para Comandos ARQSIST. |
+
 | `ArqEmpCommands` | string | `""` | Comandos SQL executados em `ARQEMP.FDB` durante o fluxo de preparação/redefinição (e testáveis na tela ARQEMP). |
 | `ArqSistCommands` | string | `""` | Idem para `ARQSIST.FDB`. |
 | `CommandScriptsMigrated` | bool | `false` | `true` após a migração automática dos scripts legados para os comandos inline. |
 | `DarkMode` | bool | `false` | Preferência de tema escuro (reaplicada a cada início). |
+| `TempPath` | string | `""` | Pasta temporária usada no Registro (`TEMP`). Vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows. |
+| `ForceMultiBase` | bool | `false` | Sempre criar a estrutura multi-base (`ARQ01`/`ARQ00`), mesmo em SLs sem pastas `ARQ##`. |
+| `BaseCount` | number | `4` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (quando "Sempre criar estrutura multi-base" não está marcada). Entre 1 e 99. |
 | `ProtectedFirebirdPassword` | string? | omitida | Senha Firebird protegida por DPAPI (Base64), gravada somente quando "Salvar senha" está marcado. |
 
 Campos nulos marcados com `[JsonIgnore(WhenWritingNull)]` (`ScriptArqEmp`, `ScriptArqSist`, `ProtectedFirebirdPassword`) desaparecem do arquivo quando vazios/limpos.
@@ -48,7 +50,7 @@ Chave: `HKCU\SIC\CONEXAO` (somente usuário atual; não requer admin para `HKCU`
 | `BASE1`, `BASE2`, `BASE3`, `BASE4` | Caminho completo da pasta da base, com `\` final |
 | `EMPRESA` | Mesmo caminho da base |
 | `SERVIDOR` | `LOCALHOST` |
-| `TEMP` | `Path.GetTempPath()` do usuário no momento da gravação |
+| `TEMP` | Pasta temporária configurada; se vazia, o valor de `HKCU\SIC\CONEXAO\TEMP` quando existir; senão `Path.GetTempPath()` do usuário |
 
 Os valores anteriores não são preservados; a aplicação confirma a ação e informa os caminhos envolvidos, mas não faz backup do Registro.
 

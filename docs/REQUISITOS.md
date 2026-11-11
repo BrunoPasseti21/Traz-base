@@ -21,7 +21,7 @@ Legenda: **OK** implementado · **Parcial** implementado com limitações · **P
 
 - **RF-01 — OK.** Diretório local de trabalho das bases configurável e validado (`BasesRoot`).
 - **RF-02 — OK.** Diretório de bases de apoio configurável (`SupportRoot`), usado para copiar `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes.
-- **RF-03 — Parcial.** Não há diretórios separados de utilitários Firebird nem de temporários: o aplicativo conecta-se ao Firebird pelo serviço local (ADO.NET e serviços de gerenciamento do provider — `FbConnection` e `FbRestore`), sem `isql`/`gbak` externos; o temporário usado é `Path.GetTempPath()` (gravado em `TEMP` no Registro).
+- **RF-03 — Parcial.** Não há diretórios separados de utilitários Firebird: o aplicativo conecta-se ao Firebird pelo serviço local (ADO.NET e serviços de gerenciamento do provider — `FbConnection` e `FbRestore`), sem `isql`/`gbak` externos. O temporário usado no Registro (`TEMP`) pode ser configurado em Configurações (`TempPath`); vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()`.
 - **RF-04 — OK.** Caminho de origem das solicitações na rede configurável (`SolicitationRoot`).
 - **RF-05 — OK.** Configuração persistida em JSON versionável e legível (`%APPDATA%\TrazBase\settings.json`), sem depender de ordem de linhas nem de `Caminhos.txt`.
 
@@ -31,10 +31,10 @@ Legenda: **OK** implementado · **Parcial** implementado com limitações · **P
 - **RF-07 — OK.** Andamento em bytes/MB e arquivos copiados na barra de progresso, com log textual da operação.
 - **RF-08 — OK.** Detecção de `*.rar` e `*.zip` na pasta copiada; com vários arquivos, o operador escolhe em uma lista (`CheckedListBox`) o que extrair; com um único arquivo, ele é extraído direto. Proteção contra path traversal nos caminhos das entradas.
 - **RF-09 — OK.** Seleção de base local existente na tela **Alterar base** (lista de pastas de `BasesRoot`).
-- **RF-10 — OK.** Atualização de `HKCU\SIC\CONEXAO`: `BASE1`…`BASE4` e `EMPRESA` recebem o caminho completo da base com barra final; `SERVIDOR=LOCALHOST`; `TEMP` recebe a pasta temporária do usuário.
+- **RF-10 — OK.** Atualização de `HKCU\SIC\CONEXAO`: modo simples → `BASE1`…`BASE<n>` (quantidade definida nas Configurações, padrão 4, limite 99) e `EMPRESA` recebem o caminho completo da base com barra final; modo multi-base (pastas `ARQ##`) → `BASE<n>` por pasta `ARQn` (`\` final), `EMPRESA` = pasta `ARQ00`, e remoção das chaves `BASE1`–`BASE99` sem correspondente; `SERVIDOR=LOCALHOST`; `TEMP` = pasta temporária configurada (vazio: `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()`).
 - **RF-11 — Parcial.** A tela **Redefinir base** valida a SL (somente dígitos) e a pasta local, exige `ARQSIST.FDB` presente (senão informa e interrompe), copia `ARQEMP.FDB`/`ARQOCOR.FDB` da pasta de apoio quando ausentes e executa os comandos SQL configurados. Não renomeia arquivos automaticamente e não copia a pasta inteira.
 - **RF-12 — OK.** Restaura os arquivos `.FBK` reconhecidos (`ARQEMP`, `ARQOCOR`, `ARQSIST`) da subpasta `BKP` quando ela existe (senão da própria pasta selecionada) para `.FDB` ao lado deles, pelo serviço de gerenciamento do Firebird (`FbRestore` do provider ADO.NET, `-se service_mgr`), em paralelo; sem `gbak.exe` nem processos externos. Substituição de `.FDB` existente exige confirmação.
-- **RF-13 — OK.** Comandos SQL configurados são executados diretamente em `ARQEMP.FDB` e `ARQSIST.FDB` via `FbConnection`/`FbScript`/`FbBatchExecution`, sem `isql.exe`. Conexão: servidor `localhost`, usuário `SYSDBA`, dialeto 3, charset UTF8, sem pooling.
+- **RF-13 — OK.** Comandos SQL configurados são executados diretamente em `ARQEMP.FDB` e `ARQSIST.FDB` via `FbConnection`/`FbScript`/`FbBatchExecution`, sem `isql.exe`. Conexão: servidor `localhost`, usuário `SYSDBA`, dialeto 3, charset UTF8, sem pooling. No modo multi-base, havendo mais de uma ARQSIST entre as pastas `ARQ##`, o operador escolhe se os comandos ARQSIST rodam em todas elas (ou só na `ARQ01`).
 - **RF-14 — OK.** Versão consultada em `ARQSIST.FDB` (`SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE`) e exibida ao final do fluxo **Transferir**. A redefinição não consulta a versão.
 - **RF-15 — OK.** Cancelamento cooperativo por `CancellationToken` nas cópias e extrações; no SQL, o cancelamento fecha a conexão Firebird. Operações de Registro e movimentação de arquivos não são canceláveis no meio da etapa.
 - **RF-16 — Parcial.** Log de operação existe (painel com carimbo de hora e etapa), mas fica apenas em memória; não é gravado em arquivo. Senhas nunca são registradas.
@@ -42,7 +42,7 @@ Legenda: **OK** implementado · **Parcial** implementado com limitações · **P
 ## Requisitos não funcionais — status
 
 - **RNF-01 — OK.** Interface em português (pt-BR).
-- **RNF-02 — OK.** Operações longas rodam fora da thread da UI (`async`/`await`); progresso e etapa atual são exibidos.
+- **RNF-02 — OK.** Operações longas rodam fora da thread da UI (`async`/`await`); progresso e etapa atual são exibidos. Balloons de perguntas/mensagens pendentes são sempre exibidos quando a janela está minimizada.
 - **RNF-03 — OK (parcial).** Validação prévia de caminhos, existência de pastas/arquivos e senha obrigatória antes de iniciar. Não há verificação de espaço em disco disponível.
 - **RNF-04 — OK.** Argumentos de processos externos não são concatenados em shell (não há chamadas a executáveis externos no fluxo principal; a atualização inicia o instalador via `ProcessStartInfo` com `Verb="runas"`). Caminhos de arquivo usam APIs do .NET com `Path`.
 - **RNF-05 — OK.** Substituição de pasta existente exige confirmação contextual com três opções explícitas: **Cancelar**, **Criar backup** (renomeia para `.backup-yyyyMMdd-HHmmss`) ou **Substituir** (apaga sem cópia).

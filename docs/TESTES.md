@@ -10,7 +10,7 @@ Na raiz do repositório:
 dotnet test TrazBase.Tests/TrazBase.Tests.csproj
 ```
 
-Saída esperada: `Aprovado! – Com falha: 0, Aprovado: 55, Ignorado: 0`.
+Saída esperada: `Aprovado! – Com falha: 0, Aprovado: 78, Ignorado: 0`.
 
 Filtros úteis:
 
@@ -68,6 +68,25 @@ Testa `RestoreOperationRules` (regras puras da restauração — tela Restaurar 
 | `GetDuplicateDestinations_ReportsNothingWhenAllTargetsAreDistinct` | Três bases distintas (`ARQEMP`, `ARQOCOR`, `ARQSIST`) → sem duplicados. |
 | `GetDuplicateDestinations_DetectsDuplicatesAgainstManualChoices` | Destino escolhido manualmente pelo operador colidindo com outro mapeado → duplicata detectada. |
 
+### `MultiBaseOperationRulesTests.cs` — 23 casos de teste (14 métodos, um deles parametrizado com 12 `DataRow`)
+
+Testa `MultiBaseOperationRules` (tratamento multi-base em SLs com pastas `ARQ##`):
+
+| Teste | Verifica |
+|---|---|
+| `MatchDatabaseFolderName_RecognizesOnlyArqWithTwoDigits` | Casos parametrizados (`DataRow`): `ARQ01`→1, `arq05`→5, `ARQ99`→99, `ARQ00`→0, `ARQ10`→10; `ARQ1`, `ARQ100`, `ARQX1`, `ARQ1A`, `BKP`, `ARQUIVO01`, `""` → `null`. |
+| `FindDatabaseFolders_ReturnsOnlyArqFoldersOrderedByNumber` | Com `ARQ01`, `ARQ05`, `arq99`, `BKP` e `ARQ100`, retorna apenas `1, 5, 99` ordenados, com caminho completo. |
+| `FindDatabaseFolders_ReturnsEmptyForMissingDirectory` | Pasta inexistente → lista vazia. |
+| `IsMultiBase_DetectsArqFoldersAtTopLevel` | Sem `ARQ##` → `false`; com `ARQ01` → `true`. |
+| `GetArqSistPath_IsArqSistInsideArq01` | `C:\bases\34700` → `C:\bases\34700\ARQ01\ARQSIST.FDB`. |
+| `GetBaseKeyWrites_CreatesBaseKeyPerArqFolderExceptArq00` | `ARQ00`+`ARQ01`+`ARQ05` → `BASE1=<...\ARQ01\>` e `BASE5=<...\ARQ05\>`, `ARQ00` fora; caminhos com `\` final. |
+| `GetBaseKeyDeletions_RemovesBaseKeysWithoutArqFolder` | Com `ARQ01`/`ARQ05`: sem `BASE1`/`BASE5`; contém `BASE2`, `BASE3`, `BASE4`, `BASE6`, `BASE99`; total = 97. |
+| `WithTrailingSeparator_NormalizesAndAppendsSeparator` | Normaliza e garante `\` final. |
+| `GetArqSistDatabases_ReturnsArqSistPerArqFolderExceptArq00` | `ARQ01` e `ARQ05` com `ARQSIST.FDB` → lista em ordem; `ARQ07` (sem) e `ARQ00` (ignorada) não entram. |
+| `GetFolderNamesWithoutArqSist_ReturnsNamesMissingArqSist` | Pasta `ARQ##` sem `ARQSIST.FDB` é reportada pelo nome (para o aviso no log). |
+| `FindFilesOutsideManagedFolders_FindsNestedButExcludesArq00AndArq01` | Localiza `*.fdb` em subpastas, excluindo `ARQ00`/`ARQ01`. |
+| `FindFilesOutsideManagedFolders_OrdersResultsOrdinalIgnoreCase` | Resultados ordenados de forma case-insensitive. |
+
 ### `ArchivePathSafetyTests.cs` — 6 testes
 
 Testa `ArchivePathSafety.GetSafeEntryPath` (proteção de entradas de compactados):
@@ -112,7 +131,7 @@ Testa a proteção DPAPI da senha Firebird em `AppSettings` (sem tocar em disco)
 
 ## Escopo e limitações
 
-- **Coberto:** regras de destino/apoio/conflito, proteção de path traversal em compactados, reconhecimento/mapeamento de `.FBK` na restauração, decisão de atualização via GitHub Releases, proteção DPAPI da senha.
+- **Coberto:** regras de destino/apoio/conflito, proteção de path traversal em compactados, reconhecimento/mapeamento de `.FBK` na restauração, regras do tratamento multi-base (pastas `ARQ##`), decisão de atualização via GitHub Releases, proteção DPAPI da senha.
 - **Não coberto:** `MainForm` (orquestração e UI: cópia, extração via `ZipArchive`/SharpCompress, Registro `HKCU\SIC\CONEXAO`, conexão SQL Firebird via `FbConnection`, execução do `FbRestore` em si, fluxo de atualização em si), `AppMessageBox` (diálogos) e `SvgIconLoader`. Testar esses exigiria extrair lógica para classes puras ou automação de UI — mesma ressalva registrada em [Riscos e decisões](RISCOS-E-DECISOES.md).
 - Testes que dependem de DPAPI/perfil Windows não rodam em Linux/macOS nem em CI sem Windows.
 - O paralelismo entre métodos (`MSTestSettings.cs`) é seguro porque nenhum teste escreve em local compartilhado (cada um usa `%TEMP%` único ou estado em memória).

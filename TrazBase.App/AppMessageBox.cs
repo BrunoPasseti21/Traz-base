@@ -15,6 +15,13 @@ internal static class MessageBox
 
 internal static class AppMessageBox
 {
+    /// <summary>
+    /// Disparado quando qualquer diálogo próprio é exibido (legenda, texto). Usado para notificar o usuário quando a janela está minimizada.
+    /// </summary>
+    internal static event Action<string, string>? DialogShown;
+
+    internal static void RaiseDialogShown(string caption, string body) => DialogShown?.Invoke(caption, body);
+
     public static DialogResult ShowFolderConflict(IWin32Window owner, string text)
     {
         (string Label, DialogResult Result, bool Primary)[] choices =
@@ -69,6 +76,7 @@ internal static class AppMessageBox
 internal sealed class AppMessageDialog : Form
 {
     private readonly MessageBoxButtons _buttons;
+    private readonly string _body;
 
     public AppMessageDialog(
         IWin32Window owner,
@@ -79,6 +87,7 @@ internal sealed class AppMessageDialog : Form
         MessageBoxDefaultButton defaultButton,
         (string Label, DialogResult Result, bool Primary)[]? customButtons = null)
     {
+        _body = text;
         _buttons = buttons;
         var ownerControl = owner as Control;
         var dark = ownerControl is not null && ownerControl.BackColor.R < 70;
@@ -96,7 +105,11 @@ internal sealed class AppMessageDialog : Form
         var messageAreaHeight = Math.Max(messageHeight + 28, 72);
         ClientSize = new Size(560, 44 + messageAreaHeight + 62 + 2);
         FormBorderStyle = FormBorderStyle.None;
-        StartPosition = FormStartPosition.CenterParent;
+        StartPosition = FormStartPosition.Manual;
+        var screen = ownerControl is not null ? Screen.FromControl(ownerControl) : Screen.FromHandle(owner?.Handle ?? IntPtr.Zero);
+        Location = new Point(
+            screen.WorkingArea.Left + Math.Max(0, (screen.WorkingArea.Width - ClientSize.Width) / 2),
+            screen.WorkingArea.Top + Math.Max(0, (screen.WorkingArea.Height - ClientSize.Height) / 2));
         ShowInTaskbar = false;
         MinimizeBox = false;
         MaximizeBox = false;
@@ -226,6 +239,18 @@ internal sealed class AppMessageDialog : Form
             };
 
         ActiveControl = AcceptButton as Control;
+    }
+
+    protected override void OnShown(EventArgs e)
+    {
+        base.OnShown(e);
+        if (Text is not null) AppMessageBox.RaiseDialogShown(Text, GetMessagePreview(_body));
+    }
+
+    private static string GetMessagePreview(string text)
+    {
+        var firstLine = text.Replace("\r", "").Split('\n', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault()?.Trim() ?? "";
+        return firstLine.Length <= 120 ? firstLine : firstLine[..120] + "…";
     }
 
     private void CloseWithDefaultCancelResult()
