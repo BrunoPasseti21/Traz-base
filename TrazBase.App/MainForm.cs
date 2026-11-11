@@ -1780,22 +1780,23 @@ internal sealed class MainForm : Form
         host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 187) });
         _baseCount.Location = new Point(180, 180);
         host.Controls.Add(_baseCount);
-        _darkMode.Location = new Point(0, 219);
-        host.Controls.Add(_darkMode);
-        _forceMultiBase.Location = new Point(0, 249);
-        host.Controls.Add(_forceMultiBase);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 286) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 223) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
-        _defaultScreen.Location = new Point(180, 281);
+        _defaultScreen.Location = new Point(180, 216);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
             QueueSettingsSave();
         };
         host.Controls.Add(_defaultScreen);
+
+        _darkMode.Location = new Point(0, 246);
+        host.Controls.Add(_darkMode);
+        _forceMultiBase.Location = new Point(0, 276);
+        host.Controls.Add(_forceMultiBase);
 
         void LayoutSettingsRows()
         {
