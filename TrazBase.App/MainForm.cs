@@ -1899,14 +1899,14 @@ internal sealed class MainForm : Form
 
         void LayoutSettingsRows()
         {
-            const int fieldLeft = 180;
+            const int fieldLeft = 200;
             const int buttonWidth = 120;
             const int rightInset = 18;
             for (var i = 0; i < labels.Length; i++)
             {
                 var y = i * 36;
                 labels[i].Location = new Point(i == 2 ? 24 : 0, y + 7);
-                if (i == 2) supportHelp.Location = new Point(0, y + 4);
+                if (i == 2) supportHelp.Location = new Point(0, y + 6);
                 if (i < pathFields.Length)
                 {
                     pathFields[i].Location = new Point(fieldLeft, y);
