@@ -132,7 +132,7 @@ internal sealed class AppMessageDialog : Form
             Text = caption,
             ForeColor = Color.White,
             BackColor = Color.Transparent,
-            Font = UiTypography.BodySemibold(10f),
+            Font = UiTypography.Body(10f),
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true,
             Location = new Point(18, 0),
@@ -153,9 +153,13 @@ internal sealed class AppMessageDialog : Form
             ForeColor = Color.White,
             BackColor = headerColor,
             Font = UiTypography.Body(15f),
-            TabStop = false
+            TabStop = false            
         };
         close.FlatAppearance.BorderSize = 0;
+        close.UseVisualStyleBackColor = false;
+        close.FlatAppearance.BorderColor = Color.Transparent;
+        close.FlatAppearance.MouseOverBackColor = headerColor;
+        close.FlatAppearance.MouseDownBackColor = headerColor;
         close.BackColor = headerColor;
         // hover idêntico ao botão de fechar da janela do Windows (#C42B1C hover / #A11F15 pressionado)
         close.MouseEnter += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
