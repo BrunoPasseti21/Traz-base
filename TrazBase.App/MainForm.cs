@@ -77,6 +77,13 @@ internal sealed class MainForm : Form
     private readonly Button _restoreButton = new() { Text = "Restaurar bases", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _restoreLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private readonly Panel _updateSicProgressRow = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly Label _updateSicProgressStatus = new() { AutoSize = true, Visible = false, ForeColor = Color.FromArgb(91, 110, 132), Font = UiTypography.Body(9f) };
+    private readonly Panel _updateSicProgressTrack = new() { Dock = DockStyle.Fill, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false };
+    private readonly Panel _updateSicProgressFill = new() { Location = new Point(0, 0), Width = 0, Height = 14, BackColor = Color.FromArgb(31, 111, 235) };
+    private int _updateSicProgressPercent;
+    private long _updateSicBytesDone;
+    private long _updateSicTotalBytes;
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
     private readonly TextBox _updateSicSource = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
@@ -929,29 +936,29 @@ internal sealed class MainForm : Form
 
     private Control BuildUpdateSicView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 276));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 246));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Baixa os executáveis SIC da origem configurada e extrai sobre a pasta de destino (mesma ação do Atualiza_Tudo.cmd).\r\n" +
-            "• Apaga os .zip após extrair; nada é salvo no Registro do Windows.\r\n" +
-            "• Configuração própria e independente das bases.\r\n" +
-            "• Versão do SIC: ex. s126 — é a subpasta procurada dentro da origem."), 0, 1);
+            "• Baixa os executáveis SIC da origem e extrai sobre o destino, apagando os .zip ao final.\r\n" +
+            "• Configuração própria e independente das bases. Versão do SIC: ex. s126 (subpasta da origem).\r\n" +
+            "• Nada é salvo no Registro do Windows."), 0, 1);
 
         var action = Card();
-        var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 16) };
-        var destinationLabel = new Label { Text = "Destino dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 86) };
-        var versionLabel = new Label { Text = "Versão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 156) };
+        var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 10) };
+        var destinationLabel = new Label { Text = "Destino dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 66) };
+        var versionLabel = new Label { Text = "Versão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 122) };
         action.Controls.Add(sourceLabel);
         action.Controls.Add(destinationLabel);
         action.Controls.Add(versionLabel);
-        _updateSicSource.Location = new Point(18, 40);
-        _updateSicDestination.Location = new Point(18, 110);
-        _updateSicVersion.Location = new Point(18, 180);
+        _updateSicSource.Location = new Point(18, 32);
+        _updateSicDestination.Location = new Point(18, 88);
+        _updateSicVersion.Location = new Point(18, 144);
         _updateSicSource.Anchor = AnchorStyles.Top | AnchorStyles.Left;
         _updateSicDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left;
         _updateSicSource.Width = 760;
@@ -962,8 +969,8 @@ internal sealed class MainForm : Form
         action.Controls.Add(_updateSicDestination);
         action.Controls.Add(_updateSicVersion);
 
-        _updateSicBrowseSource.Location = new Point(820, 39);
-        _updateSicBrowseDestination.Location = new Point(820, 109);
+        _updateSicBrowseSource.Location = new Point(820, 31);
+        _updateSicBrowseDestination.Location = new Point(820, 87);
         action.Resize += (_, _) =>
         {
             var available = Math.Max(120, action.ClientSize.Width - 18 - _updateSicBrowseSource.Width - 24);
@@ -976,15 +983,25 @@ internal sealed class MainForm : Form
         action.Controls.Add(_updateSicBrowseDestination);
 
         _updateSicButton.Size = new Size(220, 42);
-        _updateSicButton.Location = new Point(18, 216);
+        _updateSicButton.Location = new Point(18, 188);
         _updateSicButton.FlatAppearance.BorderSize = 0;
         action.Controls.Add(_updateSicButton);
-        _updateSicCancelButton.Location = new Point(254, 216);
+        _updateSicCancelButton.Location = new Point(254, 188);
         _updateSicCancelButton.Size = new Size(110, 42);
         _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _updateSicCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_updateSicCancelButton);
         page.Controls.Add(action, 0, 2);
+
+        _updateSicProgressStatus.Location = new Point(2, 0);
+        _updateSicProgressStatus.Dock = DockStyle.Top;
+        _updateSicProgressTrack.Dock = DockStyle.Fill;
+        _updateSicProgressTrack.Controls.Add(_updateSicProgressFill);
+        _updateSicProgressFill.Location = new Point(0, 0);
+        _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
+        _updateSicProgressRow.Controls.Add(_updateSicProgressTrack);
+        _updateSicProgressTrack.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
+        page.Controls.Add(_updateSicProgressRow, 0, 3);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -996,7 +1013,7 @@ internal sealed class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_updateSicLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 3);
+        page.Controls.Add(logCard, 0, 4);
         return page;
     }
 
@@ -1081,6 +1098,23 @@ internal sealed class MainForm : Form
         _updateSicLog.Clear();
         var token = _updateSicCancellation.Token;
         var failures = new List<(string File, string Reason)>();
+        long totalBytes = 0;
+        foreach (var zip in UpdateSicOperationRules.Executables)
+        {
+            var path = Path.Combine(sourceFolder, zip);
+            if (!File.Exists(path)) continue;
+            totalBytes += new FileInfo(path).Length;
+            try
+            {
+                using var za = ZipFile.OpenRead(path);
+                foreach (var entry in za.Entries) totalBytes += entry.Length;
+            }
+            catch { /* estimativa: se o zip não abrir, a barra vai até 100% ao final do arquivo */ }
+        }
+        _updateSicTotalBytes = Math.Max(totalBytes, 1);
+        _updateSicBytesDone = 0;
+        ShowUpdateSicProgress(true);
+        SetUpdateSicProgress("Preparando a atualização…");
         try
         {
             AppendUpdateSicLog($"Iniciando a atualização do SIC {version}");
@@ -1101,7 +1135,13 @@ internal sealed class MainForm : Form
                 try
                 {
                     AppendUpdateSicLog($"Copiando {zip} ({new FileInfo(source).Length / 1024d / 1024d:N1} MB)…");
-                    await CopyFileAsync(source, destination, token, mode: FileMode.Create);
+                    await CopyFileAsync(source, destination, token,
+                        copied: delta =>
+                        {
+                            _updateSicBytesDone += delta;
+                            SetUpdateSicProgress($"Copiando {zip}…");
+                        },
+                        mode: FileMode.Create);
 
                     AppendUpdateSicLog($"Extraindo {zip}…");
                     using var archive = ZipFile.OpenRead(destination);
@@ -1113,7 +1153,14 @@ internal sealed class MainForm : Form
                         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                         await using var input = entry.Open();
                         await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
-                        await input.CopyToAsync(output, 1024 * 1024, token);
+                        var buffer = new byte[1024 * 1024];
+                        long bytesRead;
+                        while ((bytesRead = await input.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+                        {
+                            await output.WriteAsync(buffer.AsMemory(0, (int)bytesRead), token);
+                            _updateSicBytesDone += bytesRead;
+                            SetUpdateSicProgress($"Extraindo {zip}…");
+                        }
                     }
                     File.Delete(destination);
                     AppendUpdateSicLog($"{zip}: executável atualizado (o .zip foi removido).");
@@ -1129,6 +1176,8 @@ internal sealed class MainForm : Form
                 }
             }
 
+            _updateSicBytesDone = _updateSicTotalBytes; // força a barra chegar em 100%
+            SetUpdateSicProgress("Concluído.");
             if (failures.Count == 0)
             {
                 AppendUpdateSicLog("Atualização concluída com sucesso.");
@@ -1154,6 +1203,7 @@ internal sealed class MainForm : Form
         }
         finally
         {
+            ShowUpdateSicProgress(false);
             _updateSicCancellation?.Dispose();
             _updateSicCancellation = null;
             _updateSicRunning = false;
@@ -1189,6 +1239,34 @@ internal sealed class MainForm : Form
         _updateSicLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
         _updateSicLog.SelectionStart = _updateSicLog.TextLength;
         _updateSicLog.ScrollToCaret();
+    }
+
+    private void UpdateUpdateSicProgressFillWidth()
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(UpdateUpdateSicProgressFillWidth)); return; }
+        var width = Math.Max(0, _updateSicProgressTrack.ClientSize.Width);
+        _updateSicProgressFill.Width = (int)Math.Round(width * _updateSicProgressPercent / 100d);
+        _updateSicProgressFill.Height = Math.Max(0, _updateSicProgressTrack.ClientSize.Height);
+    }
+
+    private void SetUpdateSicProgress(string status)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => SetUpdateSicProgress(status))); return; }
+        _updateSicProgressPercent = _updateSicTotalBytes == 0 ? 100 : (int)Math.Min(100, _updateSicBytesDone * 100d / _updateSicTotalBytes);
+        _updateSicProgressStatus.Text = status;
+        UpdateUpdateSicProgressFillWidth();
+    }
+
+    private void ShowUpdateSicProgress(bool show)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => ShowUpdateSicProgress(show))); return; }
+        var page = (TableLayoutPanel) _updateSicView;
+        _updateSicProgressRow.Visible = show;
+        _updateSicProgressTrack.Visible = show;
+        _updateSicProgressStatus.Visible = show;
+        page.SuspendLayout();
+        page.RowStyles[3].Height = show ? 56 : 0;
+        page.ResumeLayout(true);
     }
 
     private void OpenSelectedBaseFolder()
@@ -1830,6 +1908,7 @@ internal sealed class MainForm : Form
                 else if (panel == _progressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
                 else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
                 else if (panel == _settingsFieldsHost) panel.BackColor = surface;
+                else if (panel == _updateSicProgressTrack) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);
                 else panel.BackColor = panel.BorderStyle == BorderStyle.None ? background : surface;
             }
