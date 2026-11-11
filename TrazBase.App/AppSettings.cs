@@ -35,7 +35,7 @@ internal sealed class AppSettings
     public string TempPath { get; set; } = "";
     public bool ForceMultiBase { get; set; }
     public bool RenameSlFolderToClientName { get; set; }
-    public int BaseCount { get; set; } = 4;
+    public int BaseCount { get; set; } = 1;
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public StartScreen DefaultScreen { get; set; } = StartScreen.Transferir;
     public string? LastChangelogVersion { get; set; }

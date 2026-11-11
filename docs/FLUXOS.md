@@ -58,7 +58,7 @@ Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações
 
 | Valor    | Conteúdo                                        |
 |----------|-------------------------------------------------|
-| `BASE1`…`BASE<n>` | caminho completo da pasta da base, com `\` final — quantidade definida em **Quantidade de bases** nas Configurações (padrão 4) |
+| `BASE1`…`BASE<n>` | caminho completo da pasta da base, com `\` final — quantidade definida em **Quantidade de bases** nas Configurações (padrão 1) |
 | `EMPRESA` | idem (mesmo caminho)                           |
 | `SERVIDOR` | `LOCALHOST`                                   |
 | `TEMP`   | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
@@ -145,7 +145,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Senha Firebird** (campo protegido; caixa **Salvar senha** grava protegida por DPAPI)
 - **Usar modo escuro** (persiste `DarkMode` e reaplica o tema na hora)
 - **Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)** (`ForceMultiBase`) — mesmo quando a SL não traz pastas `ARQ##`: o fluxo cria `ARQ01\` e move a `ARQSIST.FDB` para lá, cria `ARQ00\` e move `ARQEMP.FDB`/`ARQOCOR.FDB` para lá (ou copia da pasta de apoio/aninhadas), e usa o Registro no formato multi-base (`BASE1`…`BASE99` apenas com correspondente + `EMPRESA` = `ARQ00`). Os arquivos `*.fdb` são procurados também em subpastas (fora das pastas `ARQ##`); mais de uma candidata interrompe com aviso.
-- **Quantidade de bases** (`BaseCount`, padrão 4) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
+- **Quantidade de bases** (`BaseCount`, padrão 1) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
 - **Tela inicial** (`DefaultScreen`, padrão "Transferir") — define qual tela o app exibe ao abrir. Opções: Transferir, Alterar base, Redefinir base, Restaurar base, Atualizar SIC, Configuração, Comandos ARQEMP, Comandos ARQSIST.
 - **Renomear pasta da solicitação para o primeiro nome da nota promissória do cliente** (`RenameSlFolderToClientName`) — no fluxo "Transferir", após os comandos SQL da base, a aplicação executa `SELECT FIRST 1 C.NOME FROM ARQCAD C WHERE C.TIPOC = 'N'` na **ARQSIST** e renomeia a pasta de destino para **`<primeiro nome>_<SL>`** (ex.: `"JOAO_123456"`). A validação de "pasta já existe" ao iniciar a SL considera a pasta exata `<SL>` ou qualquer pasta que termine em `_<SL>` — ideal para detectar bases renomeadas anteriormente.
 - **Notificações de perguntas/mensagens** — com a aplicação **minimizada**, qualquer pergunta/mensagem pendente dispara sempre um balloon da bandeja ("Traz Base") com o título do diálogo e a primeira linha do texto; clicar no balloon restaura a janela.
