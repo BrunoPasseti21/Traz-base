@@ -161,6 +161,20 @@ internal sealed class MainForm : Form
         _contentHost.Controls.Add(_arqSistView);
         _contentHost.Controls.Add(_transferView);
         Controls.Add(_shell);
+        WireEnterNavigation([_sl], _start);
+        WireEnterNavigation([_selectedBasePath], _changeBaseButton);
+        WireEnterNavigation([_resetSl], _resetButton);
+        WireEnterNavigation([_restoreFolder], _restoreButton);
+        WireEnterNavigation([_updateSicSource, _updateSicDestination, _updateSicVersion], _updateSicButton);
+        WireEnterNavigation([
+            _fields[nameof(AppSettings.SolicitationRoot)],
+            _fields[nameof(AppSettings.BasesRoot)],
+            _fields[nameof(AppSettings.SupportRoot)],
+            _fields[nameof(AppSettings.TempPath)],
+            _password],
+            _savePassword);
+        WireEnterNavigation([_arqEmpDatabase], _arqEmpEditor);
+        WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
         ShowView(settings: false);
         _darkMode.Checked = _settings.DarkMode;
@@ -1006,7 +1020,7 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _updateSicRunning ? null : _updateSicButton;
         ApplyNavigationColors();
-        _updateSicVersion.Focus();
+        _updateSicSource.Focus();
     }
 
     private void BrowseUpdateSicFolder(string kind)
@@ -1134,6 +1148,21 @@ internal sealed class MainForm : Form
             _updateSicButton.Enabled = true;
             _updateSicCancelButton.Visible = false;
             foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+        }
+    }
+
+    private static void WireEnterNavigation(Control[] chain, Control? terminal)
+    {
+        for (var i = 0; i < chain.Length; i++)
+        {
+            var target = i < chain.Length - 1 ? chain[i + 1] : terminal;
+            chain[i].KeyDown += (_, e) =>
+            {
+                if (e.KeyCode != Keys.Enter || e.Modifiers != Keys.None) return;
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                if (target is not null && target.Enabled && target.Visible) target.Focus();
+            };
         }
     }
 
