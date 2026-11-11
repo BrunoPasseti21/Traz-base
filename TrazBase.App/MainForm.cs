@@ -940,8 +940,8 @@ internal sealed class MainForm : Form
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 246));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
         page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
@@ -1000,7 +1000,7 @@ internal sealed class MainForm : Form
         _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
         _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
         _updateSicProgressRow.Controls.Add(_updateSicProgress);
-        page.Controls.Add(_updateSicProgressRow, 0, 3);
+        page.Controls.Add(_updateSicProgressRow, 0, 4);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -1252,7 +1252,7 @@ internal sealed class MainForm : Form
         _updateSicProgressStatus.Visible = show;
         _updateSicProgress.Visible = show;
         page.SuspendLayout();
-        page.RowStyles[3].Height = show ? 56 : 0;
+        page.RowStyles[4].Height = show ? 56 : 0;
         page.ResumeLayout(true);
     }
 
