@@ -113,13 +113,11 @@ Porta a ideia do script `Atualiza_Tudo.cmd` (já no repositório é chamado a pa
 1. Origem: a pasta **base** (ex.: `...\Sistemas\SIC`) e a **versão** (ex.: `s126`) → pasta `base\<versao>`. A versão vazia usa `s126` como fallback. Se a pasta não existir, avisa e interrompe.
 2. Destino: pasta que recebe os arquivos extraídos. Se não existir, é criada.
 3. Pede confirmação explícita (**Sim/Não**) mostrando a origem, o destino e que o destino será sobrescrito.
-4. Durante a cópia e a extração mostra uma **barra de progresso** proporcional aos bytes já copiados/extraídos e o status ("Copiando SIC.exe.zip…", "Extraindo X…").
+4. Durante a cópia/extração mostra uma **barra de progresso** com percentual real (baseada nos bytes extraídos) e o status ("Extraindo SIC.exe.zip…", etc.); some após a conclusão.
 5. Para cada um dos quatro executáveis — `OSAtualizaSIC.exe.zip`, `SIC.exe.zip`, `Prj_Obra.exe.zip`, `Prj_PCP_FA.exe.zip` (`UpdateSicOperationRules.Executables`):
    - se o `.zip` não existir na origem, registra um aviso no log e **segue para o próximo**;
-   - copia o `.zip` para o destino (sobrescreve, como o `Copy /y` do `.cmd`);
-   - extrai via `ZipArchive` nativo com validação de caminho (nunca grava fora do destino);
-   - apaga o `.zip` no destino (como o `-df` do `.cmd`);
-   - **se qualquer etapa do arquivo falhar (cópia, extração, caminho, disco, etc.), avisa pelo log e continua com o próximo arquivo** — em vez de abortar os demais. Cancelamento pelo operador continua encerrando a operação.
+   - abre o `.zip` **direto da pasta de origem** (somente leitura; o arquivo nunca é copiado para o destino) e extrai os arquivos sobre o destino;
+   - **se qualquer etapa do arquivo falhar, avisa pelo log e continua com o próximo arquivo** (não aborta os demais). Cancelamento pelo operador encerra a operação.
 6. Ao final, o resultado é resumido: sucesso total ou um aviso listando os arquivos que falharam (e o motivo de cada um); os demais foram atualizados normalmente. **Cancelar** interrompe o loop entre blocos; navegação desabilitada enquanto roda.
 7. As configurações da ação são **próprias e separadas**: `UpdateSicSourceRoot`, `UpdateSicDestinationRoot`, `UpdateSicSicVersion` — nada a ver com as configurações das bases (SL); salvas como as demais (debounce + ao fechar/iniciar operações). A parte EDE do `.cmd` está comentada e não foi portada.
 
