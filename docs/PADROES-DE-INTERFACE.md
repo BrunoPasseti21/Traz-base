@@ -64,6 +64,7 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 ## Menu lateral
 
 - Recolhido por padrão: largura **68 px**, só ícones SVG (24 px) centralizados.
+- Organização por blocos, na ordem: **Transferência** (Transferir, Alterar base, Redefinir base, Restaurar base) → **Atualização** (Atualizar SIC) → **Configurações** (Configuração, Comandos ARQEMP, Comandos ARQSIST). Divisórias finas (`sidebarSeparator`, `#E2E8F0` claro / `#39434F` escuro) separam os três grupos.
 - Expandido pelo botão sanduíche: largura **300 px**, ícone + descrição em **12 pt** alinhados à esquerda com recuo de 18 px.
 - **Transição animada**: alternar expande/recolhe com animação de largura de ~220 ms e easing ease-out cúbico (passos de 15 ms). Ao **recolher**, os rótulos somem de imediato; ao **expandir**, os rótulos aparecem ao final da animação. Cliques rápidos no botão sanduíche redirecionam a animação a partir da largura atual, sem sacudidas.
 - Opção selecionada recebe fundo `#E7F0FF` (claro) / `#30435E` (escuro); as demais ficam com o fundo do menu e hover próprio.

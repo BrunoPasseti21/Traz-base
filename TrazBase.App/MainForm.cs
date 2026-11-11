@@ -125,13 +125,15 @@ internal sealed class MainForm : Form
         _menuFooter.Controls.Add(_creatorLabel);
         _menuFooter.Controls.Add(_appVersionLabel);
         _sidebar.Controls.Add(_menuFooter);
-        _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(_arqSistNav);
         _sidebar.Controls.Add(_arqEmpNav);
-        _sidebar.Controls.Add(_restoreNav);
+        _sidebar.Controls.Add(_settingsNav);
+        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
         _sidebar.Controls.Add(_updateSicNav);
+        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
+        _sidebar.Controls.Add(_restoreNav);
         _sidebar.Controls.Add(_resetNav);
-        _sidebar.Controls.Add(_changeBaseNav);              
+        _sidebar.Controls.Add(_changeBaseNav);
         _sidebar.Controls.Add(_transferNav);
         _sidebar.Controls.Add(_menuToggle);
         _transferView = BuildTransferView();
@@ -498,6 +500,9 @@ internal sealed class MainForm : Form
         page.Controls.Add(logCard, 0, 3);
         return page;
     }
+
+    private static Control CreateSidebarSeparator() =>
+        new Panel { Dock = DockStyle.Top, Height = 3, Tag = "sidebarSeparator", BackColor = Color.FromArgb(208, 217, 230) };
 
     private Control BuildRestoreView()
     {
@@ -913,52 +918,55 @@ internal sealed class MainForm : Form
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 204));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 276));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Mesma ação feita pelo script Atualiza_Tudo.cmd: baixa os executáveis (.zip) da origem, extrai sobre a pasta de destino e apaga os .zip.\r\n" +
-            "• Configuração própria desta tela, independente da configuração das bases (SL).\r\n" +
-            "• Origem: pasta base (ex.: ...\\Sistemas\\SIC); a versão (ex.: s126) vira a subpasta usada.\r\n" +
-            "• Destino: pasta que recebe os executáveis extraídos."), 0, 1);
+            "• Baixa os executáveis SIC da origem configurada e extrai sobre a pasta de destino (mesma ação do Atualiza_Tudo.cmd).\r\n" +
+            "• Apaga os .zip após extrair; nada é salvo no Registro do Windows.\r\n" +
+            "• Configuração própria e independente das bases.\r\n" +
+            "• Versão do SIC: ex. s126 — é a subpasta procurada dentro da origem."), 0, 1);
 
         var action = Card();
-        var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) };
-        var destinationLabel = new Label { Text = "Destino dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) };
-        var versionLabel = new Label { Text = "Versão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) };
+        var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 16) };
+        var destinationLabel = new Label { Text = "Destino dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 86) };
+        var versionLabel = new Label { Text = "Versão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 156) };
         action.Controls.Add(sourceLabel);
         action.Controls.Add(destinationLabel);
         action.Controls.Add(versionLabel);
-        _updateSicSource.Location = new Point(180, 12);
-        _updateSicDestination.Location = new Point(180, 58);
-        _updateSicVersion.Location = new Point(180, 104);
+        _updateSicSource.Location = new Point(18, 40);
+        _updateSicDestination.Location = new Point(18, 110);
+        _updateSicVersion.Location = new Point(18, 180);
+        _updateSicSource.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _updateSicDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _updateSicSource.Width = 760;
+        _updateSicDestination.Width = 760;
+        _updateSicBrowseSource.Left = 820;
+        _updateSicBrowseDestination.Left = 820;
         action.Controls.Add(_updateSicSource);
         action.Controls.Add(_updateSicDestination);
         action.Controls.Add(_updateSicVersion);
 
-        _updateSicBrowseSource.Location = new Point(0, 11);
-        _updateSicBrowseDestination.Location = new Point(0, 57);
-        _updateSicBrowseSource.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-        _updateSicBrowseDestination.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _updateSicBrowseSource.Location = new Point(820, 39);
+        _updateSicBrowseDestination.Location = new Point(820, 109);
         action.Resize += (_, _) =>
         {
-            _updateSicSource.Width = Math.Max(120, action.ClientSize.Width - 180 - _updateSicBrowseSource.Width - 30);
-            _updateSicDestination.Width = Math.Max(120, action.ClientSize.Width - 180 - _updateSicBrowseDestination.Width - 30);
-            _updateSicBrowseSource.Left = action.ClientSize.Width - _updateSicBrowseSource.Width - 12;
-            _updateSicBrowseDestination.Left = action.ClientSize.Width - _updateSicBrowseDestination.Width - 12;
+            var available = Math.Max(120, action.ClientSize.Width - 18 - _updateSicBrowseSource.Width - 24);
+            _updateSicSource.Width = available;
+            _updateSicDestination.Width = available;
+            _updateSicBrowseSource.Left = action.ClientSize.Width - _updateSicBrowseSource.Width - 18;
+            _updateSicBrowseDestination.Left = action.ClientSize.Width - _updateSicBrowseDestination.Width - 18;
         };
         action.Controls.Add(_updateSicBrowseSource);
         action.Controls.Add(_updateSicBrowseDestination);
 
-        sourceLabel.Location = new Point(18, 19);
-        destinationLabel.Location = new Point(18, 65);
-        versionLabel.Location = new Point(18, 111);
-
-        _updateSicButton.Location = new Point(18, 150);
+        _updateSicButton.Size = new Size(220, 42);
+        _updateSicButton.Location = new Point(18, 216);
         _updateSicButton.FlatAppearance.BorderSize = 0;
         action.Controls.Add(_updateSicButton);
-        _updateSicCancelButton.Location = new Point(204, 150);
+        _updateSicCancelButton.Location = new Point(254, 216);
+        _updateSicCancelButton.Size = new Size(110, 42);
         _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _updateSicCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_updateSicCancelButton);
@@ -1776,6 +1784,7 @@ internal sealed class MainForm : Form
                 else if (panel == _progressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
                 else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
                 else if (panel == _settingsFieldsHost) panel.BackColor = surface;
+                else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);
                 else panel.BackColor = panel.BorderStyle == BorderStyle.None ? background : surface;
             }
             else if (control is TableLayoutPanel || control is FlowLayoutPanel) control.BackColor = background;
