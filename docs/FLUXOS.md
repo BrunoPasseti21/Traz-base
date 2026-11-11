@@ -80,10 +80,10 @@ Observações: os valores anteriores **não** são salvos antes da gravação (a
 
 ## Fluxo 3 — Redefinir base
 
-Tela com instruções, **listagem idêntica à da tela Alterar base** (pastas encontradas em `BasesRoot`, com a base indicada pelo Registro — `HKCU\SIC\CONEXAO\BASE1` — já pré-selecionada) e campo de SL. Selecionar uma pasta na lista preenche o campo SL; em pastas renomeadas na transferência (`<nome>_<SL>`), a SL é o sufixo numérico do nome. Também é possível digitar a SL manualmente; duplo clique na lista inicia a redefinição. A tela mantém o log próprio ("Andamento da redefinição", com carimbo de hora). Ao clicar em **Redefinir base**:
+Tela com instruções, **listagem idêntica à da tela Alterar base** (pastas encontradas em `BasesRoot`, com a base indicada pelo Registro — `HKCU\SIC\CONEXAO\BASE1` — já pré-selecionada) e campo de SL. Selecionar uma pasta na lista faz a redefinição atuar sobre **a pasta escolhida** (mesmo sem SL no nome) e exibe o caminho em "Selecionada:"; em pastas renomeadas na transferência (`<nome>_<SL>`), a SL também é preenchida sozinha. Editar a SL manualmente limpa a seleção e devolve o usuário ao modo "digitar a SL" (`<SL>` exata ou, na ausência, `<nome>_<SL>`); duplo clique na lista inicia a redefinição. A tela mantém o log próprio ("Andamento da redefinição", com carimbo de hora). Ao clicar em **Redefinir base**:
 
-1. SL somente dígitos; `BasesRoot` e `SupportRoot` configuradas e existentes; senha Firebird informada.
-2. Pasta alvo = `BasesRoot\<SL>`; se não existir, o primeiro correspondente em `<nome>_<SL>` (base renomeada) — a pasta precisa existir (a redefinição não copia nem substitui a pasta inteira).
+1. SL somente dígitos (apenas no modo "digitada SL"); pasta selecionada existente; `BasesRoot` e `SupportRoot` configuradas e existentes; senha Firebird informada.
+2. Pasta alvo = pasta selecionada na lista, ou `BasesRoot\<SL>` quando nada está selecionado; se não existir, o primeiro correspondente em `<nome>_<SL>` (base renomeada) — a pasta precisa existir (a redefinição não copia nem substitui a pasta inteira).
 3. `ARQSIST.FDB` precisa existir na pasta alvo; caso contrário, o fluxo é interrompido com aviso.
 4. `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes são copiados da pasta de apoio.
 5. Comandos SQL dos editores ARQEMP/ARQSIST são executados (como no Fluxo 1, etapas 8).

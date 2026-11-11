@@ -78,12 +78,13 @@ internal sealed class MainForm : Form
     private readonly TextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
     private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private readonly Label _resetBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
+    private bool _syncingResetSlFromList;
     private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
     private readonly Button _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(500, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(540, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ThemedTextBox _resetLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _resetCancellation;
     private bool _resetRunning;
@@ -280,13 +281,27 @@ internal sealed class MainForm : Form
         _baseFolders.SelectedIndexChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
         _resetBaseFolders.SelectedIndexChanged += (_, _) =>
         {
-            if (_resetBaseFolders.SelectedItems.Count == 0) return;
+            if (_resetBaseFolders.SelectedItems.Count == 0)
+            {
+                _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
+                return;
+            }
             if (_resetBaseFolders.SelectedItems[0].Tag is not string folder) return;
             var name = Path.GetFileName(folder);
             var parts = name.Split('_', StringSplitOptions.RemoveEmptyEntries);
             var tail = parts.Length == 0 ? name : parts[^1];
-            // Em pastas renomeadas durante a transferência (<nome>_<SL>), a SL é o sufixo numérico.
-            _resetSl.Text = tail.Length > 0 && tail.All(char.IsAsciiDigit) ? tail : name;
+            // Pastas renomeadas durante a transferência (<nome>_<SL>): a SL é o sufixo numérico.
+            // Pastas sem SL no nome também são aceitas: a redefinição atua na pasta selecionada.
+            _syncingResetSlFromList = true;
+            _resetSl.Text = tail.Length > 0 && tail.All(char.IsAsciiDigit) ? tail : "";
+            _syncingResetSlFromList = false;
+            _resetRootLabel.Text = "Selecionada: " + folder;
+        };
+        _resetSl.TextChanged += (_, _) =>
+        {
+            if (_syncingResetSlFromList) return;
+            // Edição manual devolve o usuário ao modo "digitar a SL"; a seleção da lista sai.
+            for (var i = 0; i < _resetBaseFolders.Items.Count; i++) _resetBaseFolders.Items[i].Selected = false;
         };
         _baseFolders.DoubleClick += async (_, _) => await ChangeSelectedBaseAsync();
         _resetBaseFolders.DoubleClick += async (_, _) => await ResetBaseAsync();
@@ -528,7 +543,8 @@ internal sealed class MainForm : Form
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
-            "• Selecione a base na lista (ou digite a SL); em pastas renomeadas (<nome>_<SL>) a SL é preenchida sozinha.\r\n" +
+            "• Selecione a base na lista: a redefinição atua na pasta escolhida, mesmo sem SL no nome; ou digite a SL.\r\n" +
+            "• Em pastas renomeadas (<nome>_<SL>), a SL é preenchida sozinha.\r\n" +
             "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
             "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
             "• Atualiza o Registro.\r\n" +
@@ -554,7 +570,7 @@ internal sealed class MainForm : Form
         action.Controls.Add(_resetSl);
         action.Controls.Add(_resetButton);
         action.Controls.Add(_resetCancelButton);
-        _resetRootLabel.Location = new Point(434, 48);
+        _resetRootLabel.Location = new Point(540, 48);
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
         action.Controls.Add(_resetRootLabel);
         action.Resize += (_, _) => _resetRootLabel.MaximumSize = new Size(Math.Max(100, action.ClientSize.Width - _resetRootLabel.Left - 18), 0);
@@ -720,11 +736,39 @@ internal sealed class MainForm : Form
     {
         if (_resetRunning) return;
         ReadFields();
-        var sl = _resetSl.Text.Trim();
-        if (sl.Length == 0 || sl.Any(character => !char.IsAsciiDigit(character)))
+        var selectedFolder = _resetBaseFolders.SelectedItems.Count > 0 ? _resetBaseFolders.SelectedItems[0].Tag as string : null;
+        string target;
+        string sl;
+        if (selectedFolder is not null)
         {
-            MessageBox.Show(this, "Informe o número da SL usando somente dígitos.", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            // A redefinição atua sobre a pasta escolhida na lista, mesmo sem SL no nome.
+            if (!Directory.Exists(selectedFolder))
+            {
+                MessageBox.Show(this, $"A pasta selecionada na lista não existe mais:\n{selectedFolder}", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            target = Path.GetFullPath(selectedFolder);
+            sl = Path.GetFileName(target)!;
+        }
+        else
+        {
+            sl = _resetSl.Text.Trim();
+            if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c)))
+            {
+                MessageBox.Show(this, "Selecione uma base na lista ou informe o número da SL usando somente dígitos.", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            try { target = BaseOperationRules.FindLocalBaseDirectory(_settings.BasesRoot, sl); }
+            catch (Exception ex)
+            {
+                MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (!Directory.Exists(target))
+            {
+                MessageBox.Show(this, $"A pasta local da SL não foi encontrada:\n{target}", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
         }
         if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot))
         {
@@ -742,18 +786,6 @@ internal sealed class MainForm : Form
             return;
         }
 
-        string target;
-        try { target = BaseOperationRules.FindLocalBaseDirectory(_settings.BasesRoot, sl); }
-        catch (Exception ex)
-        {
-            MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
-            return;
-        }
-        if (!Directory.Exists(target))
-        {
-            MessageBox.Show(this, $"A pasta local da SL não foi encontrada:\n{target}", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            return;
-        }
         if (!File.Exists(Path.Combine(target, "ARQSIST.FDB")))
         {
             MessageBox.Show(this, "A base ARQSIST.FDB não foi encontrada na pasta local da SL. A redefinição exige essa base para executar os scripts.", "ARQSIST não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
@@ -770,7 +802,7 @@ internal sealed class MainForm : Form
         var token = _resetCancellation.Token;
         try
         {
-            AppendResetLog($"Iniciando redefinição da SL {sl} em {target}");
+            AppendResetLog($"Iniciando redefinição da base \"{sl}\" em {target}");
             foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(target, _settings.SupportRoot))
             {
                 token.ThrowIfCancellationRequested();
@@ -786,7 +818,7 @@ internal sealed class MainForm : Form
             token.ThrowIfCancellationRequested();
             await UpdateRegistryAsync(target, AppendResetLog);
             AppendResetLog("Redefinição concluída com sucesso.");
-            MessageBox.Show(this, $"A base da SL {sl} foi validada e selecionada no Registro.", "Redefinição concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, $"A base \"{sl}\" foi validada e selecionada no Registro.", "Redefinição concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (OperationCanceledException)
         {
