@@ -156,9 +156,12 @@ internal sealed class AppMessageDialog : Form
             TabStop = false
         };
         close.FlatAppearance.BorderSize = 0;
-        // idêntico ao botão de fechar da janela do Windows (hover vermelho #C42B1C, pressionar #A11F15)
-        close.FlatAppearance.MouseOverBackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
-        close.FlatAppearance.MouseDownBackColor = Color.FromArgb(0xA1, 0x1F, 0x15);
+        close.BackColor = headerColor;
+        // hover idêntico ao botão de fechar da janela do Windows (#C42B1C hover / #A11F15 pressionado)
+        close.MouseEnter += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.MouseLeave += (_, _) => close.BackColor = headerColor;
+        close.MouseDown += (_, _) => close.BackColor = Color.FromArgb(0xA1, 0x1F, 0x15);
+        close.MouseUp += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
         close.Click += (_, _) => CloseWithDefaultCancelResult();
         header.Controls.Add(close);
 
