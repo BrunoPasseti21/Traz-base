@@ -77,6 +77,8 @@ internal sealed class AppMessageDialog : Form
 {
     private readonly MessageBoxButtons _buttons;
     private readonly string _body;
+    private bool _dragging;
+    private Point _dragOffset;
 
     public AppMessageDialog(
         IWin32Window owner,
@@ -123,9 +125,9 @@ internal sealed class AppMessageDialog : Form
 
         var dialogWidth = ClientSize.Width - 2;
         var dialogHeight = ClientSize.Height - 2;
-        var header = new Panel { Location = Point.Empty, Size = new Size(dialogWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor };
+        var header = new Panel { Location = Point.Empty, Size = new Size(dialogWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor, Cursor = Cursors.SizeAll };
         surface.Controls.Add(header);
-        header.Controls.Add(new Label
+        var captionLabel = new Label
         {
             Text = caption,
             ForeColor = Color.White,
@@ -134,8 +136,12 @@ internal sealed class AppMessageDialog : Form
             TextAlign = ContentAlignment.MiddleLeft,
             AutoEllipsis = true,
             Location = new Point(18, 0),
-            Size = new Size(ClientSize.Width - 70, 44)
-        });
+            Size = new Size(ClientSize.Width - 70, 44),
+            Cursor = Cursors.SizeAll
+        };
+        header.Controls.Add(captionLabel);
+        WireDrag(header);
+        WireDrag(captionLabel);
 
         var close = new Button
         {
@@ -239,6 +245,29 @@ internal sealed class AppMessageDialog : Form
             };
 
         ActiveControl = AcceptButton as Control;
+    }
+
+    private void WireDrag(Control control)
+    {
+        control.MouseDown += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left) return;
+            _dragging = true;
+            _dragOffset = new Point(Cursor.Position.X - Left, Cursor.Position.Y - Top);
+            control.Capture = true;
+        };
+        control.MouseMove += (_, e) =>
+        {
+            if (!_dragging) return;
+            Location = new Point(Cursor.Position.X - _dragOffset.X, Cursor.Position.Y - _dragOffset.Y);
+        };
+        control.MouseUp += (_, e) =>
+        {
+            if (e.Button != MouseButtons.Left) return;
+            _dragging = false;
+            control.Capture = false;
+        };
+        control.MouseLeave += (_, _) => { _dragging = false; control.Capture = false; };
     }
 
     protected override void OnShown(EventArgs e)

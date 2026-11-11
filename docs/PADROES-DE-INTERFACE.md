@@ -83,6 +83,7 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`), nunca o `MessageBox` nativo. Posicionamento: `StartPosition = Manual` e calculado no centro da área de trabalho do monitor onde a janela-mãe está — nunca `CenterParent`, para que o diálogo permaneça centralizado mesmo com a janela minimizada. Estrutura do diálogo:
 
 - Janela sem moldura, borda de 1 px, cabeçalho azul `#1F6FEB` (claro) / `#1C232F` (escuro) com o título em semibold branco e botão de fechar `×` (hover vermelho `#BE3741`/(190,55,65)).
+- Cabeçalho também é área de arraste: clicar e arrastar a barra de título (incluindo o espaço entre o título e o botão de fechar) move o diálogo pela tela; o cursor fica como `SizeAll` sobre a área de arraste. O botão `×` preserva o hover padrão e não dispara o arraste.
 - Ícone como glifo (`×`, `!`, `?`, `i`) em círculo colorido com 15% de opacidade.
 - Botões à direita, altura 32 px; ação primária azul `#1F6FEB` com texto branco; demais primários com borda fina; `Esc` fecha; foco inicial na ação padrão (configurável por diálogo).
 - O diálogo de conflito de destino usa três ações: **Criar backup** (primária), **Substituir**, **Cancelar** — com texto explicando que "Substituir remove a pasta atual sem guardar uma cópia".
