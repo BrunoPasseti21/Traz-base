@@ -2258,6 +2258,19 @@ internal sealed class MainForm : Form
         string destination;
         try { destination = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
         catch (Exception ex) { MessageBox.Show(this, ex.Message, "Não foi possível definir a pasta de destino", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+        try
+        {
+            var baseRoot = Path.GetFullPath(_settings.BasesRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!Directory.Exists(destination))
+            {
+                var slSuffix = "_" + sl;
+                var candidate = Directory.GetDirectories(baseRoot)
+                    .FirstOrDefault(dir => string.Equals(Path.GetFileName(dir), sl, StringComparison.OrdinalIgnoreCase)
+                        || Path.GetFileName(dir).EndsWith(slSuffix, StringComparison.OrdinalIgnoreCase));
+                if (candidate is not null) destination = candidate;
+            }
+        }
+        catch { /* best-effort; a verificação pontual acima é suficiente */ }
         if (!Directory.Exists(source)) { MessageBox.Show(this, $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", "SL não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
         var destinationConflictChoice = ExistingDestinationAction.Cancel;
         if (Directory.Exists(destination))
@@ -2334,28 +2347,19 @@ internal sealed class MainForm : Form
                     }
                     else
                     {
-                        var parent = Path.GetDirectoryName(destination)!;
-                        var target = Path.Combine(parent, sanitized);
+                        var target = Path.Combine(Path.GetDirectoryName(destination)!, $"{sanitized}_{sl}");
                         if (string.Equals(target, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
                         {
-                            Log($"A pasta já está nomeada como '{sanitized}'; nada a renomear.");
+                            Log($"A pasta já está nomeada como '{sanitized}_{sl}'; nada a renomear.");
                         }
                         else if (Directory.Exists(target))
                         {
-                            var fallback = target + "_" + sl;
-                            if (Directory.Exists(fallback))
-                                Log($"Já existe uma pasta com o nome '{sanitized}'; renomeação ignorada.");
-                            else
-                            {
-                                Directory.Move(destination, fallback);
-                                Log($"Pasta da solicitação renomeada para: {Path.GetFileName(fallback)}");
-                                destination = fallback;
-                            }
+                            Log($"Já existe uma pasta com o nome '{sanitized}_{sl}'; renomeação ignorada. O número da SL foi preservado.");
                         }
                         else
                         {
                             Directory.Move(destination, target);
-                            Log($"Pasta da solicitação renomeada para: {sanitized}");
+                            Log($"Pasta da solicitação renomeada para: {Path.GetFileName(target)}");
                             destination = target;
                         }
                     }
