@@ -157,7 +157,6 @@ internal sealed class AppMessageDialog : Form
         };
         close.FlatAppearance.BorderSize = 0;
         close.UseVisualStyleBackColor = false;
-        close.FlatAppearance.BorderColor = Color.Transparent;
         close.FlatAppearance.MouseOverBackColor = headerColor;
         close.FlatAppearance.MouseDownBackColor = headerColor;
         close.BackColor = headerColor;
@@ -260,23 +259,28 @@ internal sealed class AppMessageDialog : Form
     {
         control.MouseDown += (_, e) =>
         {
-            if (e.Button != MouseButtons.Left) return;
+            if (e.Button != MouseButtons.Left || control.IsDisposed || !control.IsHandleCreated) return;
             _dragging = true;
             _dragOffset = new Point(Cursor.Position.X - Left, Cursor.Position.Y - Top);
             control.Capture = true;
         };
         control.MouseMove += (_, e) =>
         {
-            if (!_dragging) return;
+            if (!_dragging || control.IsDisposed || !control.IsHandleCreated) return;
             Location = new Point(Cursor.Position.X - _dragOffset.X, Cursor.Position.Y - _dragOffset.Y);
         };
         control.MouseUp += (_, e) =>
         {
-            if (e.Button != MouseButtons.Left) return;
+            if (e.Button != MouseButtons.Left || control.IsDisposed || !control.IsHandleCreated) return;
             _dragging = false;
             control.Capture = false;
         };
-        control.MouseLeave += (_, _) => { _dragging = false; control.Capture = false; };
+        control.MouseLeave += (_, _) =>
+        {
+            if (control.IsDisposed || !control.IsHandleCreated) { _dragging = false; return; }
+            _dragging = false;
+            control.Capture = false;
+        };
     }
 
     protected override void OnShown(EventArgs e)
