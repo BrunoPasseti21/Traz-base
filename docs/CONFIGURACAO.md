@@ -27,6 +27,9 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `CommandScriptsMigrated` | bool | `false` | `true` após a migração automática dos scripts legados para os comandos inline. |
 | `DarkMode` | bool | `false` | Preferência de tema escuro (reaplicada a cada início). |
 | `TempPath` | string | `""` | Pasta temporária usada no Registro (`TEMP`). Vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows. |
+| `UpdateSicSourceRoot` | string | `""` | Pasta base da origem dos executáveis SIC (ex.: `...\Sistemas\SIC`); a versão vem de `UpdateSicSicVersion`. |
+| `UpdateSicDestinationRoot` | string | `""` | Pasta que recebe os executáveis SIC extraídos (ex.: `C:\projetos\SIC\sic\desenvolvimento`). |
+| `UpdateSicSicVersion` | string | `""` | Versão do SIC usada como subpasta na origem (ex.: `s126`); vazio → `s126` no runtime. |
 | `ForceMultiBase` | bool | `false` | Sempre criar a estrutura multi-base (`ARQ01`/`ARQ00`), mesmo em SLs sem pastas `ARQ##`. |
 | `BaseCount` | number | `4` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (quando "Sempre criar estrutura multi-base" não está marcada). Entre 1 e 99. |
 | `ProtectedFirebirdPassword` | string? | omitida | Senha Firebird protegida por DPAPI (Base64), gravada somente quando "Salvar senha" está marcado. |

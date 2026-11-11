@@ -4,15 +4,16 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 ## Estrutura da janela e navegação
 
-Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → campo SL da redefinição; **Restaurar base** → campo da pasta selecionada; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Itens do menu:
+Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → campo SL da redefinição; **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → campo da versão do SIC; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Itens do menu:
 
 1. **Transferir** (visão inicial) — trazer e preparar a base por número de SL.
 2. **Alterar base** — apontar o Registro para uma base local já existente.
 3. **Redefinir base** — validar/preparar uma base local existente para a SL.
 4. **Restaurar base** — restaurar os `.FBK` da pasta selecionada (ou da subpasta `BKP`, se existir) para `.FDB` ao lado deles.
-5. **Configuração** — pastas, senha Firebird e tema.
-6. **Comandos ARQEMP** — editor SQL executável na base `ARQEMP.FDB`.
-7. **Comandos ARQSIST** — editor SQL executável na base `ARQSIST.FDB`.
+5. **Atualizar SIC** — copiar e extrair os executáveis do SIC da versão configurada (ação equivalente à do `Atualiza_Tudo.cmd`).
+6. **Configuração** — pastas, senha Firebird e tema.
+7. **Comandos ARQEMP** — editor SQL executável na base `ARQEMP.FDB`.
+8. **Comandos ARQSIST** — editor SQL executável na base `ARQSIST.FDB`.
 
 O rodapé do menu mostra a versão do aplicativo, o crédito "Criado por Bruno Passeti" e, quando há versão mais nova publicada no GitHub, um botão de atualização.
 
@@ -105,7 +106,23 @@ Ação **Restaurar bases** (requer a pasta selecionada e a senha Firebird):
 8. Ao final, se ao menos uma base foi restaurada, o operador escolhe (**Sim/Não**) se deseja atualizar `HKCU\SIC\CONEXAO` para apontar para a pasta onde os `.FDB` foram restaurados (mesmo caminho do passo 2). Sem restauração bem-sucedida, o Registro não é tocado e nenhum diálogo é exibido.
 9. Log próprio ("Andamento da restauração") com carimbo de hora; **Cancelar** encerra a espera — o cancelamento fecha as conexões de serviço e a etapa é abortada (as bases podem ficar em estado intermediário, como no `gbak`). Navegação desabilitada enquanto roda.
 
-## Fluxo 5 — Comandos ARQEMP / Comandos ARQSIST
+## Fluxo 5 — Atualizar SIC
+
+Porta a ideia do script `Atualiza_Tudo.cmd` (já no repositório é chamado a partir do app, não do `.cmd`) para uma tela própria. Ação **Atualizar executáveis** (requer origem e destino configurados), equivalente ao `.cmd`:
+
+1. Origem: a pasta **base** (ex.: `...\Sistemas\SIC`) e a **versão** (ex.: `s126`) → pasta `base\<versao>`. A versão vazia usa `s126` como fallback. Se a pasta não existir, avisa e interrompe.
+2. Destino: pasta que recebe os arquivos extraídos. Se não existir, é criada.
+3. Pede confirmação explícita (**Sim/Não**) mostrando a origem, o destino e que o destino será sobrescrito.
+4. Para cada um dos quatro executáveis — `OSAtualizaSIC.exe.zip`, `SIC.exe.zip`, `Prj_Obra.exe.zip`, `Prj_PCP_FA.exe.zip` (`UpdateSicOperationRules.Executables`):
+   - se o `.zip` não existir na origem, registra o aviso no log e ignora (os demais seguem e são reportados no final);
+   - copia o `.zip` para o destino (sobrescreve, como o `Copy /y` do `.cmd`);
+   - extrai via `ZipArchive` nativo com validação de caminho (nunca grava fora do destino);
+   - apaga o `.zip` no destino (como o `-df` do `.cmd`);
+   - registra tamanho, destino e resultado de cada arquivo no log ("Andamento da atualização").
+5. Ao final: mensagem de sucesso ou de atualização incompleta (lista dos arquivos não encontrados na origem). **Cancelar** interrompe o loop entre blocos; navegação desabilitada enquanto roda.
+6. As configurações da ação são **próprias e separadas**: `UpdateSicSourceRoot`, `UpdateSicDestinationRoot`, `UpdateSicSicVersion` — nada a ver com as configurações das bases (SL); salvas como as demais (debounce + ao fechar/iniciar operações). A parte EDE do `.cmd` está comentada e não foi portada.
+
+## Fluxo 6 — Comandos ARQEMP / Comandos ARQSIST
 
 Duas telas idênticas para os dois bancos. Cada uma tem:
 
@@ -115,7 +132,7 @@ Duas telas idênticas para os dois bancos. Cada uma tem:
 - Comandos são salvos automaticamente ~700 ms após a última digitação (`_commandSaveTimer`) e na saída do aplicativo. A base Firebird (.FDB) escolhida para testar **não é persistida** — vale apenas para a sessão atual.
 - Migração automática: configurações antigas que apontavam para arquivos `.sql` externos (`ScriptArqEmp`/`ScriptArqSist`) são incorporadas aos comandos inline na primeira execução após a atualização (`CommandScriptsMigrated`).
 
-## Fluxo 6 — Configuração
+## Fluxo 7 — Configuração
 
 Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 
@@ -131,7 +148,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 
 Alterações de tema, senha, multi-base forçado e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
 
-## Fluxo 7 — Atualização do aplicativo
+## Fluxo 8 — Atualização do aplicativo
 
 Ao abrir a janela, em segundo plano:
 

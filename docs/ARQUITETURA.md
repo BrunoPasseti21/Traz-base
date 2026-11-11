@@ -19,6 +19,7 @@ Solução única, projeto único (`TrazBase.App`); não há separação em assem
 | `ArchivePathSafety` (em `BaseOperationRules.cs`) | Normalização e validação do caminho de saída de entradas de arquivos compactados (rejeita caminhos absolutos e `..`). |
 | `RestoreOperationRules.cs` | Regras puras da restauração: resolução da pasta dos backups (`BKP` quando existe, senão a própria pasta selecionada), reconhecimento do tipo de base pelo nome do arquivo (`ARQEMP`/`ARQOCOR`/`ARQSIST`, sem distinção de maiúsculas/minúsculas), mapeamento para o `.FDB` ao lado do `.FBK`, detecção de destinos duplicados. |
 | `MultiBaseOperationRules.cs` | Regras puras do tratamento multi-base: detecção de pastas `ARQ##` (dois dígitos, na raiz da SL), caminho da `ARQ00`, ARQSIST como `ARQ01\ARQSIST.FDB`, cálculo das chaves `BASE<n>` a gravar e a remover. |
+| `UpdateSicOperationRules.cs` | Regras puras da "Atualizar SIC": a lista dos quatro executáveis `.zip` e onde ficam origem (com versão) e destino. |
 | `GitHubReleaseUpdater.cs` | Consulta a API de releases do GitHub, escolhe o asset `*Setup.exe` mais recente e baixa o instalador com progresso. `ParseLatestRelease` é testável. |
 | `AppMessageBox.cs` | Diálogos próprios (`AppMessageDialog`) que substituem o `MessageBox` nativo, incluindo o diálogo de conflito de destino (`ShowFolderConflict`). |
 | `SvgIconLoader.cs` | Renderiza os ícones SVG (apenas `<path fill>`, com `translate()`) para `Bitmap` — os ícones do menu não usam biblioteca externa. |
@@ -65,7 +66,7 @@ Não há processos externos no caminho crítico de negócio. O único processo i
 
 ### Configuração e segredos
 
-- JSON indentado em `%APPDATA%\TrazBase\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), pasta temporária configurável (`TempPath`), preferência de estrutura (`ForceMultiBase`), quantidade de bases do Registro no modo simples (`BaseCount`), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`). A base `.FDB` escolhida para testar comandos **não é persistida** (vale só para a sessão).
+- JSON indentado em `%APPDATA%\TrazBase\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), pasta temporária configurável (`TempPath`), preferência de estrutura (`ForceMultiBase`), quantidade de bases do Registro no modo simples (`BaseCount`), configuração própria da ação "Atualizar SIC" (`UpdateSicSourceRoot`, `UpdateSicDestinationRoot`, `UpdateSicSicVersion`), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`). A base `.FDB` escolhida para testar comandos **não é persistida** (vale só para a sessão).
 - Senha opcional ("Salvar senha"): protegida com `ProtectedData` (DPAPI, `DataProtectionScope.CurrentUser`), armazenada em Base64; nunca em texto puro; nunca registrada em log. Se `Unprotect` falhar, o valor é descartado e a opção volta a desmarcada.
 - Migração: chaves antigas `ScriptArqEmp`/`ScriptArqSist` (arquivos `.sql` externos) são incorporadas aos comandos inline na primeira execução após a atualização.
 - Comandos SQL são editados e salvos dentro do aplicativo; nenhum arquivo `.sql` externo é exigido.

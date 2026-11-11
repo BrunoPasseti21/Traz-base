@@ -10,7 +10,7 @@ Na raiz do repositório:
 dotnet test TrazBase.Tests/TrazBase.Tests.csproj
 ```
 
-Saída esperada: `Aprovado! – Com falha: 0, Aprovado: 78, Ignorado: 0`.
+Saída esperada: `Aprovado! – Com falha: 0, Aprovado: 85, Ignorado: 0`.
 
 Filtros úteis:
 
@@ -87,6 +87,20 @@ Testa `MultiBaseOperationRules` (tratamento multi-base em SLs com pastas `ARQ##`
 | `FindFilesOutsideManagedFolders_FindsNestedButExcludesArq00AndArq01` | Localiza `*.fdb` em subpastas, excluindo `ARQ00`/`ARQ01`. |
 | `FindFilesOutsideManagedFolders_OrdersResultsOrdinalIgnoreCase` | Resultados ordenados de forma case-insensitive. |
 
+### `UpdateSicOperationRulesTests.cs` — 7 casos de teste
+
+Testa `UpdateSicOperationRules` (ação "Atualizar SIC" — lista e caminhos dos executáveis):
+
+| Teste | Verifica |
+|---|---|
+| `Executables_ContainsAllFourExpectedZipFiles` | A lista fixa é `OSAtualizaSIC.exe.zip`, `SIC.exe.zip`, `Prj_Obra.exe.zip`, `Prj_PCP_FA.exe.zip`. |
+| `GetSourceRoot_CombinesRootAndVersion` | `C:\Sistemas\SIC` + `s126` → `C:\Sistemas\SIC\s126`. |
+| `GetSourceRoot_AcceptsRootWithTrailingSeparatorAndTrims` | Barra final ignorada; versão com espaços é aparada (`Arquivo` limpo). |
+| `GetSourceRoot_RejectsVersionWithPathTraversal` | Versão com `..` lança `ArgumentException`. |
+| `GetSourceRoot_RejectsEmptyInputs` | Origem vazia/versão vazia lançam `ArgumentException`. |
+| `GetDestinationZip_CombinesDestinationAndFileName` | `C:\projetos\SIC\...` + arquivo → caminho completo. |
+| `GetVersionOrDefault_UsesConfiguredValueOrFallback` | Versão configurada aparada; vazio → `s126`. |
+
 ### `ArchivePathSafetyTests.cs` — 6 testes
 
 Testa `ArchivePathSafety.GetSafeEntryPath` (proteção de entradas de compactados):
@@ -131,7 +145,7 @@ Testa a proteção DPAPI da senha Firebird em `AppSettings` (sem tocar em disco)
 
 ## Escopo e limitações
 
-- **Coberto:** regras de destino/apoio/conflito, proteção de path traversal em compactados, reconhecimento/mapeamento de `.FBK` na restauração, regras do tratamento multi-base (pastas `ARQ##`), decisão de atualização via GitHub Releases, proteção DPAPI da senha.
+- **Coberto:** regras de destino/apoio/conflito, proteção de path traversal em compactados, reconhecimento/mapeamento de `.FBK` na restauração, regras do tratamento multi-base (pastas `ARQ##`), regras da ação "Atualizar SIC", decisão de atualização via GitHub Releases, proteção DPAPI da senha.
 - **Não coberto:** `MainForm` (orquestração e UI: cópia, extração via `ZipArchive`/SharpCompress, Registro `HKCU\SIC\CONEXAO`, conexão SQL Firebird via `FbConnection`, execução do `FbRestore` em si, fluxo de atualização em si), `AppMessageBox` (diálogos) e `SvgIconLoader`. Testar esses exigiria extrair lógica para classes puras ou automação de UI — mesma ressalva registrada em [Riscos e decisões](RISCOS-E-DECISOES.md).
 - Testes que dependem de DPAPI/perfil Windows não rodam em Linux/macOS nem em CI sem Windows.
 - O paralelismo entre métodos (`MSTestSettings.cs`) é seguro porque nenhum teste escreve em local compartilhado (cada um usa `%TEMP%` único ou estado em memória).

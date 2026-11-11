@@ -24,6 +24,11 @@ internal sealed class AppSettings
     public bool ForceMultiBase { get; set; }
     public int BaseCount { get; set; } = 4;
 
+    // Configurações da ação "Atualizar SIC" (separadas das demais).
+    public string UpdateSicSourceRoot { get; set; } = "";
+    public string UpdateSicDestinationRoot { get; set; } = "";
+    public string UpdateSicSicVersion { get; set; } = "";
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");
 

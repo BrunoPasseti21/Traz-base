@@ -9,6 +9,9 @@
 # Legacy operational script contains internal settings and credentials.
 /Traz-base-sl.bat
 
+# Script interno com caminhos de rede da empresa — não subir para o GitHub.
+/Atualiza_Tudo.cmd
+
 # Publish output and downloadable release package (attach these to a GitHub Release).
 /Instalador/Aplicativo/
 /TrazBase-Instalador.zip

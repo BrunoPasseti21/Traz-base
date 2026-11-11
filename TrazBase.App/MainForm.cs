@@ -38,6 +38,7 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _changeBaseNav = new() { Text = "", Image = SvgIconLoader.Load("Trocar-Base.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _resetNav = new() { Text = "", Image = SvgIconLoader.Load("Redefinir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _restoreNav = new() { Text = "", Image = SvgIconLoader.Load("Restaurar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _updateSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
@@ -55,6 +56,7 @@ internal sealed class MainForm : Form
     private Control _changeBaseView = null!;
     private Control _resetView = null!;
     private Control _restoreView = null!;
+    private Control _updateSicView = null!;
     private Control _arqEmpView = null!;
     private Control _arqSistView = null!;
     private Panel _settingsFieldsHost = null!;
@@ -77,6 +79,16 @@ internal sealed class MainForm : Form
     private readonly ThemedTextBox _restoreLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
+    private readonly TextBox _updateSicSource = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+    private readonly TextBox _updateSicDestination = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+    private readonly TextBox _updateSicVersion = new() { Width = 160, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly Button _updateSicBrowseSource = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly Button _updateSicBrowseDestination = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly Button _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Button _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private CancellationTokenSource? _updateSicCancellation;
+    private bool _updateSicRunning;
     private readonly TextBox _arqEmpDatabase = new();
     private readonly TextBox _arqSistDatabase = new();
     private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
@@ -117,6 +129,7 @@ internal sealed class MainForm : Form
         _sidebar.Controls.Add(_arqSistNav);
         _sidebar.Controls.Add(_arqEmpNav);
         _sidebar.Controls.Add(_restoreNav);
+        _sidebar.Controls.Add(_updateSicNav);
         _sidebar.Controls.Add(_resetNav);
         _sidebar.Controls.Add(_changeBaseNav);              
         _sidebar.Controls.Add(_transferNav);
@@ -126,6 +139,10 @@ internal sealed class MainForm : Form
         _changeBaseView = BuildChangeBaseView();
         _resetView = BuildResetView();
         _restoreView = BuildRestoreView();
+        _updateSicView = BuildUpdateSicView();
+        _updateSicSource.Text = _settings.UpdateSicSourceRoot;
+        _updateSicDestination.Text = _settings.UpdateSicDestinationRoot;
+        _updateSicVersion.Text = _settings.UpdateSicSicVersion;
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
         // A base selecionada (.FDB) NÃO é persistida: fica apenas na sessão atual.
@@ -137,6 +154,7 @@ internal sealed class MainForm : Form
         _contentHost.Controls.Add(_changeBaseView);
         _contentHost.Controls.Add(_resetView);
         _contentHost.Controls.Add(_restoreView);
+        _contentHost.Controls.Add(_updateSicView);
         _contentHost.Controls.Add(_arqEmpView);
         _contentHost.Controls.Add(_arqSistView);
         _contentHost.Controls.Add(_transferView);
@@ -194,6 +212,14 @@ internal sealed class MainForm : Form
         _changeBaseNav.Click += (_, _) => ShowChangeBaseView();
         _resetNav.Click += (_, _) => ShowResetView();
         _restoreNav.Click += (_, _) => ShowRestoreView();
+        _updateSicNav.Click += (_, _) => ShowUpdateSicView();
+        _updateSicButton.Click += async (_, _) => await UpdateSicAsync();
+        _updateSicCancelButton.Click += (_, _) => _updateSicCancellation?.Cancel();
+        _updateSicBrowseSource.Click += (_, _) => BrowseUpdateSicFolder("source");
+        _updateSicBrowseDestination.Click += (_, _) => BrowseUpdateSicFolder("destination");
+        _updateSicSource.TextChanged += (_, _) => QueueSettingsSave();
+        _updateSicDestination.TextChanged += (_, _) => QueueSettingsSave();
+        _updateSicVersion.TextChanged += (_, _) => QueueSettingsSave();
         _restoreButton.Click += async (_, _) => await RestoreBaseAsync();
         _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
         _resetButton.Click += async (_, _) => await ResetBaseAsync();
@@ -219,12 +245,13 @@ internal sealed class MainForm : Form
         {
             _menuAnimationTimer.Stop();
             _menuAnimationClock.Stop();
-            if (_running || _resetRunning || _restoreRunning)
+            if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
             {
                 e.Cancel = true;
                 if (_running) _runCancellation?.Cancel();
                 if (_resetRunning) _resetCancellation?.Cancel();
                 if (_restoreRunning) _restoreCancellation?.Cancel();
+                if (_updateSicRunning) _updateSicCancellation?.Cancel();
                 MessageBox.Show(this, "A operação foi cancelada. Aguarde o encerramento da etapa atual antes de fechar.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
@@ -640,7 +667,7 @@ internal sealed class MainForm : Form
         _resetSl.Enabled = false;
         _resetButton.Enabled = false;
         _resetCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
         _resetLog.Clear();
         var token = _resetCancellation.Token;
         try
@@ -680,7 +707,7 @@ internal sealed class MainForm : Form
             _resetSl.Enabled = true;
             _resetButton.Enabled = true;
             _resetCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
         }
     }
 
@@ -763,7 +790,7 @@ internal sealed class MainForm : Form
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
         _restoreLog.Clear();
         var token = _restoreCancellation.Token;
         try
@@ -841,7 +868,7 @@ internal sealed class MainForm : Form
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
             _restoreCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
         }
     }
 
@@ -881,6 +908,235 @@ internal sealed class MainForm : Form
         _restoreLog.ScrollToCaret();
     }
 
+    private Control BuildUpdateSicView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 204));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
+
+        page.Controls.Add(BuildHelpCard(page, 1,
+            "• Mesma ação feita pelo script Atualiza_Tudo.cmd: baixa os executáveis (.zip) da origem, extrai sobre a pasta de destino e apaga os .zip.\r\n" +
+            "• Configuração própria desta tela, independente da configuração das bases (SL).\r\n" +
+            "• Origem: pasta base (ex.: ...\\Sistemas\\SIC); a versão (ex.: s126) vira a subpasta usada.\r\n" +
+            "• Destino: pasta que recebe os executáveis extraídos."), 0, 1);
+
+        var action = Card();
+        var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) };
+        var destinationLabel = new Label { Text = "Destino dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) };
+        var versionLabel = new Label { Text = "Versão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) };
+        action.Controls.Add(sourceLabel);
+        action.Controls.Add(destinationLabel);
+        action.Controls.Add(versionLabel);
+        _updateSicSource.Location = new Point(180, 12);
+        _updateSicDestination.Location = new Point(180, 58);
+        _updateSicVersion.Location = new Point(180, 104);
+        action.Controls.Add(_updateSicSource);
+        action.Controls.Add(_updateSicDestination);
+        action.Controls.Add(_updateSicVersion);
+
+        _updateSicBrowseSource.Location = new Point(0, 11);
+        _updateSicBrowseDestination.Location = new Point(0, 57);
+        _updateSicBrowseSource.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _updateSicBrowseDestination.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        action.Resize += (_, _) =>
+        {
+            _updateSicSource.Width = Math.Max(120, action.ClientSize.Width - 180 - _updateSicBrowseSource.Width - 30);
+            _updateSicDestination.Width = Math.Max(120, action.ClientSize.Width - 180 - _updateSicBrowseDestination.Width - 30);
+            _updateSicBrowseSource.Left = action.ClientSize.Width - _updateSicBrowseSource.Width - 12;
+            _updateSicBrowseDestination.Left = action.ClientSize.Width - _updateSicBrowseDestination.Width - 12;
+        };
+        action.Controls.Add(_updateSicBrowseSource);
+        action.Controls.Add(_updateSicBrowseDestination);
+
+        sourceLabel.Location = new Point(18, 19);
+        destinationLabel.Location = new Point(18, 65);
+        versionLabel.Location = new Point(18, 111);
+
+        _updateSicButton.Location = new Point(18, 150);
+        _updateSicButton.FlatAppearance.BorderSize = 0;
+        action.Controls.Add(_updateSicButton);
+        _updateSicCancelButton.Location = new Point(204, 150);
+        _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _updateSicCancelButton.FlatAppearance.BorderSize = 1;
+        action.Controls.Add(_updateSicCancelButton);
+        page.Controls.Add(action, 0, 2);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da atualização", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _updateSicLog.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_updateSicLog);
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 3);
+        return page;
+    }
+
+    private void ShowUpdateSicView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = true;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.FromArgb(231, 240, 255);
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        AcceptButton = _updateSicRunning ? null : _updateSicButton;
+        ApplyNavigationColors();
+        _updateSicVersion.Focus();
+    }
+
+    private void BrowseUpdateSicFolder(string kind)
+    {
+        var seed = kind == "source" ? _updateSicSource.Text.Trim() : _updateSicDestination.Text.Trim();
+        using var dialog = new FolderBrowserDialog { Description = kind == "source" ? "Selecione a pasta base dos executáveis (ex.: ...\\Sistemas\\SIC)" : "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            if (kind == "source") _updateSicSource.Text = dialog.SelectedPath; else _updateSicDestination.Text = dialog.SelectedPath;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a configuração: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+    }
+
+    private async Task UpdateSicAsync()
+    {
+        if (_updateSicRunning) return;
+        ReadFields();
+        var sourceRoot = _updateSicSource.Text.Trim();
+        var destinationRoot = _updateSicDestination.Text.Trim();
+        var version = UpdateSicOperationRules.GetVersionOrDefault(_updateSicVersion.Text);
+        if (sourceRoot.Length == 0 || destinationRoot.Length == 0)
+        {
+            MessageBox.Show(this, "Preencha a pasta de origem e a pasta de destino para atualizar os executáveis.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (!Directory.Exists(sourceRoot))
+        {
+            MessageBox.Show(this, $"A pasta de origem não foi encontrada:\n{sourceRoot}", "Origem indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        string sourceFolder;
+        try { sourceFolder = UpdateSicOperationRules.GetSourceRoot(sourceRoot, version); }
+        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Versão inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (!Directory.Exists(sourceFolder))
+        {
+            MessageBox.Show(this, $"A pasta da versão {version} não foi encontrada:\n{sourceFolder}\n\nConfira a pasta de origem e a versão do SIC.", "Versão não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (!Directory.Exists(destinationRoot)) Directory.CreateDirectory(destinationRoot);
+
+        var answer = MessageBox.Show(this,
+            $"Os executáveis serão copiados e extraídos:\n\n• Origem: {sourceFolder}\n• Destino: {destinationRoot}\n\nO destino será sobrescrito. Deseja continuar?",
+            "Confirmar atualização", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);
+        if (answer != DialogResult.Yes) return;
+
+        _updateSicRunning = true;
+        _updateSicCancellation = new CancellationTokenSource();
+        _updateSicSource.Enabled = false;
+        _updateSicDestination.Enabled = false;
+        _updateSicVersion.Enabled = false;
+        _updateSicBrowseSource.Enabled = false;
+        _updateSicBrowseDestination.Enabled = false;
+        _updateSicButton.Enabled = false;
+        _updateSicCancelButton.Visible = true;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        _updateSicLog.Clear();
+        var token = _updateSicCancellation.Token;
+        var failures = new List<string>();
+        try
+        {
+            AppendUpdateSicLog($"Iniciando a atualização do SIC {version}");
+            AppendUpdateSicLog($"Origem: {sourceFolder}  |  Destino: {destinationRoot}");
+            foreach (var zip in UpdateSicOperationRules.Executables)
+            {
+                token.ThrowIfCancellationRequested();
+                var source = Path.Combine(sourceFolder, zip);
+                if (!File.Exists(source))
+                {
+                    failures.Add(zip);
+                    AppendUpdateSicLog($"{zip}: NÃO ENCONTRADO na origem — ignorado.");
+                    continue;
+                }
+                var destination = UpdateSicOperationRules.GetDestinationZip(destinationRoot, zip);
+                AppendUpdateSicLog($"Copiando {zip} ({new FileInfo(source).Length / 1024d / 1024d:N1} MB)…");
+                await CopyFileAsync(source, destination, token, mode: FileMode.Create);
+
+                AppendUpdateSicLog($"Extraindo {zip}…");
+                using var archive = ZipFile.OpenRead(destination);
+                foreach (var entry in archive.Entries)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var target = ArchivePathSafety.GetSafeEntryPath(destinationRoot, entry.FullName);
+                    if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    await using var input = entry.Open();
+                    await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    await input.CopyToAsync(output, 1024 * 1024, token);
+                }
+                File.Delete(destination);
+                AppendUpdateSicLog($"{zip}: executável atualizado (o .zip foi removido).");
+            }
+
+            if (failures.Count == 0)
+            {
+                AppendUpdateSicLog("Atualização concluída com sucesso.");
+                MessageBox.Show(this, $"Os executáveis do SIC {version} foram atualizados.\n\nDestino: {destinationRoot}", "Atualização concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else
+            {
+                AppendUpdateSicLog($"Atualização incompleta: {failures.Count} arquivo(s) não encontrado(s) na origem: {string.Join(", ", failures)}.");
+                MessageBox.Show(this, $"{failures.Count} arquivo(s) não foram encontrados na origem e foram ignorados:\n\n{string.Join("\n", failures)}", "Atualização incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            AppendUpdateSicLog("Atualização cancelada a seu pedido.");
+        }
+        catch (Exception ex)
+        {
+            AppendUpdateSicLog("ERRO: " + ex.Message);
+            MessageBox.Show(this, ex.Message, "Falha ao atualizar o SIC", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _updateSicCancellation?.Dispose();
+            _updateSicCancellation = null;
+            _updateSicRunning = false;
+            _updateSicSource.Enabled = true;
+            _updateSicDestination.Enabled = true;
+            _updateSicVersion.Enabled = true;
+            _updateSicBrowseSource.Enabled = true;
+            _updateSicBrowseDestination.Enabled = true;
+            _updateSicButton.Enabled = true;
+            _updateSicCancelButton.Visible = false;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+        }
+    }
+
+    private void AppendUpdateSicLog(string message)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => AppendUpdateSicLog(message))); return; }
+        _updateSicLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _updateSicLog.SelectionStart = _updateSicLog.TextLength;
+        _updateSicLog.ScrollToCaret();
+    }
+
     private void OpenSelectedBaseFolder()
     {
         var folder = _selectedBasePath.Text.Trim();
@@ -900,12 +1156,14 @@ internal sealed class MainForm : Form
         _changeBaseView.Visible = true;
         _resetView.Visible = false;
         _restoreView.Visible = false;
+        _updateSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.FromArgb(231, 240, 255);
         _resetNav.BackColor = Color.White;
         _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
@@ -923,6 +1181,7 @@ internal sealed class MainForm : Form
         _changeBaseView.Visible = false;
         _resetView.Visible = true;
         _restoreView.Visible = false;
+        _updateSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
@@ -930,6 +1189,7 @@ internal sealed class MainForm : Form
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.FromArgb(231, 240, 255);
         _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
@@ -1238,6 +1498,7 @@ internal sealed class MainForm : Form
         _changeBaseNav.Text = expanded ? "Alterar base" : "";
         _resetNav.Text = expanded ? "Redefinir base" : "";
         _restoreNav.Text = expanded ? "Restaurar base" : "";
+        _updateSicNav.Text = expanded ? "Atualizar SIC" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
@@ -1246,7 +1507,7 @@ internal sealed class MainForm : Form
         _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
         _menuToggle.FlatAppearance.BorderSize = 0;
         _menuToggle.Font = UiTypography.Body(12f);
-        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav })
+        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav })
         {
             button.Font = UiTypography.Body(12f);
             button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -1263,6 +1524,7 @@ internal sealed class MainForm : Form
         _changeBaseView.Visible = false;
         _resetView.Visible = false;
         _restoreView.Visible = false;
+        _updateSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
@@ -1270,6 +1532,7 @@ internal sealed class MainForm : Form
         _resetNav.BackColor = Color.White;
         _settingsNav.BackColor = settings ? Color.FromArgb(231, 240, 255) : Color.White;
         _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         AcceptButton = settings ? null : _start;
@@ -1285,12 +1548,14 @@ internal sealed class MainForm : Form
         _changeBaseView.Visible = false;
         _resetView.Visible = false;
         _restoreView.Visible = false;
+        _updateSicView.Visible = false;
         _arqEmpView.Visible = arqEmp;
         _arqSistView.Visible = !arqEmp;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
         _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = arqEmp ? Color.FromArgb(231, 240, 255) : Color.White;
         _arqSistNav.BackColor = arqEmp ? Color.White : Color.FromArgb(231, 240, 255);
@@ -1503,7 +1768,7 @@ internal sealed class MainForm : Form
         ApplyTitleBarTheme();
         foreach (var control in EnumerateControls(this))
         {
-            if (control == _log || control == _resetLog || control == _restoreLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput)
+            if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput)
                 continue; // SQL editors and the log retain their high-contrast palette.
             if (control is Panel panel)
             {
@@ -1545,8 +1810,8 @@ internal sealed class MainForm : Form
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
-                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
-                var isSecondaryAction = button == _openBaseFolderButton || button == _resetCancelButton || button == _restoreCancelButton;
+                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
                 {
@@ -1579,11 +1844,12 @@ internal sealed class MainForm : Form
     {
         var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
         var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
-        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
+        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
         if (_transferView.Visible) _transferNav.BackColor = active;
         else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
         else if (_resetView.Visible) _resetNav.BackColor = active;
         else if (_restoreView.Visible) _restoreNav.BackColor = active;
+        else if (_updateSicView.Visible) _updateSicNav.BackColor = active;
         else if (_settingsView.Visible) _settingsNav.BackColor = active;
         else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
         else if (_arqSistView.Visible) _arqSistNav.BackColor = active;
@@ -1651,6 +1917,9 @@ internal sealed class MainForm : Form
         _settings.SupportRoot = _fields[nameof(AppSettings.SupportRoot)].Text.Trim();
         _settings.TempPath = _fields[nameof(AppSettings.TempPath)].Text.Trim();
         _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
+        _settings.UpdateSicSourceRoot = _updateSicSource.Text.Trim();
+        _settings.UpdateSicDestinationRoot = _updateSicDestination.Text.Trim();
+        _settings.UpdateSicSicVersion = _updateSicVersion.Text.Trim();
         _settings.ArqEmpCommands = _arqEmpEditor.Text;
         _settings.ArqSistCommands = _arqSistEditor.Text;
     }
@@ -1957,12 +2226,12 @@ internal sealed class MainForm : Form
         SetTransferProgress(100, totalBytes, totalBytes, files.Length, files.Length);
     }
 
-    private static async Task CopyFileAsync(string source, string destination, CancellationToken token, Action<int>? copied = null)
+    private static async Task CopyFileAsync(string source, string destination, CancellationToken token, Action<int>? copied = null, FileMode mode = FileMode.CreateNew)
     {
         const int bufferSize = 1024 * 1024;
         var buffer = new byte[bufferSize];
         await using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
-        await using var output = new FileStream(destination, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var output = new FileStream(destination, mode, FileAccess.Write, FileShare.None, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
         while (true)
         {
             var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), token);
@@ -2301,6 +2570,7 @@ internal sealed class MainForm : Form
         _changeBaseNav.Enabled = !busy;
         _resetNav.Enabled = !busy;
         _restoreNav.Enabled = !busy;
+        _updateSicNav.Enabled = !busy;
         _settingsNav.Enabled = !busy;
         _arqEmpNav.Enabled = !busy;
         _arqSistNav.Enabled = !busy;

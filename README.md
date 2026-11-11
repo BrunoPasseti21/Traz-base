@@ -55,6 +55,7 @@ O script operacional legado foi excluído deste repositório porque contém cred
 - Extração de ZIP nativa e de RAR pela biblioteca SharpCompress.
 - Edição e teste de comandos SQL em bases ARQEMP e ARQSIST.
 - Restauração de bases `.FBK` (ARQEMP, ARQOCOR, ARQSIST) em paralelo para `.FDB`, via serviços do Firebird, sem `gbak` externo.
+- Aba "Atualizar SIC": baixa os executáveis do SIC da versão configurada (mesma ação do script `Atualiza_Tudo.cmd`) e extrai sobre a pasta de destino.
 - Consulta e exibição da versão do banco ARQSIST.
 - Preferência de tema claro/escuro persistida.
 - Instalador que permite escolher a pasta de instalação.

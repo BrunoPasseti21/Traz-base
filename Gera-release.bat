@@ -1,0 +1,1 @@
+dotnet build .\TrazBase.App\TrazBase.App.csproj -c Release
