@@ -78,8 +78,8 @@ internal sealed class MainForm : Form
     private readonly Button _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _restoreLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Panel _updateSicProgressRow = new() { Dock = DockStyle.Fill, Visible = false };
-    private readonly Label _updateSicProgressStatus = new() { AutoSize = true, Visible = false, ForeColor = Color.FromArgb(91, 110, 132), Font = UiTypography.Body(9f), TextAlign = ContentAlignment.MiddleLeft };
-    private readonly Panel _updateSicProgress = new() { BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
+    private readonly Label _updateSicProgressStatus = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132), Visible = false, Location = new Point(2, 0) };
+    private readonly Panel _updateSicProgress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
     private readonly Panel _updateSicProgressFill = new() { Location = new Point(0, 0), Width = 0, Height = 18, BackColor = Color.FromArgb(31, 111, 235) };
     private int _updateSicProgressPercent;
     private long _updateSicBytesDone;
@@ -994,19 +994,12 @@ internal sealed class MainForm : Form
         page.Controls.Add(action, 0, 2);
 
         _updateSicProgressStatus.Location = new Point(2, 0);
-        _updateSicProgressStatus.Dock = DockStyle.Top;
-        _updateSicProgressStatus.Height = 20;
-        _updateSicProgress.Dock = DockStyle.None;
-        _updateSicProgress.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        _updateSicProgress.Location = new Point(2, 22);
-        _updateSicProgress.Width = 650;
-        _updateSicProgress.Height = 20;
+        _updateSicProgress.Location = new Point(2, 24);
         _updateSicProgress.Controls.Add(_updateSicProgressFill);
-        _updateSicProgressFill.Location = new Point(0, 0);
-        _updateSicProgressFill.Height = 18;
+        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
+        _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
         _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
         _updateSicProgressRow.Controls.Add(_updateSicProgress);
-        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
         page.Controls.Add(_updateSicProgressRow, 0, 3);
 
         var logCard = Card();
@@ -1256,8 +1249,8 @@ internal sealed class MainForm : Form
         if (InvokeRequired) { BeginInvoke(new Action(() => ShowUpdateSicProgress(show))); return; }
         var page = (TableLayoutPanel) _updateSicView;
         _updateSicProgressRow.Visible = show;
-        _updateSicProgress.Visible = show;
         _updateSicProgressStatus.Visible = show;
+        _updateSicProgress.Visible = show;
         page.SuspendLayout();
         page.RowStyles[3].Height = show ? 56 : 0;
         page.ResumeLayout(true);
@@ -1898,8 +1891,8 @@ internal sealed class MainForm : Form
                 continue; // SQL editors and the log retain their high-contrast palette.
             if (control is Panel panel)
             {
-                if (panel == _progress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
-                else if (panel == _progressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
+                if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
+                else if (panel == _progressFill || panel == _updateSicProgressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
                 else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
                 else if (panel == _settingsFieldsHost) panel.BackColor = surface;
                 else if (panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
