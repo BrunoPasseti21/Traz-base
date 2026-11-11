@@ -1815,23 +1815,17 @@ internal sealed class MainForm : Form
             new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
-        var supportHelp = new Label
+        var supportHelp = new PictureBox
         {
-            Text = "?",
-            AutoSize = false,
             Size = new Size(16, 16),
             Location = new Point(0, 0),
-            ForeColor = Color.White,
-            BackColor = Color.FromArgb(31, 111, 235),
-            TextAlign = ContentAlignment.MiddleCenter,
-            Font = UiTypography.BodySemibold(8f),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
             Cursor = Cursors.Hand
         };
         _menuToolTip.SetToolTip(supportHelp,
             "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
             "Se a base de uma solicitação não trouxer esses arquivos (compactada sem eles ou sem ARQSIST.FDB, por exemplo), a aplicação copia automaticamente dessa pasta para a pasta local da base, sem intervenção do operador.");
-        supportHelp.MouseEnter += (_, _) => supportHelp.BackColor = Color.FromArgb(45, 125, 245);
-        supportHelp.MouseLeave += (_, _) => supportHelp.BackColor = Color.FromArgb(31, 111, 235);
         var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot), nameof(AppSettings.TempPath) };
         var emptyTempHint = TryGetSicTempPath() is string registryTemp
             ? $"(Vazio = valor do Registro: {registryTemp})"
