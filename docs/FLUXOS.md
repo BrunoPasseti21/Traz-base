@@ -140,7 +140,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 
 - **Origem das solicitações** (`SolicitationRoot`)
 - **Pasta local das bases** (`BasesRoot`)
-- **Pasta de bases de apoio** (`SupportRoot`)
+- **Pasta de bases de apoio** (`SupportRoot`) — acompanhada de um ícone de ajuda (`?`) com tooltip explicando que a pasta deve conter `ARQEMP.FDB` e `ARQOCOR.FDB` e que a aplicação copia automaticamente esses arquivos para a pasta local da base sempre que eles não vierem na solicitação.
 - **Pasta temporária** (`TempPath` — usada no Registro `TEMP`; vazio = `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows)
 - **Senha Firebird** (campo protegido; caixa **Salvar senha** grava protegida por DPAPI)
 - **Usar modo escuro** (persiste `DarkMode` e reaplica o tema na hora)
