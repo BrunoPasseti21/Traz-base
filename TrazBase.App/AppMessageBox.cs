@@ -77,8 +77,6 @@ internal sealed class AppMessageDialog : Form
 {
     private readonly MessageBoxButtons _buttons;
     private readonly string _body;
-    private bool _dragging;
-    private Point _dragOffset;
 
     public AppMessageDialog(
         IWin32Window owner,
@@ -140,8 +138,8 @@ internal sealed class AppMessageDialog : Form
             Cursor = Cursors.Arrow
         };
         header.Controls.Add(captionLabel);
-        WireDrag(header);
-        WireDrag(captionLabel);
+        DraggableWindow.Wire(header, this);
+        DraggableWindow.Wire(captionLabel, this);
 
         var close = new Button
         {
@@ -253,34 +251,6 @@ internal sealed class AppMessageDialog : Form
             };
 
         ActiveControl = AcceptButton as Control;
-    }
-
-    private void WireDrag(Control control)
-    {
-        control.MouseDown += (_, e) =>
-        {
-            if (e.Button != MouseButtons.Left || control.IsDisposed || !control.IsHandleCreated) return;
-            _dragging = true;
-            _dragOffset = new Point(Cursor.Position.X - Left, Cursor.Position.Y - Top);
-            control.Capture = true;
-        };
-        control.MouseMove += (_, e) =>
-        {
-            if (!_dragging || control.IsDisposed || !control.IsHandleCreated) return;
-            Location = new Point(Cursor.Position.X - _dragOffset.X, Cursor.Position.Y - _dragOffset.Y);
-        };
-        control.MouseUp += (_, e) =>
-        {
-            if (e.Button != MouseButtons.Left || control.IsDisposed || !control.IsHandleCreated) return;
-            _dragging = false;
-            control.Capture = false;
-        };
-        control.MouseLeave += (_, _) =>
-        {
-            if (control.IsDisposed || !control.IsHandleCreated) { _dragging = false; return; }
-            _dragging = false;
-            control.Capture = false;
-        };
     }
 
     protected override void OnShown(EventArgs e)

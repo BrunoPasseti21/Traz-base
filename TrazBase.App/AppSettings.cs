@@ -37,6 +37,7 @@ internal sealed class AppSettings
     public int BaseCount { get; set; } = 4;
     [JsonConverter(typeof(JsonStringEnumConverter))]
     public StartScreen DefaultScreen { get; set; } = StartScreen.Transferir;
+    public string? LastChangelogVersion { get; set; }
 
     // Configurações da ação "Atualizar SIC" (separadas das demais).
     public string UpdateSicSourceRoot { get; set; } = "";

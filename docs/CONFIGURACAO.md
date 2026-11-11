@@ -33,6 +33,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `ForceMultiBase` | bool | `false` | Sempre criar a estrutura multi-base (`ARQ01`/`ARQ00`), mesmo em SLs sem pastas `ARQ##`. |
 | `BaseCount` | number | `4` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (quando "Sempre criar estrutura multi-base" não está marcada). Entre 1 e 99. |
 | `DefaultScreen` | string | `"Transferir"` | Tela aberta ao iniciar a aplicação. Valores: `Transferir`, `AlterarBase`, `RedefinirBase`, `RestaurarBase`, `AtualizarSic`, `Configuracao`, `ComandosArqEmp`, `ComandosArqSist`. |
+| `LastChangelogVersion` | string? | `null` | Última versão exibida na tela "Novidades". `null` → mostrar na próxima abertura (atualização/versão nova). |
 | `ProtectedFirebirdPassword` | string? | omitida | Senha Firebird protegida por DPAPI (Base64), gravada somente quando "Salvar senha" está marcado. |
 
 Campos nulos marcados com `[JsonIgnore(WhenWritingNull)]` (`ScriptArqEmp`, `ScriptArqSist`, `ProtectedFirebirdPassword`) desaparecem do arquivo quando vazios/limpos.

@@ -224,9 +224,13 @@ internal sealed class MainForm : Form
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a quantidade de bases: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
         _appVersionLabel.Text = GetCurrentVersion().ToString(3);
+        _appVersionLabel.Cursor = Cursors.Hand;
+        _menuToolTip.SetToolTip(_appVersionLabel, "Clique para ver as novidades desta versão");
+        _appVersionLabel.Click += (_, _) => ShowChangelogDialog();
         Shown += async (_, _) =>
         {
             _sl.Focus(); // ao abrir o sistema, o cursor já fica no campo da SL
+            MaybeShowChangelogOnStartup();
             await CheckForUpdatesAsync();
         };
         _password.Text = _settings.GetFirebirdPassword() ?? "";
@@ -1661,6 +1665,23 @@ internal sealed class MainForm : Form
             case StartScreen.Transferir:
             default: ShowView(settings: false); break;
         }
+    }
+
+    private void ShowChangelogDialog()
+    {
+        var current = GetCurrentVersion();
+        using var dialog = new ChangelogDialog(this, current);
+        dialog.ShowDialog(this);
+        _settings.LastChangelogVersion = current.ToString(3);
+        try { PersistSettings(); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível registrar a versão do changelog: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
+    private void MaybeShowChangelogOnStartup()
+    {
+        var current = GetCurrentVersion().ToString(3);
+        if (string.Equals(current, _settings.LastChangelogVersion, StringComparison.OrdinalIgnoreCase)) return;
+        ShowChangelogDialog();
     }
 
     private void ShowView(bool settings)

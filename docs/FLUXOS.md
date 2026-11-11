@@ -15,7 +15,9 @@ Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em d
 7. **Comandos ARQEMP** — editor SQL executável na base `ARQEMP.FDB`.
 8. **Comandos ARQSIST** — editor SQL executável na base `ARQSIST.FDB`.
 
-O rodapé do menu mostra a versão do aplicativo, o crédito "Criado por Bruno Passeti" e, quando há versão mais nova publicada no GitHub, um botão de atualização.
+O rodapé do menu mostra a versão do aplicativo (clicar exibe a tela **Novidades** com as alterações da versão), o crédito "Criado por Bruno Passeti" e, quando há versão mais nova publicada no GitHub, um botão de atualização. A tela **Novidades** aparece automaticamente na primeira vez que a aplicação abre após cada release (quando o `DefaultScreen` é diferente de `Transferir`, a tela escolhida abre primeiro, seguida da tela de Novidades) — ou seja, uma vez por versão instalada; clicar na versão do rodapé a reabre manualmente.
+
+**Tela Novidades**: diálogo com o cabeçalho do app (arrastável, com o hover igual ao do Windows) e uma lista legível das mudanças da versão instalada. O botão **Entendi** (padrão) fecha — e registra que a versão foi exibida em `LastChangelogVersion` (configuração).
 
 ## Fluxo 1 — Transferir (tela inicial)
 
