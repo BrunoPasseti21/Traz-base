@@ -1090,7 +1090,7 @@ internal sealed class MainForm : Form
         _updateSicButton.FlatAppearance.BorderSize = 0;
         action.Controls.Add(_updateSicButton);
         _updateSicCancelButton.Location = new Point(254, 188);
-        _updateSicCancelButton.Size = new Size(110, 42);
+        _updateSicCancelButton.Size = new Size(100, 42);
         _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _updateSicCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_updateSicCancelButton);
