@@ -1184,8 +1184,8 @@ internal sealed class MainForm : Form
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualização de executáveis.\r\n" +
-            "• Use os botões com três pontos (…) ao lado de Origem/Destino para escolher a pasta, ou o botão ao lado de nome arquivo para escolher o .exe.\r\n" +
-            "• Ao escolher o executável, apenas o nome do arquivo fica na coluna, sem a extensão (ex.: SIC.exe -> SIC).\r\n" +
+            "• Use os botões com três pontos (…) ao lado de Origem/Destino para escolher a pasta, ou o botão ao lado de nome arquivo para escolher qualquer arquivo.\r\n" +
+            "• Ao escolher o arquivo, apenas o nome do arquivo fica na coluna, sem a extensão (ex.: SIC.exe → SIC).\r\n" +
             "• Clique com o botão direito na grade para marcar/desmarcar Renomeia com a versão em lote.\r\n" +
             "• Marque a checkbox no topo para usar um destino único; quando isso acontece, a coluna Destino some."), 0, 1);
 
@@ -1273,8 +1273,8 @@ internal sealed class MainForm : Form
                     {
                         using var dialog = new OpenFileDialog
                         {
-                            Title = "Selecione o executável",
-                            Filter = "Executáveis (*.exe)|*.exe|Todos os arquivos (*.*)|*.*",
+                            Title = "Selecione o arquivo",
+                            Filter = "Todos os arquivos (*.*)|*.*",
                             FilterIndex = 1,
                             Multiselect = false,
                             CheckFileExists = true

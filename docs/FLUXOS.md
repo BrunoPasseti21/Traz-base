@@ -131,7 +131,7 @@ Tela de **gerenciamento da tabela** (mesma estrutura do Excel): o operador edita
 - **Caminho de sincronização** — pasta-base de onde o `.exe`/`.zip` vem (ex.: `...\Sistemas\SIC`). Botão com três pontos (`…`) ao lado do campo para escolher a pasta.
 - **Versão/Nome da pasta** — subpasta dentro da origem (ex.: `146`). A pasta efetiva de origem é `<origem>\<versão>` (versão vazia usa `s126` apenas como verificação de compatibilidade).
 - **Destino** — pasta que recebe os arquivos extraídos. Tem botão com três pontos (`…`) ao lado. **Oculta** quando a checkbox "Usar um único destino para todos os executáveis" está marcada.
-- **nome arquivo** — nome do arquivo a baixar, sem a extensão (ex.: `SIC` → `SIC.exe.zip`); `.exe.zip` é adicionado automaticamente se o nome não terminar em `.zip`; também aceita `.zip` puro.
+- **nome arquivo** — nome do arquivo a baixar, sem a extensão (ex.: `SIC` → `SIC.exe.zip`); `.exe.zip` é adicionado automaticamente se o nome não terminar em `.zip`; também aceita `.zip` puro. O botão com três pontos (`…`) ao lado abre o seletor de arquivos e aceita **qualquer arquivo** (qualquer extensão), gravando apenas o nome sem a extensão.
 - **Renomeia com a versão** — checkbox **por linha**; renomeia os `.exe` daquela extração com o sufixo `_<versão>`.
 - **Botão direito** na grade mostra o menu contextual com as opções **Renomear todos os exes** (marca todas as checkboxes) e **Não renomear os exes** (desmarca todas).
 - Botões **Adicionar executável** / **Remover selecionado** no topo da tabela manipulam as linhas.
