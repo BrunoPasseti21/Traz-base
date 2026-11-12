@@ -26,13 +26,15 @@ O `Form.Font` base é `UiTypography.Body()`.
 | Texto principal (ink) | `#1D2A3D` (29,42,61) | rótulos, títulos |
 | Texto de apoio (muted) | `#617186` (97,113,134) | legendas, ajuda |
 | Campos de entrada | `#F9FBFE` (249,251,254) | TextBox/ListView claro |
+| Caixa de seleção (ThemedCheckBox) | fundo `#FFFFFF`, borda `#BBC5D6` (187,197,214); marcada = azul `#1F6FEB` com ✓ branco |
+
 | Borda | `#D0D9E6` (208,217,230) | contornos, botões secundários |
 | Destaque/seleção | `#E7F0FF` (231,240,255) | item ativo do menu, hover/pressed |
 | Azul primário | `#1F6FEB` (31,111,235) | botões de ação, barra de progresso |
 | Hover do azul | `#2D7DF5` (45,125,245) | mouse over |
 | Pressed do azul | `#195ECD` (25,94,205) | mouse down |
 
-> Nota: o rodapé do menu (`_appVersionLabel`) usa fundo `#E7F0FF` (claro) / `#263244` (38,50,68, escuro) com texto `#BED0E6` (190,208,230) nos dois temas. O log e os editores SQL são **sempre escuros** (fundo `#121926`/(18,25,38), texto `#DCE5F2`/(220,229,242), Consolas).
+> Nota: o rodapé do menu (`_appVersionLabel`) usa fundo `#E7F0FF` (claro) / `#263244` (38,50,68, escuro) com texto `#BED0E6` (190,208,230) nos dois temas. O log e os editores SQL acompanham o tema: **escuro** fundo `#171717`/(23,23,23) (mesma cor da barra de rolagem nativa escura, para coerência completa), texto `#DCE5F2`/(220,229,242), com realce por `HighlightSql` em cores VS Code Dark+; **claro** fundo `#FFFFFF`, texto `#1D2A3D`/ink, realce em paleta VS Code Light+ (comentários verdes `#008000`, strings marrons `#A31515`, palavras-chave azuis `#0000CD`, números verdes `#098658`).
 
 ## Cores — paleta escura
 
@@ -41,7 +43,8 @@ O `Form.Font` base é `UiTypography.Body()`.
 | Fundo | `#181E28` (24,30,40) | background |
 | Superfície | `#222A37` (34,42,55) | cards |
 | Menu/rodapé | `#1C232F` (28,35,47) | sidebar, menu footer, update row |
-| Campos | `#2B3545` (43,53,69) | TextBox/CheckBox/ListView |
+| Campos | `#2B3545` (43,53,69) | TextBox/ListView |
+| Caixa de seleção (ThemedCheckBox) | fundo `#2B3545`, borda `#536277`; marcada = azul `#1F6FEB` com ✓ branco |
 | Texto | `#E8EDF5` (232,237,245) | rótulos |
 | Texto de apoio | `#A6B4C7` (166,180,199) | legendas |
 | Selecionado | `#30435E` (48,67,94) | item ativo do menu |
@@ -102,8 +105,10 @@ Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`),
 
 ## Editores SQL e log
 
-- Fundo `#121926`, texto `#DCE5F2`, Consolas, sem borda; rolagem dupla.
-- Realce de sintaxe: comentários `#6A9955`, strings `#CE9178`, palavras-chave `#569CD6`, números `#B5CEA8`.
+- **Escuro:** fundo `#171717` (23,23,23 — mesma cor da barra de rolagem nativa escura), texto `#DCE5F2`, Consolas, sem borda; rolagem dupla.
+- **Claro:** fundo `#FFFFFF`, texto `#1D2A3D`, Consolas, sem borda; rolagem dupla.
+- Realce de sintaxe — tema escuro (VS Code Dark+): comentários `#6A9955`, strings `#CE9178`, palavras-chave `#569CD6`, números `#B5CEA8`.
+- Realce de sintaxe — tema claro (VS Code Light+): comentários `#008000`, strings `#A31515`, palavras-chave `#0000CD`, números `#098658`.
 - Log somente leitura, fonte 10 pt; com botão **Limpar** no cabeçalho do card.
 
 ## Ýcones

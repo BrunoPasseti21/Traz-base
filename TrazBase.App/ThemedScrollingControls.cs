@@ -73,6 +73,133 @@ internal interface IThemedScrollingControl
     void RefreshNativeTheme();
 }
 
+/// <summary>Estado global de tema: permite que os controles customizados pintem sem depender do tema nativo.</summary>
+internal static class ThemeState
+{
+    public static bool IsDark { get; set; }
+}
+
+/// <summary>
+/// Caixa de seleção desenhada manualmente, no padrão visual do app (não usa o glyph nativo
+/// do Windows, que permaneceu com cores incoerentes quando o app força o tema claro).
+/// </summary>
+internal sealed class ThemedCheckBox : Control
+{
+    private bool _checked;
+    private bool _pointerOver;
+
+    public event EventHandler? CheckedChanged;
+
+    [System.ComponentModel.DefaultValue(false)]
+    public bool Checked
+    {
+        get => _checked;
+        set
+        {
+            if (_checked == value) return;
+            _checked = value;
+            Invalidate();
+            CheckedChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public ThemedCheckBox()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.ResizeRedraw, true);
+        TabStop = true;
+    }
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        var textSize = TextRenderer.MeasureText(Text, Font, new Size(int.MaxValue, 0), TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+        return new Size(26 + 8 + textSize.Width, Math.Max(26, textSize.Height + 10));
+    }
+
+    protected override void OnTextChanged(EventArgs e) { base.OnTextChanged(e); Invalidate(); }
+    protected override void OnEnabledChanged(EventArgs e) { base.OnEnabledChanged(e); Invalidate(); }
+    protected override void OnFontChanged(EventArgs e) { base.OnFontChanged(e); Invalidate(); }
+
+    protected override void OnMouseEnter(EventArgs e) { _pointerOver = true; Invalidate(); base.OnMouseEnter(e); }
+    protected override void OnMouseLeave(EventArgs e) { _pointerOver = false; Invalidate(); base.OnMouseLeave(e); }
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode == Keys.Space) { Checked = !Checked; e.Handled = true; }
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnClick(EventArgs e) { Checked = !Checked; base.OnClick(e); }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        var dark = ThemeState.IsDark;
+        var surface = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var text = Enabled ? (dark ? Color.FromArgb(232, 237, 245) : Color.FromArgb(29, 42, 61)) : (dark ? Color.FromArgb(120, 130, 148) : Color.FromArgb(160, 168, 181));
+        e.Graphics.Clear(surface);
+
+        var boxTop = (Height - 16) / 2;
+        var box = new Rectangle(1, boxTop, 16, 16);
+        var radius = 3;
+        using var boxPath = RoundedPath(box, radius);
+
+        var boxBack = _checked ? Color.FromArgb(31, 111, 235)
+            : dark ? Color.FromArgb(43, 53, 69)
+            : Color.FromArgb(249, 251, 254);
+        if (_pointerOver && !_checked) boxBack = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(231, 240, 255);
+        else if (_pointerOver && _checked) boxBack = Color.FromArgb(45, 125, 245);
+        using var back = new SolidBrush(boxBack);
+        e.Graphics.FillPath(back, boxPath);
+
+        var borderColor = _checked ? Color.FromArgb(31, 111, 235)
+            : _pointerOver ? Color.FromArgb(31, 111, 235)
+            : dark ? Color.FromArgb(83, 98, 119) : Color.FromArgb(187, 197, 214);
+        using var borderPen = new Pen(borderColor, 1.2f) { Alignment = System.Drawing.Drawing2D.PenAlignment.Inset };
+        e.Graphics.DrawPath(borderPen, boxPath);
+
+        if (_checked)
+        {
+            using var checkPen = new Pen(Color.White, 1.8f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
+            e.Graphics.DrawLines(checkPen, new[] { new PointF(4.6f, 8.6f), new PointF(7.2f, 11.2f), new PointF(12.4f, 6.0f) });
+        }
+
+        if (Focused)
+        {
+            var focusBounds = new Rectangle(0, heightFocusPadding, 25, Height - 2 * heightFocusPadding);
+            ControlPaint.DrawFocusRectangle(e.Graphics, focusBounds);
+        }
+
+        var textLeft = 26;
+        var textRect = new Rectangle(textLeft, 0, Width - textLeft, Height);
+        TextRenderer.DrawText(e.Graphics, Text, Font, textRect, text,
+            TextFormatFlags.VerticalCenter | TextFormatFlags.EndEllipsis | TextFormatFlags.PathEllipsis | TextFormatFlags.NoPadding | TextFormatFlags.SingleLine);
+    }
+
+    private int heightFocusPadding => 2;
+
+    private static System.Drawing.Drawing2D.GraphicsPath RoundedPath(Rectangle bounds, int radius)
+    {
+        if (radius <= 0)
+        {
+            var p = new System.Drawing.Drawing2D.GraphicsPath();
+            p.AddRectangle(bounds);
+            return p;
+        }
+        var d = radius * 2;
+        var arc = new Rectangle(bounds.Left, bounds.Top, d, d);
+        var path = new System.Drawing.Drawing2D.GraphicsPath();
+        path.AddArc(arc, 180, 90);
+        arc.X = bounds.Right - d;
+        path.AddArc(arc, 270, 90);
+        arc.Y = bounds.Bottom - d;
+        path.AddArc(arc, 0, 90);
+        arc.X = bounds.Left;
+        path.AddArc(arc, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+}
+
 /// <summary>
 /// Botão de ação/fluxo com cantos realmente arredondados (desenho próprio).
 /// O nativo do Windows 11 desenha uma moldura retangular plana que vaza

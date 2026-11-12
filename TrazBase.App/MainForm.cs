@@ -15,10 +15,10 @@ internal sealed class MainForm : Form
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly Dictionary<string, TextBox> _fields = new();
     private readonly TextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
-    private readonly CheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
-    private readonly CheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly CheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly CheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
@@ -108,7 +108,7 @@ internal sealed class MainForm : Form
     private readonly TextBox _updateSicVersion = new() { Width = 160, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly RoundedButton _updateSicBrowseSource = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly RoundedButton _updateSicBrowseDestination = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly CheckBox _updateSicRename = new() { Text = "Renomear executáveis com a versão (ex.: SIC_146.exe)", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _updateSicRename = new() { Text = "Renomear executáveis com a versão (ex.: SIC_146.exe)", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly RoundedButton _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
@@ -126,6 +126,8 @@ internal sealed class MainForm : Form
     private Form? _hintPopup;
 
     private static readonly Color Ink = Color.FromArgb(29, 42, 61);
+    private static readonly Color DarkMemo = Color.FromArgb(23, 23, 23);
+    private static readonly Color DarkMemoText = Color.FromArgb(220, 229, 242);
     private static readonly Color Muted = Color.FromArgb(97, 113, 134);
     private static readonly Color Surface = Color.White;
 
@@ -173,6 +175,7 @@ internal sealed class MainForm : Form
         _updateSicVersion.Text = _settings.UpdateSicSicVersion;
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
+        ThemeState.IsDark = _settings.DarkMode;
         // A base selecionada (.FDB) NÃO é persistida: fica apenas na sessão atual.
         _arqEmpEditor.Text = _settings.ArqEmpCommands;
         _arqSistEditor.Text = _settings.ArqSistCommands;
@@ -1631,23 +1634,26 @@ internal sealed class MainForm : Form
 
     private static void HighlightSql(RichTextBox editor)
     {
+        var dark = ThemeState.IsDark;
+        var normalColor = dark ? DarkMemoText : Ink;
         var selectionStart = editor.SelectionStart;
         var selectionLength = editor.SelectionLength;
         editor.SuspendLayout();
         editor.SelectAll();
-        editor.SelectionColor = Color.FromArgb(220, 229, 242);
+        editor.SelectionColor = normalColor;
         const string pattern = """(?<comment>--[^\r\n]*|/\*[\s\S]*?\*/)|(?<string>'(?:''|[^'])*'|"(?:""|[^"])*")|(?<keyword>\b(?:SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|ALTER|DROP|TABLE|VIEW|INDEX|TRIGGER|PROCEDURE|EXECUTE|BLOCK|RETURNS|AS|BEGIN|END|IF|THEN|ELSE|AND|OR|NOT|NULL|IS|IN|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP|BY|ORDER|HAVING|UNION|ALL|DISTINCT|COMMIT|ROLLBACK|GRANT|REVOKE|PRIMARY|KEY|FOREIGN|REFERENCES|CONSTRAINT|DEFAULT|DATABASE|PLAN|ROWS|FIRST|SKIP|CASE|WHEN|CAST|COUNT|SUM|AVG|MIN|MAX|STARTING|WITH|CONTAINING|LIKE|BETWEEN|EXISTS|RETURNING|SUSPEND|DECLARE|VARIABLE|EXCEPTION|MESSAGE|FOR|DO|WHILE|LIST|ASC|DESC|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP)\b)|(?<number>\b\d+(?:\.\d+)?\b)""";
         foreach (Match match in Regex.Matches(editor.Text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
         {
-            var color = match.Groups["comment"].Success ? Color.FromArgb(106, 153, 85)
-                : match.Groups["string"].Success ? Color.FromArgb(206, 145, 120)
-                : match.Groups["keyword"].Success ? Color.FromArgb(86, 156, 214)
-                : Color.FromArgb(181, 206, 168);
+            var group = match.Groups;
+            var color = group["comment"].Success ? (dark ? Color.FromArgb(106, 153, 85) : Color.FromArgb(0, 128, 0))
+                : group["string"].Success ? (dark ? Color.FromArgb(206, 145, 120) : Color.FromArgb(163, 21, 21))
+                : group["keyword"].Success ? (dark ? Color.FromArgb(86, 156, 214) : Color.FromArgb(0, 0, 205))
+                : (dark ? Color.FromArgb(181, 206, 168) : Color.FromArgb(9, 134, 88));
             editor.Select(match.Index, match.Length);
             editor.SelectionColor = color;
         }
         editor.Select(selectionStart, selectionLength);
-        editor.SelectionColor = Color.FromArgb(220, 229, 242);
+        editor.SelectionColor = normalColor;
         editor.ResumeLayout();
     }
 
@@ -2186,10 +2192,20 @@ internal sealed class MainForm : Form
 
         BackColor = background;
         ApplyTitleBarTheme();
+        ThemeState.IsDark = dark;
+        var memoBack = dark ? DarkMemo : Color.White;
+        var memoFore = dark ? Color.FromArgb(220, 229, 242) : Ink;
+        foreach (var memo in new Control[] { _log, _resetLog, _restoreLog, _updateSicLog, _arqEmpEditor, _arqSistEditor, _arqEmpOutput, _arqSistOutput })
+        {
+            if (memo is TextBox textBox) { textBox.BackColor = memoBack; textBox.ForeColor = memoFore; }
+            else if (memo is RichTextBox richTextBox) { richTextBox.BackColor = memoBack; richTextBox.ForeColor = memoFore; }
+        }
+        HighlightSql(_arqEmpEditor);
+        HighlightSql(_arqSistEditor);
         foreach (var control in EnumerateControls(this))
         {
             if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput)
-                continue; // SQL editors and the log retain their high-contrast palette.
+                continue; // memos já tematizados acima (mesmos painéis tratados de forma explícita)
             if (control is Panel panel)
             {
                 if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
