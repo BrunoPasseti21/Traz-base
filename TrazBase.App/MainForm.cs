@@ -2649,18 +2649,120 @@ internal sealed class MainForm : Form
     {
         if (files.Length == 1) return files;
         if (files.Length > 1) NotifyIfMinimized(title, "O Traz Base aguarda a sua escolha dos arquivos.");
-        var screen = Screen.FromControl(this);
+        var dark = _settings.DarkMode;
+        var background = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var surface = dark ? Color.FromArgb(43, 53, 69) : Color.FromArgb(249, 251, 254);
+        var headerColor = dark ? Color.FromArgb(28, 35, 47) : Color.FromArgb(31, 111, 235);
+        var foreground = dark ? Color.FromArgb(232, 237, 245) : Ink;
+        var border = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
         var dialogLocation = new Point(
-            screen.WorkingArea.Left + Math.Max(0, (screen.WorkingArea.Width - 650) / 2),
-            screen.WorkingArea.Top + Math.Max(0, (screen.WorkingArea.Height - 440) / 2));
-        using var dialog = new Form { Text = title, Size = new Size(650, 440), Location = dialogLocation, StartPosition = FormStartPosition.Manual, MinimizeBox = false, MaximizeBox = false, FormBorderStyle = FormBorderStyle.FixedDialog, BackColor = Color.White };
-        var list = new CheckedListBox { Dock = DockStyle.Fill, CheckOnClick = true, IntegralHeight = false, Font = Font };
+            Screen.FromControl(this).WorkingArea.Left + Math.Max(0, (Screen.FromControl(this).WorkingArea.Width - 650) / 2),
+            Screen.FromControl(this).WorkingArea.Top + Math.Max(0, (Screen.FromControl(this).WorkingArea.Height - 460) / 2));
+
+        using var dialog = new Form
+        {
+            Text = title,
+            Size = new Size(650, 460),
+            Location = dialogLocation,
+            StartPosition = FormStartPosition.Manual,
+            FormBorderStyle = FormBorderStyle.None,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            BackColor = border,
+            Padding = new Padding(1)
+        };
+        dialog.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = background });
+
+        var clientWidth = dialog.ClientSize.Width - 2;
+        var clientHeight = dialog.ClientSize.Height - 2;
+        var body = (Panel)dialog.Controls[0];
+
+        var header = new Panel { Location = Point.Empty, Size = new Size(clientWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor };
+        var caption = new Label { Text = title, ForeColor = Color.White, BackColor = Color.Transparent, Font = UiTypography.Body(10f), TextAlign = ContentAlignment.MiddleLeft, AutoSize = true, Location = new Point(18, 13) };
+        header.Controls.Add(caption);
+        var close = new Button
+        {
+            Text = "×",
+            Size = new Size(42, 44),
+            Location = new Point(clientWidth - 42, 0),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.White,
+            BackColor = headerColor,
+            Font = UiTypography.Body(15f),
+            TabStop = false
+        };
+        close.FlatAppearance.BorderSize = 0;
+        close.BackColor = headerColor;
+        close.MouseEnter += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.MouseLeave += (_, _) => close.BackColor = headerColor;
+        close.MouseDown += (_, _) => close.BackColor = Color.FromArgb(0xA1, 0x1F, 0x15);
+        close.MouseUp += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.Click += (_, _) => dialog.DialogResult = DialogResult.Cancel;
+        header.Controls.Add(close);
+        DraggableWindow.Wire(header, dialog);
+        DraggableWindow.Wire(caption, dialog);
+        body.Controls.Add(header);
+
+        var list = new CheckedListBox
+        {
+            CheckOnClick = true,
+            IntegralHeight = false,
+            Font = UiTypography.Body(10f),
+            BackColor = surface,
+            ForeColor = foreground,
+            BorderStyle = BorderStyle.FixedSingle,
+            Location = new Point(12, 56),
+            Size = new Size(clientWidth - 24, clientHeight - 122),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            ItemHeight = 26
+        };
         foreach (var file in files) list.Items.Add(file, true);
-        var buttons = new FlowLayoutPanel { Dock = DockStyle.Bottom, Height = 54, FlowDirection = FlowDirection.RightToLeft, Padding = new Padding(8) };
-        var ok = new Button { Text = "Extrair selecionados", DialogResult = DialogResult.OK, Width = 150 };
-        var cancel = new Button { Text = "Pular extração", DialogResult = DialogResult.Cancel, Width = 110 };
-        buttons.Controls.Add(ok); buttons.Controls.Add(cancel);
-        dialog.Controls.Add(list); dialog.Controls.Add(buttons); dialog.AcceptButton = ok; dialog.CancelButton = cancel;
+        body.Controls.Add(list);
+
+        const int buttonHeight = 32;
+        var okWidth = Math.Max(150, TextRenderer.MeasureText("Extrair selecionados", UiTypography.BodySemibold(9f)).Width + 28);
+        var skipWidth = Math.Max(120, TextRenderer.MeasureText("Pular extração", UiTypography.BodySemibold(9f)).Width + 28);
+
+        var buttons = new Panel { Location = new Point(0, clientHeight - 60), Size = new Size(clientWidth, 60), Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right, BackColor = background };
+        var ok = new Button
+        {
+            Text = "Extrair selecionados",
+            DialogResult = DialogResult.OK,
+            Size = new Size(okWidth, buttonHeight),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(31, 111, 235),
+            ForeColor = Color.White,
+            Font = UiTypography.BodySemibold(9f)
+        };
+        ok.FlatAppearance.BorderSize = 0;
+        ok.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        ok.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+
+        var cancel = new Button
+        {
+            Text = "Pular extração",
+            DialogResult = DialogResult.Cancel,
+            Size = new Size(skipWidth, buttonHeight),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = dark ? Color.FromArgb(43, 53, 69) : Color.White,
+            ForeColor = foreground,
+            Font = UiTypography.BodySemibold(9f)
+        };
+        cancel.FlatAppearance.BorderSize = 1;
+        cancel.FlatAppearance.BorderColor = border;
+        cancel.FlatAppearance.MouseOverBackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(244, 247, 251);
+        cancel.FlatAppearance.MouseDownBackColor = dark ? Color.FromArgb(63, 75, 92) : Color.FromArgb(231, 240, 255);
+
+        ok.Location = new Point(buttons.Width - okWidth - 12, 14);
+        cancel.Location = new Point(ok.Left - skipWidth - 8, 14);
+        buttons.Controls.Add(ok);
+        buttons.Controls.Add(cancel);
+        body.Controls.Add(buttons);
+
+        dialog.AcceptButton = ok;
+        dialog.CancelButton = cancel;
         if (dialog.ShowDialog(this) != DialogResult.OK) return Array.Empty<string>();
         return list.CheckedItems.Cast<string>().ToArray();
     }

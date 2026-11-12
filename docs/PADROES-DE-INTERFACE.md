@@ -87,6 +87,7 @@ Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`),
 - Ýcone como glifo (`×`, `!`, `?`, `i`) em círculo colorido com 15% de opacidade.
 - Botões à direita, altura 32 px; ação primária azul `#1F6FEB` com texto branco; demais primários com borda fina; `Esc` fecha; foco inicial na ação padrão (configurável por diálogo).
 - O diálogo de conflito de destino usa três ações: **Criar backup** (primária), **Substituir**, **Cancelar** — com texto explicando que "Substituir remove a pasta atual sem guardar uma cópia".
+- A lista de arquivos a extrair (fluxo Transferir, quando há mais de um `*.rar`/`*.zip`) usa o mesmo padrão visual do `AppMessageBox`: moldura sem borda, cabeçalho `#1F6FEB`/`#1C232F` arrastável com `×`, lista `CheckedListBox` no tema (superfície `#2B3545` com texto claro no modo escuro / `#F9FBFE` com tinta no claro) e botões "Extrair selecionados" (azul primário) e "Pular extração" (secundário).
 - Largura fixa de 560 px, altura ajustada ao texto medido (máx. 300 px de mensagem).
 
 ## Progresso e status
