@@ -1707,7 +1707,7 @@ internal sealed class MainForm : Form
         _updateSicProgressStatus.Visible = show;
         _updateSicProgress.Visible = show;
         page.SuspendLayout();
-        page.RowStyles[6].Height = show ? 56 : 0;
+        page.RowStyles[4].Height = show ? 56 : 0;
         page.ResumeLayout(true);
     }
 
