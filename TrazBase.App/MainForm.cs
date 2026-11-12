@@ -37,6 +37,7 @@ internal sealed class MainForm : Form
     private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
     private readonly Label _versionLabel = new() { Text = "", AutoSize = true, Visible = false, ForeColor = Color.FromArgb(0, 120, 255), Font = UiTypography.Body(14f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+    private readonly Label _changeBaseVersionLabel = new() { Text = "", AutoSize = true, Visible = false, ForeColor = Color.FromArgb(0, 120, 255), Font = UiTypography.Body(12f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
     private readonly Panel _progress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
     private readonly Panel _progressFill = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(31, 111, 235), Location = new Point(0, 0), Width = 0, Height = 18 };
     private int _progressPercent;
@@ -278,7 +279,11 @@ internal sealed class MainForm : Form
         _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
         _resetButton.Click += async (_, _) => await ResetBaseAsync();
         _resetCancelButton.Click += (_, _) => _resetCancellation?.Cancel();
-        _baseFolders.SelectedIndexChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+        _baseFolders.SelectedIndexChanged += (_, _) =>
+        {
+            _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+            _ = UpdateChangeBaseVersionAsync(_selectedBasePath.Text);
+        };
         _resetBaseFolders.SelectedIndexChanged += (_, _) =>
         {
             if (_resetBaseFolders.SelectedItems.Count == 0)
@@ -503,7 +508,14 @@ internal sealed class MainForm : Form
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
-        page.Controls.Add(BuildHeader("Alterar base", "Selecione uma pasta para apontar o Registro para essa base"), 0, 0);
+        var header = new Panel { Dock = DockStyle.Fill };
+        header.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(0, 2) });
+        header.Controls.Add(new Label { Text = "Alterar base", Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 28) });
+        header.Controls.Add(new Label { Text = "Selecione uma pasta para apontar o Registro para essa base", Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 72) });
+        _changeBaseVersionLabel.Location = new Point(0, 30);
+        header.Controls.Add(_changeBaseVersionLabel);
+        header.Resize += (_, _) => _changeBaseVersionLabel.Left = header.ClientSize.Width - _changeBaseVersionLabel.Width - 18;
+        page.Controls.Add(header, 0, 0);
 
         page.Controls.Add(_baseFoldersRootLabel, 0, 1);
         var listCard = Card();
@@ -720,6 +732,7 @@ internal sealed class MainForm : Form
         {
             await UpdateRegistryAsync(folder);
             _status.Text = "Base alterada para: " + folder;
+            _ = UpdateChangeBaseVersionAsync(folder);
             MessageBox.Show(this, $"O Registro foi atualizado para a base:\n{folder}", "Base alterada", MessageBoxButtons.OK, MessageBoxIcon.Information);
         }
         catch (Exception ex)
@@ -1452,6 +1465,7 @@ internal sealed class MainForm : Form
         RefreshBaseFolders();
         ApplyNavigationColors();
         SelectBaseMatchingRegistry();
+        _ = UpdateChangeBaseVersionAsync(_selectedBasePath.Text);
         _baseFolders.Focus();
     }
 
@@ -2200,7 +2214,7 @@ internal sealed class MainForm : Form
             {
                 label.ForeColor = label == _appVersionLabel
                     ? Color.FromArgb(190, 208, 230)
-                    : label.Text == "TRAZ BASE" || label == _versionLabel
+                    : label.Text == "TRAZ BASE" || label == _versionLabel || label == _changeBaseVersionLabel
                     ? Color.FromArgb(31, 111, 235)
                     : label.Text is "Preparar base por solicitação" or "Transferir" or "Configurações" or "Comandos ARQEMP" or "Comandos ARQSIST"
                         ? text : muted;
@@ -3081,6 +3095,64 @@ internal sealed class MainForm : Form
         var version = await reader.ReadAsync(token) ? Convert.ToString(reader["VERSAO"]) : "sem versão registrada";
         _versionLabel.Text = "Versão atual: " + version;
         _versionLabel.Visible = true;
+    }
+
+    /// <summary>
+    /// Lê CONTROLE.NRO_SCRIPT da ARQSIST.FDB da pasta de base indicada (raiz, ou ARQ01 no modelo
+    /// multi-base) e exibe o valor no canto superior direito da tela Alterar base. Best-effort:
+    /// falhas (senha ausente/errada, base ilegível, sem ARQSIST) só alteram o texto do rótulo.
+    /// </summary>
+    private async Task UpdateChangeBaseVersionAsync(string? folder)
+    {
+        folder = folder?.Trim();
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            _changeBaseVersionLabel.Visible = false;
+            return;
+        }
+
+        string? database = Path.Combine(folder, "ARQSIST.FDB");
+        if (!File.Exists(database))
+        {
+            database = null;
+            if (MultiBaseOperationRules.IsMultiBase(folder))
+            {
+                var arq01 = MultiBaseOperationRules.GetArqSistPath(folder);
+                if (File.Exists(arq01)) database = arq01;
+            }
+        }
+        if (database is null)
+        {
+            _changeBaseVersionLabel.Text = "Versão atual: ARQSIST.FDB não encontrada";
+            _changeBaseVersionLabel.Visible = true;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            _changeBaseVersionLabel.Text = "Versão atual: senha não informada na Configuração";
+            _changeBaseVersionLabel.Visible = true;
+            return;
+        }
+
+        try
+        {
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
+            await connection.OpenAsync();
+            await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)
+            {
+                CommandTimeout = 10
+            };
+            var version = Convert.ToString(await command.ExecuteScalarAsync());
+            _changeBaseVersionLabel.Text = "Versão atual: " + (string.IsNullOrWhiteSpace(version) ? "sem versão registrada" : version);
+            _changeBaseVersionLabel.Visible = true;
+        }
+        catch (Exception ex)
+        {
+            _changeBaseVersionLabel.Text = "Versão atual: não foi possível ler a base";
+            _changeBaseVersionLabel.Visible = true;
+            Log($"Não foi possível consultar a versão da base {database}: {ex.Message}");
+        }
     }
 
     private void SetBusy(bool busy)

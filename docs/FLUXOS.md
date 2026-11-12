@@ -50,8 +50,8 @@ Cancelamento (botão **Cancelar** ou fechamento da janela): define o `Cancellati
 ## Fluxo 2 — Alterar base
 
 1. Lista, na pasta `BasesRoot`, as subpastas existentes (ordenadas, sem navegação recursiva).
-2. O operador seleciona uma pasta; o caminho completo aparece no campo inferior.
-3. **Trocar base** (ou duplo clique) grava no Registro e confirma com mensagem; **Abrir pasta** abre o Explorer.
+2. O operador seleciona uma pasta; o caminho completo aparece no campo inferior, e a tela exibe no canto superior direito **"Versão atual: …"** (consulta `SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE` na `ARQSIST.FDB` da pasta selecionada — raiz no modo simples, `ARQ01` no modelo multi-base). A versão é atualizada ao exibir a tela, ao alterar a seleção e após a troca da base; falhas (base ilegível, senha ausente) só alteram o texto do rótulo.
+3. **Trocar base** (ou duplo clique) grava no Registro, atualiza a versão exibida e confirma com mensagem; **Abrir pasta** abre o Explorer.
 4. A mesma etapa de Registro do Fluxo 1 é reutilizada (`UpdateRegistryAsync`).
 
 Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações):
