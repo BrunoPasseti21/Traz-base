@@ -89,7 +89,7 @@ Testa `MultiBaseOperationRules` (tratamento multi-base em SLs com pastas `ARQ##`
 
 ### `UpdateSicOperationRulesTests.cs` — 7 casos de teste
 
-Testa `UpdateSicOperationRules` (ação "Atualizar SIC" — caminhos e versão):
+Testa `UpdateSicOperationRules` (ação " — caminhos e versão):
 
 | Teste | Verifica |
 |---|---|
@@ -102,7 +102,7 @@ Testa `UpdateSicOperationRules` (ação "Atualizar SIC" — caminhos e versão):
 
 ### `UpdateSicEntryRulesTests.cs` — 6 testes novos
 
-Regras da tabela de executáveis (config da ação "Atualizar SIC"):
+Regras da tabela de executáveis (config da ação "):
 
 | Teste | Verifica |
 |---|---|
@@ -158,7 +158,7 @@ Testa a proteção DPAPI da senha Firebird em `AppSettings` (sem tocar em disco)
 
 ## Escopo e limitações
 
-- **Coberto:** regras de destino/apoio/conflito, proteção de path traversal em compactados, reconhecimento/mapeamento de `.FBK` na restauração, regras do tratamento multi-base (pastas `ARQ##`), regras da ação "Atualizar SIC", decisão de atualização via GitHub Releases, proteção DPAPI da senha.
+- **Coberto:** regras de destino/apoio/conflito, proteção de path traversal em compactados, reconhecimento/mapeamento de `.FBK` na restauração, regras do tratamento multi-base (pastas `ARQ##`), regras da ação ", decisão de atualização via GitHub Releases, proteção DPAPI da senha.
 - **Não coberto:** `MainForm` (orquestração e UI: cópia, extração via `ZipArchive`/SharpCompress, Registro `HKCU\SIC\CONEXAO`, conexão SQL Firebird via `FbConnection`, execução do `FbRestore` em si, fluxo de atualização em si), `AppMessageBox` (diálogos) e `SvgIconLoader`. Testar esses exigiria extrair lógica para classes puras ou automação de UI — mesma ressalva registrada em [Riscos e decisões](RISCOS-E-DECISOES.md).
 - Testes que dependem de DPAPI/perfil Windows não rodam em Linux/macOS nem em CI sem Windows.
 - O paralelismo entre métodos (`MSTestSettings.cs`) é seguro porque nenhum teste escreve em local compartilhado (cada um usa `%TEMP%` único ou estado em memória).

@@ -28,7 +28,7 @@ internal sealed class MainForm : Form
         (StartScreen.AlterarBase, "Alterar base"),
         (StartScreen.RedefinirBase, "Redefinir base"),
         (StartScreen.RestaurarBase, "Restaurar base"),
-        (StartScreen.AtualizarSic, "Atualizar SIC"),
+        (StartScreen.AtualizarSic, "Atualização de executáveis"),
         (StartScreen.Configuracao, "Configuração"),
         (StartScreen.ComandosArqEmp, "Comandos ARQEMP"),
         (StartScreen.ComandosArqSist, "Comandos ARQSIST"),
@@ -54,7 +54,7 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _resetNav = new() { Text = "", Image = SvgIconLoader.Load("Redefinir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _restoreNav = new() { Text = "", Image = SvgIconLoader.Load("Restaurar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _updateSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
-    private readonly PlainNavigationButton _configureSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _configureSicNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
@@ -1100,7 +1100,8 @@ internal sealed class MainForm : Form
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Version", HeaderText = "Versão/Nome da pasta", DataPropertyName = nameof(UpdateSicEntry.Version), FillWeight = 14, MinimumWidth = 110 });
         grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Destination", HeaderText = "Destino", DataPropertyName = nameof(UpdateSicEntry.DestinationRoot), FillWeight = 34, MinimumWidth = 180 });
         grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseDestination", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "FileName", HeaderText = "nome arquivo", DataPropertyName = nameof(UpdateSicEntry.FileName), FillWeight = 15, MinimumWidth = 120 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "FileName", HeaderText = "nome arquivo", DataPropertyName = nameof(UpdateSicEntry.FileName), FillWeight = 28, MinimumWidth = 150 });
+        grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseFileName", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
         grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "RenameWithVersion", HeaderText = "Renomeia com a versão", DataPropertyName = nameof(UpdateSicEntry.RenameWithVersion), FillWeight = 14, MinimumWidth = 110, FlatStyle = FlatStyle.Flat, ThreeState = false });
         // Cabeçalho em várias linhas (sem cortar), semibold, aplicado no tema
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
@@ -1117,28 +1118,30 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC"), 0, 0);
+        page.Controls.Add(BuildHeader("Atualização de executáveis", "Baixe, extraia e aplique os executáveis configurados"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Executa os executáveis configurados em Atualizar > Configurar SIC.\r\n" +
-            "• Clique em Atualizar executáveis para rodar todas as linhas da tabela.\r\n" +
-            "• Para gerenciar as linhas, abra a tela Configurar SIC (menu Atualização > Configurar SIC)."), 0, 1);
+            "• Cada executável configurado na tela de caminhos é baixado e extraído na origem informada.\r\n" +
+            "• Clique em Atualizar executáveis para rodar todas as linhas da configuração.\r\n" +
+            "• Para gerenciar a lista, abra Atualização > Configurar caminhos executáveis."), 0, 1);
 
         var summaryCard = Card();
         _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s)";
-        _updateSicSummaryLabel.Location = new Point(18, 14);
+        _updateSicSummaryLabel.Location = new Point(18, 0);
         _updateSicSummaryLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left;
         _updateSicSummaryLabel.AutoSize = true;
         summaryCard.Controls.Add(_updateSicSummaryLabel);
 
-        _updateSicButton.Size = new Size(220, 42);
-        _updateSicButton.Location = new Point(18, 44);
+        _updateSicButton.Size = new Size(220, 32);
+        _updateSicButton.Location = new Point(18, 22);
         _updateSicButton.FlatAppearance.BorderSize = 0;
+        _updateSicButton.Font = UiTypography.BodySemibold(9f);
         summaryCard.Controls.Add(_updateSicButton);
+        summaryCard.Resize += (_, _) => _updateSicButton.Left = summaryCard.ClientSize.Width - _updateSicButton.Width - 18;
         page.Controls.Add(summaryCard, 0, 2);
 
         var logCard = Card();
@@ -1167,7 +1170,7 @@ internal sealed class MainForm : Form
 
     private void RefreshUpdateSicSummary()
     {
-        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualizar › Configurar SIC";
+        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualização › Configurar caminhos executáveis";
     }
 
     private Control BuildConfigureSicView()
@@ -1177,11 +1180,12 @@ internal sealed class MainForm : Form
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(BuildHeader("Configurar SIC", "Gerencie os executáveis que a ação Atualizar SIC baixa e extrai"), 0, 0);
+        page.Controls.Add(BuildHeader("Configurar caminhos executáveis", "Gerencie os executáveis baixados e extraídos pela tela de atualização"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualizar SIC.\r\n" +
-            "• Use o botão com três pontos (…) ao lado de Origem/Destino para escolher a pasta.\r\n" +
+            "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualização de executáveis.\r\n" +
+            "• Use os botões com três pontos (…) ao lado de Origem/Destino para escolher a pasta, ou o botão ao lado de nome arquivo para escolher o .exe.\r\n" +
+            "• Ao escolher o executável, apenas o nome do arquivo fica na coluna, sem a extensão (ex.: SIC.exe -> SIC).\r\n" +
             "• Clique com o botão direito na grade para marcar/desmarcar Renomeia com a versão em lote.\r\n" +
             "• Marque a checkbox no topo para usar um destino único; quando isso acontece, a coluna Destino some."), 0, 1);
 
@@ -1248,19 +1252,42 @@ internal sealed class MainForm : Form
         {
             if (args.RowIndex < 0) return;
             var columnName = _updateSicGrid.Columns[args.ColumnIndex].Name;
-            if (columnName is "BrowseSource" or "BrowseDestination")
+            var entry = _updateSicRows[args.RowIndex];
+            switch (columnName)
             {
-                var isSource = columnName == "BrowseSource";
-                var entry = _updateSicRows[args.RowIndex];
-                var seed = (isSource ? entry.SourceRoot : entry.DestinationRoot).Trim();
-                using var dialog = new FolderBrowserDialog { Description = isSource ? "Selecione a pasta-raiz (origem)" : "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
-                if (dialog.ShowDialog(this) == DialogResult.OK)
-                {
-                    if (isSource) entry.SourceRoot = dialog.SelectedPath; else entry.DestinationRoot = dialog.SelectedPath;
-                    _updateSicGrid.Refresh();
-                    SyncUpdateSicEntriesFromGrid();
-                    QueueSettingsSave();
-                }
+                case "BrowseSource" or "BrowseDestination":
+                    {
+                        var isSource = columnName == "BrowseSource";
+                        var seed = (isSource ? entry.SourceRoot : entry.DestinationRoot).Trim();
+                        using var dialog = new FolderBrowserDialog { Description = isSource ? "Selecione a pasta-raiz (origem)" : "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
+                        if (dialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            if (isSource) entry.SourceRoot = dialog.SelectedPath; else entry.DestinationRoot = dialog.SelectedPath;
+                            _updateSicGrid.Refresh();
+                            SyncUpdateSicEntriesFromGrid();
+                            QueueSettingsSave();
+                        }
+                        break;
+                    }
+                case "BrowseFileName":
+                    {
+                        using var dialog = new OpenFileDialog
+                        {
+                            Title = "Selecione o executável",
+                            Filter = "Executáveis (*.exe)|*.exe|Todos os arquivos (*.*)|*.*",
+                            FilterIndex = 1,
+                            Multiselect = false,
+                            CheckFileExists = true
+                        };
+                        if (dialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            entry.FileName = Path.GetFileNameWithoutExtension(dialog.FileName) ?? string.Empty;
+                            _updateSicGrid.Refresh();
+                            SyncUpdateSicEntriesFromGrid();
+                            QueueSettingsSave();
+                        }
+                        break;
+                    }
             }
         };
 
@@ -2056,7 +2083,8 @@ internal sealed class MainForm : Form
         _changeBaseNav.Text = expanded ? "Alterar base" : "";
         _resetNav.Text = expanded ? "Redefinir base" : "";
         _restoreNav.Text = expanded ? "Restaurar base" : "";
-        _updateSicNav.Text = expanded ? "Atualizar SIC" : "";
+        _updateSicNav.Text = expanded ? "Atualização de executáveis" : "";
+        _configureSicNav.Text = expanded ? "Configurar caminhos executáveis" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";

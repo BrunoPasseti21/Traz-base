@@ -64,13 +64,13 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 - Fundo azul `#1F6FEB`, texto branco, `FlatStyle = Flat`.
 - Altura **42 px** para ações principais (ex.: Trazer e preparar), 36–40 px para ações de tela (Redefinir, Testar comando), 28–32 px para auxiliares (Limpar, Procurar, Trocar base). A cor, a fonte, o estilo plano e a remoção de borda são obrigatórios em todas.
 - Hover `#2D7DF5`, pressed `#195ECD` nos botões que definem essas cores explicitamente.
-- Botões secundários (ex.: **Abrir pasta**, **Cancelar** da transferência / da redefinição / da restauração / do Atualizar SIC): fundo superfície, texto ink (claro) / texto claro (escuro), borda fina `#D0D9E6` (claro) / `#536277` (83,98,119, escuro); altura igual à do botão primário da mesma tela (42 px na Transferência e no Atualizar SIC, 36 px nas telas Redefinir/Restaurar) e largura 100 px.
+- Botões secundários (ex.: **Abrir pasta**, **Cancelar** da transferência / da redefinição / da restauração / da Atualização de executáveis): fundo superfície, texto ink (claro) / texto claro (escuro), borda fina `#D0D9E6` (claro) / `#536277` (83,98,119, escuro); altura igual à do botão primário da mesma tela (42 px na Transferência, na Atualização de executáveis, 36 px nas telas Redefinir/Restaurar) e largura 100 px.
 - Proibido criar botões de ação como links sublinhados ou introduzir cores/tipografias diferentes sem atualizar este documento.
 
 ## Menu lateral
 
 - Recolhido por padrão: largura **68 px**, só ícones SVG (24 px) centralizados.
-- Organização por blocos, na ordem: **Transferência** (Transferir, Alterar base, Redefinir base, Restaurar base) → **Atualização** (Atualizar SIC) → **Configurações** (Configuração, Comandos ARQEMP, Comandos ARQSIST). Divisórias finas (`sidebarSeparator`, `#E2E8F0` claro / `#39434F` escuro) separam os três grupos.
+- Organização por blocos, na ordem: **Transferência** (Transferir, Alterar base, Redefinir base, Restaurar base) → **Atualização** (Atualização de executáveis) → **Configurações** (Configuração, Comandos ARQEMP, Comandos ARQSIST). Divisórias finas (`sidebarSeparator`, `#E2E8F0` claro / `#39434F` escuro) separam os três grupos.
 - Expandido pelo botão sanduíche: largura **300 px**, ícone + descrição em **12 pt** alinhados à esquerda com recuo de 18 px.
 - **Transição animada**: alternar expande/recolhe com animação de largura de ~220 ms e easing ease-out cúbico (passos de 15 ms). Ao **recolher**, os rótulos somem de imediato; ao **expandir**, os rótulos aparecem ao final da animação. Cliques rápidos no botão sanduíche redirecionam a animação a partir da largura atual, sem sacudidas.
 - Opção selecionada recebe fundo `#E7F0FF` (claro) / `#30435E` (escuro); as demais ficam com o fundo do menu e hover próprio.
@@ -105,7 +105,7 @@ Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`),
 
 ## Tabelas (DataGridView)
 
-- A tela **Configurar SIC** (e apenas ela) usa `DataGridView` para editar a tabela de executáveis.
+- A tela **Configurar caminhos executáveis** (e apenas ela) usa `DataGridView` para editar a tabela de executáveis.
 - `AutoGenerateColumns = false`; colunas `SourceRoot`, `Version`, `DestinationRoot`, `FileName` (texto) e `RenameWithVersion` (checkbox).
 - Duas colunas `DataGridViewButtonColumn` com texto `…` para **procurar a pasta** por campo; clique na célula abre `FolderBrowserDialog` com semente no caminho atual.
 - `DataSource = BindingList<UpdateSicEntry>` (`UpdateSicEntry.cs`); `AutoSizeColumnsMode = Fill`, `SelectionMode = FullRowSelect`, `MultiSelect = false`.

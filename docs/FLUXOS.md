@@ -4,13 +4,13 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 ## Estrutura da janela e navegação
 
-Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → botão "Atualizar executáveis"; **Configurar SIC** → grade de executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
+Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualização de executáveis** → botão "Atualizar executáveis"; **Configurar caminhos executáveis** → grade de executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
 1. **Transferir** — copiar/extrair e preparar base por solicitação.
 2. **Alterar base** — apontar o Registro para uma base local já existente.
 3. **Redefinir base** — validar/preparar uma base local existente para a SL.
 4. **Restaurar base** — restaurar os `.FBK` da pasta selecionada (standalone).
-5. **Atualizar SIC** — rodar a atualização dos executáveis configurados (ação equivalente ao `Atualiza_Tudo.cmd`).
-6. **Configurar SIC** — editar a tabela de executáveis (origem, versão, destino, nome e renomear por linha).
+5. **Atualização de executáveis** — rodar a atualização dos executáveis configurados (ação equivalente ao `Atualiza_Tudo.cmd`).
+6. **Configurar caminhos executáveis** — editar a tabela de executáveis (origem, versão, destino, nome e renomear por linha).
 7. **Configuração** — pastas, senha Firebird e tema.
 8. **Comandos ARQEMP** — editor SQL executável na base `ARQEMP.FDB`.
 9. **Comandos ARQSIST** — editor SQL executável na base `ARQSIST.FDB`.
@@ -108,11 +108,11 @@ Ação **Restaurar bases** (requer a pasta selecionada e a senha Firebird):
 8. Ao final, se ao menos uma base foi restaurada, o operador escolhe (**Sim/Não**) se deseja atualizar `HKCU\SIC\CONEXAO` para apontar para a pasta onde os `.FDB` foram restaurados (mesmo caminho do passo 2). Sem restauração bem-sucedida, o Registro não é tocado e nenhum diálogo é exibido.
 9. Log próprio ("Andamento da restauração") com carimbo de hora; **Cancelar** encerra a espera — o cancelamento fecha as conexões de serviço e a etapa é abortada (as bases podem ficar em estado intermediário, como no `gbak`). Navegação desabilitada enquanto roda.
 
-## Fluxo 5 — Atualizar SIC
+## Fluxo 5 — Atualização de executáveis e Configurar caminhos executáveis
 
 Dois itens no menu lateral (grupo **Atualização**):
 
-### Atualizar SIC
+### Atualização de executáveis
 
 Botão único **Atualizar executáveis** para rodar todas as linhas configuradas; mostra um resumo (executáveis configurados) e avisa caso nenhum esteja configurado. Segue o comportamento do `Atualiza_Tudo.cmd` para cada linha:
 
@@ -124,7 +124,7 @@ Botão único **Atualizar executáveis** para rodar todas as linhas configuradas
 4. Ao final, o resultado é resumido: sucesso total ou um aviso listando os arquivos que falharam (e o motivo de cada um); os demais foram atualizados normalmente. **Cancelar** interrompe o loop entre blocos; navegação desabilitada enquanto roda.
 5. **Renomear com a versão** (por linha): após a extração, os `*.exe` diretos na pasta de destino recebem o sufixo `_<versão>` (ex.: `SIC.exe` → `SIC_146.exe`). Se o destino já tiver um arquivo com o nome final, mantém o original e registra no log; limita-se à raiz do destino. A versão usada é a **da própria linha** (somente letras/dígitos/`_`; caracteres inválidos são descartados).
 
-### Configurar SIC
+### Configurar caminhos executáveis
 
 Tela de **gerenciamento da tabela** (mesma estrutura do Excel): o operador edita as linhas direto na grade (`DataGridView`):
 
@@ -161,7 +161,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Usar modo escuro** (persiste `DarkMode` e reaplica o tema na hora)
 - **Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)** (`ForceMultiBase`) — mesmo quando a SL não traz pastas `ARQ##`: o fluxo cria `ARQ01\` e move a `ARQSIST.FDB` para lá, cria `ARQ00\` e move `ARQEMP.FDB`/`ARQOCOR.FDB` para lá (ou copia da pasta de apoio/aninhadas), e usa o Registro no formato multi-base (`BASE1`…`BASE99` apenas com correspondente + `EMPRESA` = `ARQ00`). Os arquivos `*.fdb` são procurados também em subpastas (fora das pastas `ARQ##`); mais de uma candidata interrompe com aviso.
 - **Quantidade de bases** (`BaseCount`, padrão 1) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
-- **Tela inicial** (`DefaultScreen`, padrão "Transferir") — define qual tela o app exibe ao abrir. Opções: Transferir, Alterar base, Redefinir base, Restaurar base, Atualizar SIC, Configuração, Comandos ARQEMP, Comandos ARQSIST.
+- **Tela inicial** (`DefaultScreen`, padrão "Transferir") — define qual tela o app exibe ao abrir. Opções: Transferir, Alterar base, Redefinir base, Restaurar base, Atualização de executáveis, Configuração, Comandos ARQEMP, Comandos ARQSIST.
 - **Renomear pasta da solicitação para o nome fantasia (ou o nome) do cliente** (`RenameSlFolderToClientName`) — no fluxo "Transferir", após os comandos SQL da base, a aplicação executa `SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'` na **ARQSIST** e renomeia a pasta de destino para a **primeira palavra do NFANTASIA** (ou, se o NFANTASIA estiver vazio/nulo, do NOME; se os dois estiverem vazios, a pasta mantém o número da SL) + **`_<SL>`** (ex.: `"JOAO_123456"`). A validação de "pasta já existe" ao iniciar a SL considera a pasta exata `<SL>` ou qualquer pasta que termine em `_<SL>` — ideal para detectar bases renomeadas anteriormente.
 - **Notificações de perguntas/mensagens** — com a aplicação **minimizada**, qualquer pergunta/mensagem pendente dispara sempre um balloon da bandeja ("Traz Base") com o título do diálogo e a primeira linha do texto; clicar no balloon restaura a janela.
 
