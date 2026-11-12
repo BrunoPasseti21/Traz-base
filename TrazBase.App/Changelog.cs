@@ -4,6 +4,16 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.8.0"] =
+        [
+            "Tela \"Atualização de executáveis\" renovada: card de resumo compacto (botão à esquerda), apenas \"Atualizar executáveis\" e mensagens mais curtas.",
+            "Nova tela \"Configurar caminhos executáveis\" no menu: tabela editável com a lista dos executáveis a atualizar, com botão … para escolher pastas e arquivos e menu de contexto para marcar/desmarcar Renomeia com a versão em lote.",
+            "A coluna nome arquivo aceita qualquer arquivo (qualquer extensão) e armazena apenas o nome sem extensão (correto para arquivos com extensão composta como .exe.zip).",
+            "Checkbox \"Usar um único destino para todos os executáveis\" para compartilhar o destino e ocultar a coluna Destino; destino por linha continua disponível.",
+            "Com \"Renomeia com a versão\" marcado, a extração já salva o .exe com sufixo _<versão> na pasta de destino (ex.: SIC_146.exe), sem etapa separada de renomeação.",
+            "Mensagens enxutas: só a lista dos executáveis que falharam; sucesso curto.",
+            "Correção de falha com a barra de progresso (anterior causava erro antes da extração começar)."
+        ],
         ["0.7.0"] =
         [
             "Nova seleção de base ao trocar (Alterar base): versão do SIC exibida no canto superior direito, igual ao fluxo de Transferência.",
