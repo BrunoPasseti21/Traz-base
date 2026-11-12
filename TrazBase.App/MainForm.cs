@@ -1,4 +1,4 @@
-using Microsoft.Win32;
+﻿using Microsoft.Win32;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
@@ -1127,7 +1127,7 @@ internal sealed class MainForm : Form
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Cada executável configurado na tela de caminhos é baixado e extraído na origem informada.\r\n" +
             "• Clique em Atualizar executáveis para rodar todas as linhas da configuração.\r\n" +
-            "• Para gerenciar a lista, abra Atualização > Configurar caminhos executáveis."), 0, 1);
+            "• Para gerenciar a lista, abra Atualização > Configurar caminhos."), 0, 1);
 
         var summaryCard = Card();
         _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s)";
@@ -1141,7 +1141,6 @@ internal sealed class MainForm : Form
         _updateSicButton.FlatAppearance.BorderSize = 0;
         _updateSicButton.Font = UiTypography.BodySemibold(9f);
         summaryCard.Controls.Add(_updateSicButton);
-        summaryCard.Resize += (_, _) => _updateSicButton.Left = summaryCard.ClientSize.Width - _updateSicButton.Width - 18;
         page.Controls.Add(summaryCard, 0, 2);
 
         var logCard = Card();
@@ -1170,7 +1169,7 @@ internal sealed class MainForm : Form
 
     private void RefreshUpdateSicSummary()
     {
-        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualização › Configurar caminhos executáveis";
+        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualização › Configurar caminhos";
     }
 
     private Control BuildConfigureSicView()
@@ -1180,7 +1179,7 @@ internal sealed class MainForm : Form
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(BuildHeader("Configurar caminhos executáveis", "Gerencie os executáveis baixados e extraídos pela tela de atualização"), 0, 0);
+        page.Controls.Add(BuildHeader("Configurar caminhos", "Gerencie os executáveis baixados e extraídos pela tela de atualização"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualização de executáveis.\r\n" +
@@ -2084,7 +2083,7 @@ internal sealed class MainForm : Form
         _resetNav.Text = expanded ? "Redefinir base" : "";
         _restoreNav.Text = expanded ? "Restaurar base" : "";
         _updateSicNav.Text = expanded ? "Atualização de executáveis" : "";
-        _configureSicNav.Text = expanded ? "Configurar caminhos executáveis" : "";
+        _configureSicNav.Text = expanded ? "Configurar caminhos" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
