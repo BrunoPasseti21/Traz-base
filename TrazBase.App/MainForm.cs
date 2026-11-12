@@ -18,7 +18,7 @@ internal sealed class MainForm : Form
     private readonly CheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly CheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly CheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly CheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o primeiro nome da nota promissória do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly CheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
@@ -2496,7 +2496,7 @@ internal sealed class MainForm : Form
 
             if (_settings.RenameSlFolderToClientName)
             {
-                var newDestination = await TryGetPromissoryClientNameAsync(arqSistDatabase, _runCancellation.Token);
+                var newDestination = await TryGetClientNameAsync(arqSistDatabase, _runCancellation.Token);
                 if (newDestination is not null)
                 {
                     var firstName = GetFirstWord(newDestination);
@@ -3008,19 +3008,28 @@ internal sealed class MainForm : Form
         else operationLog(message);
     }
 
-    private async Task<string?> TryGetPromissoryClientNameAsync(string arqSistDatabase, CancellationToken token)
+    private async Task<string?> TryGetClientNameAsync(string arqSistDatabase, CancellationToken token)
     {
         try
         {
             await using var connection = new FbConnection(BuildFirebirdConnectionString(arqSistDatabase));
             await connection.OpenAsync(token);
-            await using var command = new FbCommand("SELECT FIRST 1 C.NOME FROM ARQCAD C WHERE C.TIPOC = 'N'", connection)
+            await using var command = new FbCommand("SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'", connection)
             {
                 CommandTimeout = 0
             };
-            var value = await command.ExecuteScalarAsync(token);
-            if (value is string s && !string.IsNullOrWhiteSpace(s)) return s.Trim();
-            Log("Consulta de nota promissória não retornou nomes; renomeação ignorada.");
+            await using var reader = await command.ExecuteReaderAsync(token);
+            if (!await reader.ReadAsync(token))
+            {
+                Log("Consulta de nota promissória não retornou registros; a pasta mantém o número da SL.");
+                return null;
+            }
+            // Prioridade: nome fantasia; na ausência dele, o nome; sem nenhum dos dois, mantém a SL.
+            var fantasia = Convert.ToString(reader["NFANTASIA"])?.Trim();
+            if (!string.IsNullOrWhiteSpace(fantasia)) return fantasia;
+            var nome = Convert.ToString(reader["NOME"])?.Trim();
+            if (!string.IsNullOrWhiteSpace(nome)) return nome;
+            Log("A nota promissória não tem NFantasia nem nome preenchidos; a pasta mantém o número da SL.");
             return null;
         }
         catch (Exception ex)
