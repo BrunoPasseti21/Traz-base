@@ -4,6 +4,12 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.8.1"] =
+        [
+            "A atualização disponível agora aparece com o ícone de download no botão azul do rodapé mesmo com o menu lateral recolhido (o botão não desenhava a própria imagem).",
+            "A janela agora é ajustada à área útil do monitor ao abrir, sem deixar o rodapé para fora da tela (telas menores e segundo monitor).",
+            "Menu expandido: a mensagem de atualização disponível é exibida com fonte menor e aparece inteira no botão."
+        ],
         ["0.8.0"] =
         [
             "Tela \"Atualização de executáveis\" renovada: card de resumo compacto (botão à esquerda), apenas \"Atualizar executáveis\" e mensagens mais curtas.",
