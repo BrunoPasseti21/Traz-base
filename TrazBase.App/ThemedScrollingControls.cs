@@ -347,6 +347,35 @@ internal class RoundedButton : Button
         };
         if (_pressed && FlatAppearance.BorderSize == 0)
             textBounds.Offset(0, 1);
+
+        // Desenha o ícone, pois o desenho próprio não chama o Paint nativo do Button.
+        var image = Image;
+        if (image is not null)
+        {
+            var textWidth = Text.Length == 0
+                ? 0
+                : TextRenderer.MeasureText(Text, Font, new Size(int.MaxValue, int.MaxValue), TextFormatFlags.NoPadding | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis).Width;
+            var gap = 6;
+            var totalWidth = image.Width + (Text.Length > 0 ? gap + textWidth : 0);
+            var startX = Text.Length == 0
+                ? (Width - image.Width) / 2
+                : Math.Max(Padding.Left, (Width - totalWidth) / 2);
+            var imageY = (Height - image.Height) / 2;
+            e.Graphics.DrawImage(image, startX, imageY, image.Width, image.Height);
+            if (Text.Length > 0)
+            {
+                var textX = startX + image.Width + gap;
+                var textRect2 = new Rectangle(textX, 0, Math.Max(0, Width - textX - Padding.Right), Height);
+                flags = TextFormatFlags.VerticalCenter | TextFormatFlags.SingleLine | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPadding;
+                flags |= TextAlign switch
+                {
+                    ContentAlignment.MiddleRight or ContentAlignment.TopRight or ContentAlignment.BottomRight => TextFormatFlags.Right,
+                    _ => TextFormatFlags.Left
+                };
+                TextRenderer.DrawText(e.Graphics, Text, Font, textRect2, textColor, flags);
+                return;
+            }
+        }
         TextRenderer.DrawText(e.Graphics, Text, Font, textBounds, textColor, flags);
     }
 }
