@@ -54,6 +54,7 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _resetNav = new() { Text = "", Image = SvgIconLoader.Load("Redefinir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _restoreNav = new() { Text = "", Image = SvgIconLoader.Load("Restaurar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _updateSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _configureSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
@@ -72,6 +73,8 @@ internal sealed class MainForm : Form
     private Control _resetView = null!;
     private Control _restoreView = null!;
     private Control _updateSicView = null!;
+    private Control _configureSicView = null!;
+    private readonly Label _updateSicSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) };
     private Control _arqEmpView = null!;
     private Control _arqSistView = null!;
     private Panel _settingsFieldsHost = null!;
@@ -161,6 +164,7 @@ internal sealed class MainForm : Form
         _sidebar.Controls.Add(_arqEmpNav);
         _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
+        _sidebar.Controls.Add(_configureSicNav);
         _sidebar.Controls.Add(_updateSicNav);
         _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
         _sidebar.Controls.Add(_restoreNav);
@@ -174,9 +178,11 @@ internal sealed class MainForm : Form
         _resetView = BuildResetView();
         _restoreView = BuildRestoreView();
         _updateSicView = BuildUpdateSicView();
+        _configureSicView = BuildConfigureSicView();
         _updateSicSingleDestinationCheck.Checked = _settings.UpdateSicSingleDestinationEnabled;
         _updateSicSingleDestination.Text = _settings.UpdateSicSingleDestinationRoot;
         LoadUpdateSicRowsFromSettings();
+        RefreshUpdateSicSummary();
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
         ThemeState.IsDark = _settings.DarkMode;
@@ -190,6 +196,7 @@ internal sealed class MainForm : Form
         _contentHost.Controls.Add(_resetView);
         _contentHost.Controls.Add(_restoreView);
         _contentHost.Controls.Add(_updateSicView);
+        _contentHost.Controls.Add(_configureSicView);
         _contentHost.Controls.Add(_arqEmpView);
         _contentHost.Controls.Add(_arqSistView);
         _contentHost.Controls.Add(_transferView);
@@ -273,6 +280,7 @@ internal sealed class MainForm : Form
         _resetNav.Click += (_, _) => ShowResetView();
         _restoreNav.Click += (_, _) => ShowRestoreView();
         _updateSicNav.Click += (_, _) => ShowUpdateSicView();
+        _configureSicNav.Click += (_, _) => ShowConfigureSicView();
         _updateSicButton.Click += async (_, _) => await UpdateSicAsync();
         _updateSicCancelButton.Click += (_, _) => _updateSicCancellation?.Cancel();
         _updateSicSingleDestinationBrowse.Click += (_, _) => BrowseUpdateSicFolder("singleDestination");
@@ -286,7 +294,7 @@ internal sealed class MainForm : Form
         _updateSicAddRow.Click += (_, _) => AddUpdateSicRow();
         _updateSicRemoveRow.Click += (_, _) => RemoveSelectedUpdateSicRows();
         _updateSicGrid.DataError += (_, _) => { /* coleções do GridType já validam; evita popup nativo com recortes estriduais */ };
-        _updateSicGrid.CellValueChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellInEditMode) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); QueueSettingsSave(); };
+        _updateSicGrid.CellValueChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellInEditMode) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); SyncUpdateSicEntriesFromGrid(); RefreshUpdateSicSummary(); QueueSettingsSave(); };
         _updateSicGrid.CurrentCellDirtyStateChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellDirty) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
         _restoreButton.Click += async (_, _) => await RestoreBaseAsync();
         _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
@@ -830,7 +838,7 @@ internal sealed class MainForm : Form
         _resetSl.Enabled = false;
         _resetButton.Enabled = false;
         _resetCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
         _resetLog.Clear();
         var token = _resetCancellation.Token;
         try
@@ -870,7 +878,7 @@ internal sealed class MainForm : Form
             _resetSl.Enabled = true;
             _resetButton.Enabled = true;
             _resetCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
         }
     }
 
@@ -953,7 +961,7 @@ internal sealed class MainForm : Form
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
         _restoreLog.Clear();
         var token = _restoreCancellation.Token;
         try
@@ -1031,7 +1039,7 @@ internal sealed class MainForm : Form
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
             _restoreCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
         }
     }
 
@@ -1087,11 +1095,13 @@ internal sealed class MainForm : Form
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
             RowTemplate = new DataGridViewRow { Height = 30 }
         };
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Source", HeaderText = "Caminho de sincronização", DataPropertyName = nameof(UpdateSicEntry.SourceRoot), FillWeight = 38, MinimumWidth = 190 });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Version", HeaderText = "Versão/Nome da pasta", DataPropertyName = nameof(UpdateSicEntry.Version), FillWeight = 14, MinimumWidth = 120 });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Destination", HeaderText = "Destino", DataPropertyName = nameof(UpdateSicEntry.DestinationRoot), FillWeight = 38, MinimumWidth = 190 });
-        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "FileName", HeaderText = "nome arquivo", DataPropertyName = nameof(UpdateSicEntry.FileName), FillWeight = 15, MinimumWidth = 130 });
-        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "RenameWithVersion", HeaderText = "Renomeia com a versão", DataPropertyName = nameof(UpdateSicEntry.RenameWithVersion), FillWeight = 15, MinimumWidth = 125, FlatStyle = FlatStyle.Flat, ThreeState = false });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Source", HeaderText = "Caminho de sincronização", DataPropertyName = nameof(UpdateSicEntry.SourceRoot), FillWeight = 34, MinimumWidth = 180 });
+        grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseSource", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Version", HeaderText = "Versão/Nome da pasta", DataPropertyName = nameof(UpdateSicEntry.Version), FillWeight = 14, MinimumWidth = 110 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Destination", HeaderText = "Destino", DataPropertyName = nameof(UpdateSicEntry.DestinationRoot), FillWeight = 34, MinimumWidth = 180 });
+        grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseDestination", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "FileName", HeaderText = "nome arquivo", DataPropertyName = nameof(UpdateSicEntry.FileName), FillWeight = 15, MinimumWidth = 120 });
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "RenameWithVersion", HeaderText = "Renomeia com a versão", DataPropertyName = nameof(UpdateSicEntry.RenameWithVersion), FillWeight = 14, MinimumWidth = 110, FlatStyle = FlatStyle.Flat, ThreeState = false });
         // Cabeçalho em várias linhas (sem cortar), semibold, aplicado no tema
         grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
         foreach (DataGridViewColumn column in grid.Columns)
@@ -1105,21 +1115,75 @@ internal sealed class MainForm : Form
 
     private Control BuildUpdateSicView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 224));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 150));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 45));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 55));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC, um a um"), 0, 0);
+        page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Cada executável que você atualizar aparece como uma linha (origem, versão, destino, nome do arquivo).\r\n" +
-            "• A pasta da versão é concatenada à origem (ex.: ...\\Sistemas\\SIC + 146 → ...\\Sistemas\\SIC\\146).\r\n" +
-            "• Nome do arquivo sem a extensão (ex.: SIC → SIC.exe.zip).\r\n" +
-            "• Marque a checkbox para renomear os executáveis baixados com a versão (ex.: SIC.exe → SIC_146.exe)."), 0, 1);
+            "• Executa os executáveis configurados em Atualizar > Configurar SIC.\r\n" +
+            "• Clique em Atualizar executáveis para rodar todas as linhas da tabela.\r\n" +
+            "• Para gerenciar as linhas, abra a tela Configurar SIC (menu Atualização > Configurar SIC)."), 0, 1);
+
+        var summaryCard = Card();
+        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s)";
+        _updateSicSummaryLabel.Location = new Point(18, 14);
+        _updateSicSummaryLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _updateSicSummaryLabel.AutoSize = true;
+        summaryCard.Controls.Add(_updateSicSummaryLabel);
+
+        _updateSicButton.Size = new Size(220, 42);
+        _updateSicButton.Location = new Point(18, 44);
+        _updateSicButton.FlatAppearance.BorderSize = 0;
+        summaryCard.Controls.Add(_updateSicButton);
+        page.Controls.Add(summaryCard, 0, 2);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da atualização", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _updateSicLog.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_updateSicLog);
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 3);
+
+        _updateSicProgressStatus.Location = new Point(2, 0);
+        _updateSicProgress.Location = new Point(2, 24);
+        _updateSicProgress.Controls.Add(_updateSicProgressFill);
+        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
+        _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
+        _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
+        _updateSicProgressRow.Controls.Add(_updateSicProgress);
+        page.Controls.Add(_updateSicProgressRow, 0, 4);
+
+        return page;
+    }
+
+    private void RefreshUpdateSicSummary()
+    {
+        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualizar › Configurar SIC";
+    }
+
+    private Control BuildConfigureSicView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Configurar SIC", "Gerencie os executáveis que a ação Atualizar SIC baixa e extrai"), 0, 0);
+
+        page.Controls.Add(BuildHelpCard(page, 1,
+            "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualizar SIC.\r\n" +
+            "• Use o botão com três pontos (…) ao lado de Origem/Destino para escolher a pasta.\r\n" +
+            "• Clique com o botão direito na grade para marcar/desmarcar Renomeia com a versão em lote.\r\n" +
+            "• Marque a checkbox no topo para usar um destino único; quando isso acontece, a coluna Destino some."), 0, 1);
 
         var singleDestCard = Card();
         _updateSicSingleDestinationCheck.Text = "Usar um único destino para todos os executáveis";
@@ -1144,20 +1208,17 @@ internal sealed class MainForm : Form
         page.Controls.Add(singleDestCard, 0, 2);
 
         var tableCard = Card();
-        // topPanel: cabeçalho "Executáveis a baixar" + botões Add/Remove
         var topPanel = new Panel { Dock = DockStyle.Top, Height = 46 };
         var tableHeader = new Label { Text = "Executáveis a baixar", AutoSize = true, ForeColor = Ink, Font = UiTypography.BodySemibold(11f), Location = new Point(18, 11) };
         topPanel.Controls.Add(tableHeader);
-        _updateSicGrid.Dock = DockStyle.Fill;
-        // filho do card precisa do topPanel no topo para reservar espaço
-        _updateSicGrid.Margin = new Padding(12, 0, 12, 12);
-        _updateSicGrid.DataSource = _updateSicRows;
-        if (_updateSicGrid.Columns["RenameWithVersion"] is { } renameCol)
-            renameCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
         tableCard.Controls.Add(topPanel);
+
+        _updateSicGrid.Dock = DockStyle.Fill;
+        _updateSicGrid.Margin = new Padding(12, 0, 12, 12);
         tableCard.Controls.Add(_updateSicGrid);
         _updateSicGrid.BringToFront();
-        // Redimensionamento: botões ficam dentro do topPanel (dock top)
+        _updateSicGrid.DataSource = _updateSicRows;
+
         tableCard.Resize += (_, _) =>
         {
             _updateSicAddRow.Left = topPanel.ClientSize.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
@@ -1167,63 +1228,56 @@ internal sealed class MainForm : Form
             _updateSicRemoveRow.Top = 7;
             _updateSicRemoveRow.Size = new Size(165, 32);
         };
-        tableCard.Controls.Add(_updateSicAddRow);
-        tableCard.Controls.Add(_updateSicRemoveRow);
-        _updateSicAddRow.Tag = "addSicRow";
-        _updateSicRemoveRow.Tag = "removeSicRow";
-        // ajuste inicial de posições em relação ao panel
-        _updateSicAddRow.Parent = topPanel;
-        _updateSicRemoveRow.Parent = topPanel;
-        topPanel.Resize += (_, _) =>
-        {
-            _updateSicAddRow.Left = topPanel.ClientSize.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
-            _updateSicAddRow.Top = 7;
-            _updateSicAddRow.Size = new Size(170, 32);
-            _updateSicRemoveRow.Left = topPanel.ClientSize.Width - _updateSicRemoveRow.Width - 14;
-            _updateSicRemoveRow.Top = 7;
-            _updateSicRemoveRow.Size = new Size(165, 32);
-        };
-        // forçar posicionamento inicial após parentamento
+
+        _updateSicAddRow.Size = new Size(170, 32);
+        _updateSicAddRow.Location = new Point(0, 7);
+        _updateSicRemoveRow.Size = new Size(165, 32);
+        _updateSicRemoveRow.Location = new Point(0, 7);
+        topPanel.Controls.Add(_updateSicAddRow);
+        topPanel.Controls.Add(_updateSicRemoveRow);
+
         _updateSicAddRow.Left = topPanel.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
-        _updateSicAddRow.Top = 7;
         _updateSicRemoveRow.Left = topPanel.Width - _updateSicRemoveRow.Width - 14;
-        _updateSicRemoveRow.Top = 7;
+
+        var contextMenu = new ContextMenuStrip { ShowImageMargin = false };
+        contextMenu.Items.Add("Renomear todos os exes", null, (_, _) => SetAllUpdateSicRename(true));
+        contextMenu.Items.Add("Não renomear os exes", null, (_, _) => SetAllUpdateSicRename(false));
+        _updateSicGrid.ContextMenuStrip = contextMenu;
+
+        _updateSicGrid.CellContentClick += (_, args) =>
+        {
+            if (args.RowIndex < 0) return;
+            var columnName = _updateSicGrid.Columns[args.ColumnIndex].Name;
+            if (columnName is "BrowseSource" or "BrowseDestination")
+            {
+                var isSource = columnName == "BrowseSource";
+                var entry = _updateSicRows[args.RowIndex];
+                var seed = (isSource ? entry.SourceRoot : entry.DestinationRoot).Trim();
+                using var dialog = new FolderBrowserDialog { Description = isSource ? "Selecione a pasta-raiz (origem)" : "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    if (isSource) entry.SourceRoot = dialog.SelectedPath; else entry.DestinationRoot = dialog.SelectedPath;
+                    _updateSicGrid.Refresh();
+                    SyncUpdateSicEntriesFromGrid();
+                    QueueSettingsSave();
+                }
+            }
+        };
+
+        if (_updateSicGrid.Columns["RenameWithVersion"] is { } renameCol)
+            renameCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
         page.Controls.Add(tableCard, 0, 3);
-
-        var actionBar = new Panel { Dock = DockStyle.Fill };
-        _updateSicButton.Size = new Size(220, 42);
-        _updateSicButton.Location = new Point(0, 6);
-        _updateSicButton.FlatAppearance.BorderSize = 0;
-        _updateSicCancelButton.Size = new Size(100, 42);
-        _updateSicCancelButton.Location = new Point(234, 6);
-        _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
-        _updateSicCancelButton.FlatAppearance.BorderSize = 1;
-        actionBar.Controls.Add(_updateSicButton);
-        actionBar.Controls.Add(_updateSicCancelButton);
-        page.Controls.Add(actionBar, 0, 4);
-
-        var logCard = Card();
-        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
-        heading.Controls.Add(new Label { Text = "Andamento da atualização", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
-        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-        clear.FlatAppearance.BorderSize = 0;
-        clear.Click += (_, _) => _updateSicLog.Clear();
-        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
-        heading.Controls.Add(clear);
-        logCard.Controls.Add(_updateSicLog);
-        logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 5);
-
-        _updateSicProgressStatus.Location = new Point(2, 0);
-        _updateSicProgress.Location = new Point(2, 24);
-        _updateSicProgress.Controls.Add(_updateSicProgressFill);
-        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
-        _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
-        _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
-        _updateSicProgressRow.Controls.Add(_updateSicProgress);
-        page.Controls.Add(_updateSicProgressRow, 0, 6);
-
         return page;
+    }
+
+    private void SetAllUpdateSicRename(bool value)
+    {
+        _updateSicGrid.EndEdit();
+        foreach (var entry in _updateSicRows) entry.RenameWithVersion = value;
+        _updateSicGrid.Refresh();
+        SyncUpdateSicEntriesFromGrid();
+        QueueSettingsSave();
     }
 
     private void ShowUpdateSicView()
@@ -1234,6 +1288,7 @@ internal sealed class MainForm : Form
         _resetView.Visible = false;
         _restoreView.Visible = false;
         _updateSicView.Visible = true;
+        _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = Color.White;
@@ -1241,10 +1296,36 @@ internal sealed class MainForm : Form
         _resetNav.BackColor = Color.White;
         _restoreNav.BackColor = Color.White;
         _updateSicNav.BackColor = Color.FromArgb(231, 240, 255);
+        _configureSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _updateSicRunning ? null : _updateSicButton;
+        ApplyNavigationColors();
+        _updateSicButton.Focus();
+    }
+
+    private void ShowConfigureSicView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = true;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.FromArgb(231, 240, 255);
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        AcceptButton = null;
         ApplyNavigationColors();
         _updateSicGrid.Focus();
     }
@@ -1337,7 +1418,7 @@ internal sealed class MainForm : Form
         _updateSicSingleDestinationBrowse.Enabled = false;
         _updateSicButton.Enabled = false;
         _updateSicCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
         _updateSicLog.Clear();
         var token = _updateSicCancellation.Token;
         var failures = new List<(string File, string Reason)>();
@@ -1469,7 +1550,7 @@ internal sealed class MainForm : Form
             _updateSicSingleDestinationBrowse.Enabled = _updateSicSingleDestinationCheck.Checked;
             _updateSicButton.Enabled = true;
             _updateSicCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
         }
     }
 
@@ -1510,12 +1591,14 @@ internal sealed class MainForm : Form
     private void AddUpdateSicRow()
     {
         _updateSicRows.Add(new UpdateSicEntry { RenameWithVersion = false });
+        RefreshUpdateSicSummary();
         if (_updateSicGrid.Rows.Count > 0)
         {
             var row = _updateSicGrid.Rows[_updateSicGrid.Rows.Count - 1];
             _updateSicGrid.CurrentCell = row.Cells["FileName"];
             _updateSicGrid.BeginEdit(true);
         }
+        SyncUpdateSicEntriesFromGrid();
         QueueSettingsSave();
     }
 
@@ -1531,6 +1614,8 @@ internal sealed class MainForm : Form
         {
             if (row.DataBoundItem is UpdateSicEntry entry) _updateSicRows.Remove(entry);
         }
+        RefreshUpdateSicSummary();
+        SyncUpdateSicEntriesFromGrid();
         QueueSettingsSave();
     }
 
@@ -1620,6 +1705,7 @@ internal sealed class MainForm : Form
         _resetView.Visible = false;
         _restoreView.Visible = false;
         _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = Color.White;
@@ -1627,6 +1713,7 @@ internal sealed class MainForm : Form
         _resetNav.BackColor = Color.White;
         _restoreNav.BackColor = Color.White;
         _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
@@ -1646,6 +1733,7 @@ internal sealed class MainForm : Form
         _resetView.Visible = true;
         _restoreView.Visible = false;
         _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
@@ -1654,6 +1742,7 @@ internal sealed class MainForm : Form
         _resetNav.BackColor = Color.FromArgb(231, 240, 255);
         _restoreNav.BackColor = Color.White;
         _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
@@ -1976,7 +2065,7 @@ internal sealed class MainForm : Form
         _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
         _menuToggle.FlatAppearance.BorderSize = 0;
         _menuToggle.Font = UiTypography.Body(12f);
-        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav })
+        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav })
         {
             button.Font = UiTypography.Body(12f);
             button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -2086,6 +2175,7 @@ internal sealed class MainForm : Form
         _resetView.Visible = false;
         _restoreView.Visible = false;
         _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
@@ -2094,6 +2184,7 @@ internal sealed class MainForm : Form
         _settingsNav.BackColor = settings ? Color.FromArgb(231, 240, 255) : Color.White;
         _restoreNav.BackColor = Color.White;
         _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         AcceptButton = settings ? null : _start;
@@ -2110,6 +2201,7 @@ internal sealed class MainForm : Form
         _resetView.Visible = false;
         _restoreView.Visible = false;
         _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
         _arqEmpView.Visible = arqEmp;
         _arqSistView.Visible = !arqEmp;
         _transferNav.BackColor = Color.White;
@@ -2117,6 +2209,7 @@ internal sealed class MainForm : Form
         _resetNav.BackColor = Color.White;
         _restoreNav.BackColor = Color.White;
         _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = arqEmp ? Color.FromArgb(231, 240, 255) : Color.White;
         _arqSistNav.BackColor = arqEmp ? Color.White : Color.FromArgb(231, 240, 255);
@@ -2436,7 +2529,7 @@ internal sealed class MainForm : Form
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
-                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
+                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
                 var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
@@ -2470,12 +2563,13 @@ internal sealed class MainForm : Form
     {
         var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
         var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
-        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
+        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
         if (_transferView.Visible) _transferNav.BackColor = active;
         else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
         else if (_resetView.Visible) _resetNav.BackColor = active;
         else if (_restoreView.Visible) _restoreNav.BackColor = active;
         else if (_updateSicView.Visible) _updateSicNav.BackColor = active;
+        else if (_configureSicView.Visible) _configureSicNav.BackColor = active;
         else if (_settingsView.Visible) _settingsNav.BackColor = active;
         else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
         else if (_arqSistView.Visible) _arqSistNav.BackColor = active;

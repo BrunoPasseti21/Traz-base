@@ -103,6 +103,14 @@ Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`),
 - Texto de status imediatamente acima da barra, com contraste adequado (`#5B6E84` claro / texto escuro no tema escuro); mostra percentual, MB transferidos e contagem de arquivos durante a cópia.
 - Download de atualização usa barra em marquee (`ThemedProgressBar.SetMarquee`) ou animação (`Baixando.gif`) quando o menu está recolhido.
 
+## Tabelas (DataGridView)
+
+- A tela **Configurar SIC** (e apenas ela) usa `DataGridView` para editar a tabela de executáveis.
+- `AutoGenerateColumns = false`; colunas `SourceRoot`, `Version`, `DestinationRoot`, `FileName` (texto) e `RenameWithVersion` (checkbox).
+- Duas colunas `DataGridViewButtonColumn` com texto `…` para **procurar a pasta** por campo; clique na célula abre `FolderBrowserDialog` com semente no caminho atual.
+- `DataSource = BindingList<UpdateSicEntry>` (`UpdateSicEntry.cs`); `AutoSizeColumnsMode = Fill`, `SelectionMode = FullRowSelect`, `MultiSelect = false`.
+- Tema claro/escuro aplicado em `ApplyTheme`: fundo/campos, texto, seleção `#1F6FEB` com texto branco, grid/header conforme o tema da sessão. Cabeçalho em quebra de linha automática e alinhamento à esquerda.
+
 ## Editores SQL e log
 
 - **Escuro:** fundo `#171717` (23,23,23 — mesma cor da barra de rolagem nativa escura), texto `#DCE5F2`, Consolas, sem borda; rolagem dupla.
