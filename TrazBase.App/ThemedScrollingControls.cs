@@ -160,7 +160,11 @@ internal sealed class ThemedCheckBox : Control
         if (_checked)
         {
             using var checkPen = new Pen(Color.White, 1.8f) { StartCap = System.Drawing.Drawing2D.LineCap.Round, EndCap = System.Drawing.Drawing2D.LineCap.Round, LineJoin = System.Drawing.Drawing2D.LineJoin.Round };
-            e.Graphics.DrawLines(checkPen, new[] { new PointF(4.6f, 8.6f), new PointF(7.2f, 11.2f), new PointF(12.4f, 6.0f) });
+            e.Graphics.DrawLines(checkPen, new[] {
+                new PointF(box.Left + 3.7f, boxTop + 8.5f),
+                new PointF(box.Left + 6.9f, boxTop + 11.3f),
+                new PointF(box.Left + 12.3f, boxTop + 5.2f)
+            });
         }
 
         if (Focused)
