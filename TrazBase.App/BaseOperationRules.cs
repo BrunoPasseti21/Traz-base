@@ -28,32 +28,42 @@ internal static class BaseOperationRules
     }
 
     /// <summary>
-    /// Localiza a pasta local de uma base: primeiro a exata (<c>BasesRoot\SL</c>); se não existir,
-    /// qualquer subpasta terminada em <c>_&lt;SL&gt;</c> (p. ex. "JOAO_123456", renomeada durante a
-    /// transferência). Quando nada existe, devolve a exata, para que o chamador exiba a mensagem
-    /// de "pasta não encontrada" para o caminho esperado.
+    /// Localiza uma pasta local pelo nome informado (SL, nome simples ou <c>&lt;nome&gt;_&lt;SL&gt;</c>).
+    /// O nome precisa ser um único segmento de pasta válido: sem separadores de path, sem ".." e sem
+    /// caracteres inválidos para o sistema de arquivos. Correspondência: exata — no Windows, sem
+    /// diferenciar maiúsculas/minúsculas; se não existir, uma subpasta terminada em
+    /// <c>_&lt;últimos dígitos&gt;</c> do nome (p. ex. digitar "123456" acha "JOAO_123456").
+    /// Retorna null quando nada é encontrado ou o nome é inválido.
     /// </summary>
-    internal static string FindLocalBaseDirectory(string basesRoot, string solicitationNumber)
+    internal static string? FindLocalBaseDirectoryByName(string basesRoot, string folderName)
     {
-        var exact = ResolveLocalBaseDirectory(basesRoot, solicitationNumber);
-        if (Directory.Exists(exact)) return exact;
+        if (string.IsNullOrWhiteSpace(basesRoot))
+            throw new ArgumentException("A pasta local das bases não foi configurada.", nameof(basesRoot));
 
-        try
-        {
-            var root = Path.GetFullPath(basesRoot)
-                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-            if (!Directory.Exists(root)) return exact;
+        folderName = folderName?.Trim() ?? string.Empty;
+        if (folderName.Length == 0) return null;
+        if (folderName.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, ':']) >= 0) return null;
+        if (folderName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
+        if (folderName.Contains("..", StringComparison.Ordinal)) return null;
 
-            var suffix = "_" + solicitationNumber;
-            return Directory.GetDirectories(root)
-                .Where(dir => Path.GetFileName(dir).EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
-                .OrderBy(dir => Path.GetFileName(dir), StringComparer.CurrentCultureIgnoreCase)
-                .FirstOrDefault() ?? exact;
-        }
-        catch
-        {
+        var root = Path.GetFullPath(basesRoot)
+            .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        if (!Directory.Exists(root)) return null;
+
+        var exact = Path.GetFullPath(Path.Combine(root, folderName));
+        if (exact.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            && Directory.Exists(exact))
             return exact;
-        }
+
+        var parts = folderName.Split('_', StringSplitOptions.RemoveEmptyEntries);
+        var tail = parts.Length == 0 ? folderName : parts[^1];
+        if (tail.Length == 0 || !tail.All(char.IsAsciiDigit)) return null;
+
+        var suffix = "_" + tail;
+        return Directory.GetDirectories(root)
+            .Where(dir => Path.GetFileName(dir).EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+            .OrderBy(dir => Path.GetFileName(dir), StringComparer.CurrentCultureIgnoreCase)
+            .FirstOrDefault();
     }
 
     internal static IReadOnlyList<(string Name, string Source, string Destination)> GetSupportFilesToCopy(

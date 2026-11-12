@@ -81,10 +81,10 @@ internal sealed class MainForm : Form
     private bool _syncingResetSlFromList;
     private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
+    private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456, JOAO ou JOAO_123456" };
     private readonly Button _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(540, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(600, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ThemedTextBox _resetLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _resetCancellation;
     private bool _resetRunning;
@@ -543,7 +543,7 @@ internal sealed class MainForm : Form
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
-            "• Selecione a base na lista: a redefinição atua na pasta escolhida, mesmo sem SL no nome; ou digite a SL.\r\n" +
+            "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456, JOAO ou JOAO_123456).\r\n" +
             "• Em pastas renomeadas (<nome>_<SL>), a SL é preenchida sozinha.\r\n" +
             "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
             "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
@@ -557,20 +557,20 @@ internal sealed class MainForm : Form
         page.Controls.Add(listCard, 0, 3);
 
         var action = Card();
-        action.Controls.Add(new Label { Text = "Número da solicitação (SL)", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
+        action.Controls.Add(new Label { Text = "SL ou nome da pasta", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
         _resetSl.Location = new Point(18, 42);
-        _resetSl.Width = 190;
+        _resetSl.Width = 250;
         _resetSl.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        _resetButton.Location = new Point(224, 38);
+        _resetButton.Location = new Point(284, 38);
         _resetButton.Size = new Size(190, 36);
         _resetButton.FlatAppearance.BorderSize = 0;
-        _resetCancelButton.Location = new Point(424, 38);
+        _resetCancelButton.Location = new Point(484, 38);
         _resetCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _resetCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_resetSl);
         action.Controls.Add(_resetButton);
         action.Controls.Add(_resetCancelButton);
-        _resetRootLabel.Location = new Point(540, 48);
+        _resetRootLabel.Location = new Point(600, 48);
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
         action.Controls.Add(_resetRootLabel);
         action.Resize += (_, _) => _resetRootLabel.MaximumSize = new Size(Math.Max(100, action.ClientSize.Width - _resetRootLabel.Left - 18), 0);
@@ -736,6 +736,22 @@ internal sealed class MainForm : Form
     {
         if (_resetRunning) return;
         ReadFields();
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot))
+        {
+            MessageBox.Show(this, "Configure a pasta local das bases e a pasta de bases de apoio.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot))
+        {
+            MessageBox.Show(this, "A pasta local das bases e a pasta de apoio precisam existir e estar acessíveis.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de redefinir a base.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
         var selectedFolder = _resetBaseFolders.SelectedItems.Count > 0 ? _resetBaseFolders.SelectedItems[0].Tag as string : null;
         string target;
         string sl;
@@ -753,37 +769,30 @@ internal sealed class MainForm : Form
         else
         {
             sl = _resetSl.Text.Trim();
-            if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c)))
+            if (sl.Length == 0)
             {
-                MessageBox.Show(this, "Selecione uma base na lista ou informe o número da SL usando somente dígitos.", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "Selecione uma base na lista ou digite a SL/nome da pasta (ex.: 123456, JOAO ou JOAO_123456).", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
-            try { target = BaseOperationRules.FindLocalBaseDirectory(_settings.BasesRoot, sl); }
+            string? resolved;
+            try { resolved = BaseOperationRules.FindLocalBaseDirectoryByName(_settings.BasesRoot, sl); }
             catch (Exception ex)
             {
-                MessageBox.Show(this, ex.Message, "Destino inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show(this, ex.Message, "Nome inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
-            if (!Directory.Exists(target))
+            if (resolved is null)
             {
-                MessageBox.Show(this, $"A pasta local da SL não foi encontrada:\n{target}", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                var root = Path.GetFullPath(_settings.BasesRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var tail = sl.Split('_', StringSplitOptions.RemoveEmptyEntries);
+                var suffixNote = tail.Length > 0 && tail[^1].All(char.IsAsciiDigit)
+                    ? $" ou por subpastas terminadas em \"_{tail[^1]}\""
+                    : string.Empty;
+                MessageBox.Show(this, $"Nenhuma pasta encontrada em:\n{root}\n\nBuscou por \"{sl.Trim()}\" (exato){suffixNote}.", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 return;
             }
-        }
-        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot))
-        {
-            MessageBox.Show(this, "Configure a pasta local das bases e a pasta de bases de apoio.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot))
-        {
-            MessageBox.Show(this, "A pasta local das bases e a pasta de apoio precisam existir e estar acessíveis.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_password.Text))
-        {
-            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de redefinir a base.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
+            target = resolved;
+            sl = Path.GetFileName(target)!;
         }
 
         if (!File.Exists(Path.Combine(target, "ARQSIST.FDB")))

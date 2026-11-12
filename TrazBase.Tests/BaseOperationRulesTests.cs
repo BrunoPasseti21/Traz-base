@@ -58,58 +58,92 @@ public sealed class BaseOperationRulesTests
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectory_ReturnsExactWhenItExists()
+    public void FindLocalBaseDirectoryByName_ReturnsExactWhenItExists()
     {
         using var temp = new TempDirectory();
         var exact = Directory.CreateDirectory(Path.Combine(temp.Path, "123456")).FullName;
 
-        var result = BaseOperationRules.FindLocalBaseDirectory(temp.Path, "123456");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
 
         Assert.AreEqual(Path.GetFullPath(exact), result);
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectory_FallsBackToRenamedFolder()
+    public void FindLocalBaseDirectoryByName_AcceptsNameOnlyFolder()
+    {
+        using var temp = new TempDirectory();
+        var exact = Directory.CreateDirectory(Path.Combine(temp.Path, "ALLES")).FullName;
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "alles");
+
+        Assert.IsNotNull(result);
+        Assert.AreEqual(Path.GetFullPath(exact), result, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_FallsBackToRenamedFolder()
     {
         using var temp = new TempDirectory();
         Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
 
-        var result = BaseOperationRules.FindLocalBaseDirectory(temp.Path, "123456");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
 
         Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "JOAO_123456")), result);
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectory_FallbackIsCaseInsensitive()
+    public void FindLocalBaseDirectoryByName_AcceptsRenamedFolderTypedFully()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "joao_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
 
-        var result = BaseOperationRules.FindLocalBaseDirectory(temp.Path, "123456");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "joao_123456");
 
-        Assert.IsTrue(result.EndsWith("joao_123456", StringComparison.OrdinalIgnoreCase));
+        Assert.IsNotNull(result);
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "JOAO_123456")), result, StringComparer.OrdinalIgnoreCase);
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectory_DoesNotMatchPartialSuffix()
+    public void FindLocalBaseDirectoryByName_ReturnsNullWhenNothingExists()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_9123456")); // termina em _9123456, não _123456
 
-        var result = BaseOperationRules.FindLocalBaseDirectory(temp.Path, "123456");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "654321");
 
-        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "123456")), result); // exata, que não existe
-        Assert.IsFalse(Directory.Exists(result));
+        Assert.IsNull(result);
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectory_ReturnsExactPathWhenNothingExists()
+    public void FindLocalBaseDirectoryByName_RejectsSeparatorsAndTraversal()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "123456"));
+
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, @"..\123456"));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, @"pasta\123456"));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "pasta/123456"));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, @"D:123456"));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_RejectsDotDotAndEmpty()
     {
         using var temp = new TempDirectory();
 
-        var result = BaseOperationRules.FindLocalBaseDirectory(temp.Path, "654321");
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, ".."));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, ""));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "   "));
+    }
 
-        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "654321")), result);
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_DoesNotMatchPartialSuffix()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_9123456")); // não termina em _123456
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
+
+        Assert.IsNull(result);
     }
 
     [TestMethod]
