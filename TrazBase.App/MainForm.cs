@@ -1427,11 +1427,9 @@ internal sealed class MainForm : Form
             return;
         }
 
-        var destinations = plan.Select(p => p.destination).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var sources = plan.Select(p => $"{p.row.SourceRoot} (v{p.row.Version})").Distinct().ToList();
         var answer = MessageBox.Show(this,
-            $"Os executáveis serão copiados e extraídos:\n\nOrigem: {string.Join(", ", sources)}\nDestino: {string.Join(", ", destinations)}\n\nO destino será sobrescrito. Deseja continuar?",
-            "Confirmar atualização", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);
+            "Deseja atualizar os executáveis?\n\nOs executáveis serão substituídos se já existirem.\n\nDeseja continuar?",
+            "Atualizar executáveis", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
         if (answer != DialogResult.Yes) return;
 
         _updateSicRunning = true;
@@ -1542,14 +1540,14 @@ internal sealed class MainForm : Form
             if (failures.Count == 0)
             {
                 AppendUpdateSicLog("Atualização concluída com sucesso.");
-                MessageBox.Show(this, $"Executáveis atualizados:\n\n{string.Join("\n", plan.Select(p => $"• {p.zipPath.Split('\\').Last()} → {p.destination}"))}", "Atualização concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, "Os executáveis foram atualizados.", "Atualização concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
-                var detail = string.Join("\n", failures.Select(failure => $"• {failure.File}: {failure.Reason}"));
+                var detail = string.Join("\n", failures.Select(failure => $"• {failure.File}"));
                 AppendUpdateSicLog($"Concluído com {failures.Count} falha(s): {string.Join(" | ", failures.Select(f => $"{f.File}: {f.Reason}"))}.");
                 MessageBox.Show(this,
-                    $"Não foi possível atualizar {failures.Count} arquivo(s); os demais foram normalmente:\n\n{detail}\n\nVeja o log para mais detalhes.",
+                    $"Os seguintes executáveis não foram atualizados:\n\n{detail}\n\nVeja o log para mais detalhes.",
                     "Atualização incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             }
         }
