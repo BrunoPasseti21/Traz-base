@@ -34,7 +34,7 @@ O `Form.Font` base é `UiTypography.Body()`.
 | Hover do azul | `#2D7DF5` (45,125,245) | mouse over |
 | Pressed do azul | `#195ECD` (25,94,205) | mouse down |
 
-> Nota: o rodapé do menu (`_appVersionLabel`) usa fundo `#E7F0FF` (claro) / `#263244` (38,50,68, escuro) com texto `#BED0E6` (190,208,230) nos dois temas. O log e os editores SQL acompanham o tema: **escuro** fundo `#171717`/(23,23,23) (mesma cor da barra de rolagem nativa escura, para coerência completa), texto `#DCE5F2`/(220,229,242), com realce por `HighlightSql` em cores VS Code Dark+; **claro** fundo `#FFFFFF`, texto `#1D2A3D`/ink, realce em paleta VS Code Light+ (comentários verdes `#008000`, strings marrons `#A31515`, palavras-chave azuis `#0000CD`, números verdes `#098658`).
+> Nota: o rodapé do menu (`_appVersionLabel`) usa fundo `#E7F0FF` (claro) / `#263244` (38,50,68, escuro) com texto `#BED0E6` (190,208,230) nos dois temas. O log e os editores SQL acompanham o tema: **escuro** fundo `#171717`/(23,23,23) (mesma cor da barra de rolagem nativa escura, para coerência completa; a área de lista da tela **Alterar base** também usa esse fundo no escuro), texto `#DCE5F2`/(220,229,242), com realce por `HighlightSql` em cores VS Code Dark+; **claro** fundo `#FFFFFF`, texto `#1D2A3D`/ink, realce em paleta VS Code Light+ (comentários verdes `#008000`, strings marrons `#A31515`, palavras-chave azuis `#0000CD`, números verdes `#098658`).
 
 ## Cores — paleta escura
 
