@@ -1167,6 +1167,26 @@ internal sealed class MainForm : Form
         return page;
     }
 
+    private static string StripKnownExtensions(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return string.Empty;
+
+        var stem = fullName;
+        for (var i = 0; i < 8; i++)
+        {
+            var ext = Path.GetExtension(stem);
+            if (ext.Length == 0) break;
+            if (!IsKnownFileExtension(ext)) break;
+            stem = Path.GetFileNameWithoutExtension(stem);
+        }
+        return stem;
+
+        static bool IsKnownFileExtension(string ext) =>
+            ext.Equals(".exe", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".rar", StringComparison.OrdinalIgnoreCase);
+    }
+
     private void RefreshUpdateSicSummary()
     {
         _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualização › Configurar caminhos";
@@ -1280,7 +1300,7 @@ internal sealed class MainForm : Form
                         };
                         if (dialog.ShowDialog(this) == DialogResult.OK)
                         {
-                            entry.FileName = Path.GetFileNameWithoutExtension(dialog.FileName) ?? string.Empty;
+                            entry.FileName = StripKnownExtensions(Path.GetFileName(dialog.FileName));
                             _updateSicGrid.Refresh();
                             SyncUpdateSicEntriesFromGrid();
                             QueueSettingsSave();
