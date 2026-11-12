@@ -375,6 +375,21 @@ internal sealed class MainForm : Form
         };
     }
 
+    // Garante que a janela caiba na área útil do monitor, evitando que o rodapé fique cortado
+    // em telas menores (por exemplo, segundo monitor com altura reduzida).
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        var screen = Screen.FromHandle(Handle);
+        var workArea = screen.WorkingArea;
+        if (Width <= workArea.Width && Height <= workArea.Height) return;
+        var size = new Size(Math.Min(Width, workArea.Width), Math.Min(Height, workArea.Height));
+        var x = Math.Max(workArea.Left, Math.Min(Left, workArea.Right - size.Width));
+        var y = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - size.Height));
+        Size = size;
+        Location = new Point(x, y);
+    }
+
     private bool _running;
     private CancellationTokenSource? _runCancellation;
 
