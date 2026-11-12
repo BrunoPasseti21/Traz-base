@@ -81,7 +81,7 @@ internal sealed class MainForm : Form
     private bool _syncingResetSlFromList;
     private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456, JOAO ou JOAO_123456" };
+    private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou SUPRASYS_123456" };
     private readonly Button _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Button _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(600, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
@@ -288,12 +288,9 @@ internal sealed class MainForm : Form
             }
             if (_resetBaseFolders.SelectedItems[0].Tag is not string folder) return;
             var name = Path.GetFileName(folder);
-            var parts = name.Split('_', StringSplitOptions.RemoveEmptyEntries);
-            var tail = parts.Length == 0 ? name : parts[^1];
-            // Pastas renomeadas durante a transferência (<nome>_<SL>): a SL é o sufixo numérico.
-            // Pastas sem SL no nome também são aceitas: a redefinição atua na pasta selecionada.
+            // O campo aceita texto livre: o nome da pasta selecionada sempre preenche a SL.
             _syncingResetSlFromList = true;
-            _resetSl.Text = tail.Length > 0 && tail.All(char.IsAsciiDigit) ? tail : "";
+            _resetSl.Text = name;
             _syncingResetSlFromList = false;
             _resetRootLabel.Text = "Selecionada: " + folder;
         };
@@ -543,7 +540,7 @@ internal sealed class MainForm : Form
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
-            "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456, JOAO ou JOAO_123456).\r\n" +
+            "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456 ou SUPRASYS_123456).\r\n" +
             "• Em pastas renomeadas (<nome>_<SL>), a SL é preenchida sozinha.\r\n" +
             "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
             "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
@@ -771,7 +768,7 @@ internal sealed class MainForm : Form
             sl = _resetSl.Text.Trim();
             if (sl.Length == 0)
             {
-                MessageBox.Show(this, "Selecione uma base na lista ou digite a SL/nome da pasta (ex.: 123456, JOAO ou JOAO_123456).", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "Selecione uma base na lista ou digite a SL/nome da pasta (ex.: 123456 ou SUPRASYS_123456).", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             string? resolved;
