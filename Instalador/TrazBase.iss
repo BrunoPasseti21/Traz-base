@@ -1,8 +1,8 @@
 #define AppName "Traz Base"
 #define AppPublisher "Traz Base"
 #define AppExeName "TrazBase.exe"
-#define AppVersion "0.6.0"
-#define AppFileVersion "0.6.0.0"
+#define AppVersion "0.7.0"
+#define AppFileVersion "0.7.0.0"
 
 [Setup]
 AppId={{6BB4D28C-AE7D-4627-8F01-CCEA7B3311B5}

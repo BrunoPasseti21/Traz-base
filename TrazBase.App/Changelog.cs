@@ -4,6 +4,20 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.7.0"] =
+        [
+            "Nova seleção de base ao trocar (Alterar base): versão do SIC exibida no canto superior direito, igual ao fluxo de Transferência.",
+            "Redefinir base agora lista as pastas de bases como a Alterar base (com pré-seleção pelo Registro) e aceita pastas sem número de SL no nome (ex.: 'Alles', 'DISCOM').",
+            "O campo SL da redefinição aceita texto livre (SL ou nome da pasta, ex.: 123456, JOAO, JOAO_123456).",
+            "Tema claro: checkboxes e áreas de texto (SQL, logs) agora acompanham o tema, com cores no padrão VS Code Light+.",
+            "Tema claro/escuro: botões desenhados com cantos arredondados de verdade (sem sangramento visual).",
+            "Memos e caixas de seleção redesenhados no padrão visual próprio do aplicativo.",
+            "Hint da pasta de bases de apoio fixado em 500 px com quebra de linha, acompanhando o tema.",
+            "Transferir: botão Cancelar agora segue o padrão secundário dos demais fluxos.",
+            "Renomeação da pasta da SL agora prioriza o nome fantasia (NFANTASIA) com fallback para o nome e para a SL.",
+            "Ícone de ajuda (Ajuda.svg) para a pasta de bases de apoio.",
+            "Alterar base: a área da lista usa o mesmo fundo do memo escuro."
+        ],
         ["0.6.0"] =
         [
             "Nova tela \"Novidades\" com resumo das mudanças da versão instalada — aparece automaticamente na primeira execução após cada release e clicando na versão no rodapé do menu.",
