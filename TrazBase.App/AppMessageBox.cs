@@ -141,9 +141,10 @@ internal sealed class AppMessageDialog : Form
         DraggableWindow.Wire(header, this);
         DraggableWindow.Wire(captionLabel, this);
 
-        var close = new Button
+        var close = new RoundedButton
         {
             Text = "×",
+            CornerRadius = 0,
             Size = new Size(42, 44),
             Location = new Point(ClientSize.Width - 43, 0),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -216,7 +217,7 @@ internal sealed class AppMessageDialog : Form
         {
             var (label, result, primary) = buttonSpecs[index];
             buttonX -= buttonWidths[index];
-            var button = new Button
+            var button = new RoundedButton
             {
                 Text = label,
                 DialogResult = result,

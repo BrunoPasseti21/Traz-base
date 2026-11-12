@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
@@ -41,8 +41,8 @@ internal sealed class MainForm : Form
     private readonly Panel _progress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
     private readonly Panel _progressFill = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(31, 111, 235), Location = new Point(0, 0), Width = 0, Height = 18 };
     private int _progressPercent;
-    private readonly Button _start = new() { Text = "Trazer e preparar base", Width = 220, Height = 42, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Button _cancel = new() { Text = "Cancelar", Width = 100, Height = 42, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _start = new() { Text = "Trazer e preparar base", Width = 220, Height = 42, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _cancel = new() { Text = "Cancelar", Width = 100, Height = 42, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Panel _progressFooter = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly TableLayoutPanel _shell = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
     private readonly Panel _contentHost = new() { Dock = DockStyle.Fill };
@@ -62,7 +62,7 @@ internal sealed class MainForm : Form
     private readonly Panel _updateRow = new() { Dock = DockStyle.Top, Height = 34, Visible = false };
     private readonly PictureBox _updateAnimation = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.StretchImage, Visible = false, BackColor = Color.Transparent };
     private readonly ThemedProgressBar _updateProgress = new() { Dock = DockStyle.Fill, Visible = false };
-    private readonly Button _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly ToolTip _menuToolTip = new();
     private bool _downloadingUpdate;
     private TableLayoutPanel _transferView = null!;
@@ -80,19 +80,19 @@ internal sealed class MainForm : Form
     private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private readonly Label _resetBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private bool _syncingResetSlFromList;
-    private readonly Button _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Button _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou SUPRASYS_123456" };
-    private readonly Button _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Button _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(600, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ThemedTextBox _resetLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _resetCancellation;
     private bool _resetRunning;
     private readonly TextBox _restoreFolder = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-    private readonly Button _restoreBrowseButton = new() { Text = "Procurar", Size = new Size(110, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly Button _restoreButton = new() { Text = "Restaurar bases", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Button _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _restoreBrowseButton = new() { Text = "Procurar", Size = new Size(110, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _restoreButton = new() { Text = "Restaurar bases", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _restoreLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Panel _updateSicProgressRow = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly Label _updateSicProgressStatus = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132), Visible = false, Location = new Point(2, 0) };
@@ -106,11 +106,11 @@ internal sealed class MainForm : Form
     private readonly TextBox _updateSicSource = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
     private readonly TextBox _updateSicDestination = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
     private readonly TextBox _updateSicVersion = new() { Width = 160, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left };
-    private readonly Button _updateSicBrowseSource = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly Button _updateSicBrowseDestination = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _updateSicBrowseSource = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _updateSicBrowseDestination = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly CheckBox _updateSicRename = new() { Text = "Renomear executáveis com a versão (ex.: SIC_146.exe)", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
-    private readonly Button _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Button _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _updateSicCancellation;
     private bool _updateSicRunning;
@@ -588,7 +588,7 @@ internal sealed class MainForm : Form
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
         heading.Controls.Add(new Label { Text = "Andamento da redefinição", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
-        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
         clear.FlatAppearance.BorderSize = 0;
         clear.Click += (_, _) => _resetLog.Clear();
         heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
@@ -643,7 +643,7 @@ internal sealed class MainForm : Form
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
         heading.Controls.Add(new Label { Text = "Andamento da restauração", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
-        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
         clear.FlatAppearance.BorderSize = 0;
         clear.Click += (_, _) => _restoreLog.Clear();
         heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
@@ -1129,7 +1129,7 @@ internal sealed class MainForm : Form
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
         heading.Controls.Add(new Label { Text = "Andamento da atualização", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
-        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
         clear.FlatAppearance.BorderSize = 0;
         clear.Click += (_, _) => _updateSicLog.Clear();
         heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
@@ -1535,7 +1535,7 @@ internal sealed class MainForm : Form
         var databaseCard = Card();
         var databaseLabel = new Label { Text = "Base Firebird (.FDB)", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(14, 14) };
         databasePath.Location = new Point(160, 9);
-        var browse = new Button
+        var browse = new RoundedButton
         {
             Text = "Procurar",
             Size = new Size(110, 32),
@@ -1567,7 +1567,7 @@ internal sealed class MainForm : Form
         page.Controls.Add(BuildEditorCard("Resultado do teste", output), 0, 3);
 
         var actions = new Panel { Dock = DockStyle.Fill };
-        var testButton = new Button
+        var testButton = new RoundedButton
         {
             Text = "Testar comando",
             Size = new Size(180, 40),
@@ -2000,7 +2000,7 @@ internal sealed class MainForm : Form
         }).ToArray();
         var browseButtons = keys.Select(key =>
         {
-            var button = new Button
+            var button = new RoundedButton
             {
                 Text = "Procurar",
                 Size = new Size(120, 28),
@@ -2133,7 +2133,7 @@ internal sealed class MainForm : Form
         var card = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
         heading.Controls.Add(new Label { Text = "Andamento da operação", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
-        var clear = new Button { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
         clear.FlatAppearance.BorderSize = 0;
         clear.Click += (_, _) => _log.Clear();
         heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
@@ -2681,9 +2681,10 @@ internal sealed class MainForm : Form
         var header = new Panel { Location = Point.Empty, Size = new Size(clientWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor };
         var caption = new Label { Text = title, ForeColor = Color.White, BackColor = Color.Transparent, Font = UiTypography.Body(10f), TextAlign = ContentAlignment.MiddleLeft, AutoSize = true, Location = new Point(18, 13) };
         header.Controls.Add(caption);
-        var close = new Button
+        var close = new RoundedButton
         {
             Text = "×",
+            CornerRadius = 0,
             Size = new Size(42, 44),
             Location = new Point(clientWidth - 42, 0),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -2726,7 +2727,7 @@ internal sealed class MainForm : Form
         var skipWidth = Math.Max(120, TextRenderer.MeasureText("Pular extração", UiTypography.BodySemibold(9f)).Width + 28);
 
         var buttons = new Panel { Location = new Point(0, clientHeight - 60), Size = new Size(clientWidth, 60), Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right, BackColor = background };
-        var ok = new Button
+        var ok = new RoundedButton
         {
             Text = "Extrair selecionados",
             DialogResult = DialogResult.OK,
@@ -2740,7 +2741,7 @@ internal sealed class MainForm : Form
         ok.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
         ok.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
 
-        var cancel = new Button
+        var cancel = new RoundedButton
         {
             Text = "Pular extração",
             DialogResult = DialogResult.Cancel,

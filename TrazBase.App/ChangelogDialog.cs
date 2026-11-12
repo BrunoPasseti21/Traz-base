@@ -44,9 +44,10 @@ internal sealed class ChangelogDialog : Form
         DraggableWindow.Wire(header, this);
         DraggableWindow.Wire(titleLeft, this);
 
-        var close = new Button
+        var close = new RoundedButton
         {
             Text = "×",
+            CornerRadius = 0,
             Size = new Size(42, 44),
             Location = new Point(dialogWidth - 43, 0),
             Anchor = AnchorStyles.Top | AnchorStyles.Right,
@@ -92,7 +93,7 @@ internal sealed class ChangelogDialog : Form
         var buttonPanel = new Panel { Location = new Point(0, dialogHeight - 62), Size = new Size(dialogWidth, 62), Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right, BackColor = background };
         surface.Controls.Add(buttonPanel);
 
-        var ok = new Button
+        var ok = new RoundedButton
         {
             Text = "Entendi",
             Size = new Size(180, 36),
