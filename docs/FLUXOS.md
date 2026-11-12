@@ -4,7 +4,7 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 ## Estrutura da janela e navegação
 
-Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → campo Origem dos executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
+Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualizar SIC** → tabela de executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
 
 1. **Transferir** (tela inicial padrão; configurável em Configurações → "Tela inicial") — trazer e preparar a base por número de SL.
 2. **Alterar base** — apontar o Registro para uma base local já existente.
@@ -110,19 +110,24 @@ Ação **Restaurar bases** (requer a pasta selecionada e a senha Firebird):
 
 ## Fluxo 5 — Atualizar SIC
 
-Porta a ideia do script `Atualiza_Tudo.cmd` (já no repositório é chamado a partir do app, não do `.cmd`) para uma tela própria. Ação **Atualizar executáveis** (requer origem e destino configurados), equivalente ao `.cmd`:
+Porta a ideia do script `Atualiza_Tudo.cmd` (já no repositório é chamado a partir do app, não do `.cmd`) para uma tela própria. Ação **Atualizar executáveis** (requer ao menos uma linha preenchida e válida), equivalente ao `.cmd`:
 
-1. Origem: a pasta **base** (ex.: `...\Sistemas\SIC`) e a **versão** (ex.: `s126`) → pasta `base\<versao>`. A versão vazia usa `s126` como fallback. Se a pasta não existir, avisa e interrompe.
-2. Destino: pasta que recebe os arquivos extraídos. Se não existir, é criada.
-3. Pede confirmação explícita (**Sim/Não**) mostrando a origem, o destino e que o destino será sobrescrito.
+1. **Configuração em tabela** ("Executáveis a baixar"), uma linha por executável, com as colunas:
+   - `Caminho de sincronização` — pasta-base de onde o `.exe`/`.zip` vem (ex.: `...\Sistemas\SIC`).
+   - `Versão/Nome da pasta` — subpasta dentro da origem (ex.: `146`). A pasta efetiva de origem é `<origem>\<versão>` (a versão vazia usa `s126` apenas nesta verificação de compatibilidade).
+   - `Destino` — pasta que recebe os arquivos extraídos (a coluna some quando "Usar um único destino" está marcado).
+   - `nome arquivo` — nome do arquivo a baixar, sem a extensão (ex.: `SIC` → `SIC.exe.zip`); a extensão `.exe.zip` é adicionada automaticamente se o nome não terminar em `.zip`; também é aceita `.zip` pura (clique direto no arquivo sem `.exe`).
+   - `Renomeia com a versão` — checkbox **por linha**; renomeia os `.exe` daquela extração com o sufixo `_<versão>` (ex.: `SIC.exe` → `SIC_146.exe`).
+   Botões **Adicionar executável** / **Remover selecionado** gerenciam as linhas.
+2. **Destino único**: há um card com uma checkbox no topo da aba — marcada, aponta **um único destino** para todos os executáveis e a coluna Destino da tabela fica oculta; desmarcada, cada linha tem o seu próprio destino.
+3. Pede confirmação explícita (**Sim/Não**) mostrando origem(ns) e destino(s) e avisando que os destinos serão sobrescritos.
 4. Durante a cópia/extração mostra uma **barra de progresso** com percentual real (baseada nos bytes extraídos) e o status ("Extraindo SIC.exe.zip…", etc.); some após a conclusão.
-5. Para cada um dos quatro executáveis — `OSAtualizaSIC.exe.zip`, `SIC.exe.zip`, `Prj_Obra.exe.zip`, `Prj_PCP_FA.exe.zip` (`UpdateSicOperationRules.Executables`):
+5. Para cada linha, abre o `.exe.zip`/`.zip` **direto da pasta de versão** na origem (somente leitura; o arquivo nunca é copiado para o destino) e extrai os arquivos sobre o destino:
    - se o `.zip` não existir na origem, registra um aviso no log e **segue para o próximo**;
-   - abre o `.zip` **direto da pasta de origem** (somente leitura; o arquivo nunca é copiado para o destino) e extrai os arquivos sobre o destino;
-   - **se qualquer etapa do arquivo falhar, avisa pelo log e continua com o próximo arquivo** (não aborta os demais). Cancelamento pelo operador encerra a operação.
+   - **se uma etapa do arquivo falhar, avisa pelo log e continua com o próximo arquivo** (não aborta os demais). Cancelamento pelo operador encerra a operação.
 6. Ao final, o resultado é resumido: sucesso total ou um aviso listando os arquivos que falharam (e o motivo de cada um); os demais foram atualizados normalmente. **Cancelar** interrompe o loop entre blocos; navegação desabilitada enquanto roda.
-7. **Renomear com a versão** (`SicRenameWithVersion`, checkbox na própria tela): após a extração, os `*.exe` diretos na pasta de destino recebem o sufixo `_<versao>` (ex.: `SIC.exe` → `SIC_146.exe`). Se o destino já tiver um arquivo com o nome final, mantém o original e registra no log; limita-se à pasta raiz do destino (não renomeia em subpastas, arquivos não `.exe`, ou `.exe` ainda com o sufixo). A versão usada é a informada no campo "Versão do SIC" (somente letras/dígitos/`_`; caracteres inválidos são descartados).
-8. As configurações da ação são **próprias e separadas**: `UpdateSicSourceRoot`, `UpdateSicDestinationRoot`, `UpdateSicSicVersion`, `SicRenameWithVersion` — nada a ver com as configurações das bases (SL); salvas como as demais (debounce + ao fechar/iniciar operações). A parte EDE do `.cmd` está comentada e não foi portada.
+7. **Renomear com a versão** (por linha): após a extração, os `*.exe` diretos na pasta de destino recebem o sufixo `_<versão>` (ex.: `SIC.exe` → `SIC_146.exe`). Se o destino já tiver um arquivo com o nome final, mantém o original e registra no log; limita-se à pasta raiz do destino (não renomeia em subpastas, arquivos não `.exe`, ou `.exe` ainda com o sufixo). A versão usada é a **da própria linha** (somente letras/dígitos/`_`; caracteres inválidos são descartados).
+8. As configurações são **próprias e separadas**: `UpdateSicSingleDestinationEnabled`, `UpdateSicSingleDestinationRoot`, `UpdateSicEntries` (lista) — nada a ver com as configurações das bases (SL); salvas como as demais (debounce + ao fechar/iniciar operações). Na primeira abertura após a atualização, se a tabela estiver vazia e existirem `UpdateSicSourceRoot`/`UpdateSicDestinationRoot`/`UpdateSicSicVersion` antigas, o app semeia uma linha por executável padrão (`UpdateSicExecutables` em `UpdateSicOperationRules.cs`); chaves legadas ficam preservadas só para o fallback de compatibilidade. Aspectos demais do `.cmd` (EDE) não foram portados.
 
 ## Fluxo 6 — Comandos ARQEMP / Comandos ARQSIST
 

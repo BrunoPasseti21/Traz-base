@@ -7,6 +7,7 @@ using SharpCompress.Common;
 using SharpCompress.Readers;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
+using System.ComponentModel;
 
 namespace TrazBase.App;
 
@@ -104,12 +105,14 @@ internal sealed class MainForm : Form
     private long _updateSicTotalBytes;
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
-    private readonly TextBox _updateSicSource = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-    private readonly TextBox _updateSicDestination = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
-    private readonly TextBox _updateSicVersion = new() { Width = 160, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left };
-    private readonly RoundedButton _updateSicBrowseSource = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly RoundedButton _updateSicBrowseDestination = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly ThemedCheckBox _updateSicRename = new() { Text = "Renomear executáveis com a versão (ex.: SIC_146.exe)", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly CheckBox _updateSicSingleDestinationCheck = new() { Text = "Usar o mesmo destino para todos os executáveis", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly TextBox _updateSicSingleDestination = new() { Width = 760, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Enabled = false };
+    private readonly RoundedButton _updateSicSingleDestinationBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f), Enabled = false };
+    private readonly DataGridView _updateSicGrid = CreateUpdateSicGrid();
+    private readonly BindingList<UpdateSicEntry> _updateSicRows = new();
+    private readonly RoundedButton _updateSicAddRow = new() { Text = "Adicionar executável", Size = new Size(150, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _updateSicRemoveRow = new() { Text = "Remover selecionado", Size = new Size(165, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+
     private readonly RoundedButton _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
@@ -171,9 +174,9 @@ internal sealed class MainForm : Form
         _resetView = BuildResetView();
         _restoreView = BuildRestoreView();
         _updateSicView = BuildUpdateSicView();
-        _updateSicSource.Text = _settings.UpdateSicSourceRoot;
-        _updateSicDestination.Text = _settings.UpdateSicDestinationRoot;
-        _updateSicVersion.Text = _settings.UpdateSicSicVersion;
+        _updateSicSingleDestinationCheck.Checked = _settings.UpdateSicSingleDestinationEnabled;
+        _updateSicSingleDestination.Text = _settings.UpdateSicSingleDestinationRoot;
+        LoadUpdateSicRowsFromSettings();
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
         ThemeState.IsDark = _settings.DarkMode;
@@ -195,7 +198,7 @@ internal sealed class MainForm : Form
         WireEnterNavigation([_selectedBasePath], _changeBaseButton);
         WireEnterNavigation([_resetSl], _resetButton);
         WireEnterNavigation([_restoreFolder], _restoreButton);
-        WireEnterNavigation([_updateSicSource, _updateSicDestination, _updateSicVersion], _updateSicButton);
+        WireEnterNavigation([_updateSicSingleDestination], _updateSicButton);
         WireEnterNavigation([
             _fields[nameof(AppSettings.SolicitationRoot)],
             _fields[nameof(AppSettings.BasesRoot)],
@@ -272,13 +275,19 @@ internal sealed class MainForm : Form
         _updateSicNav.Click += (_, _) => ShowUpdateSicView();
         _updateSicButton.Click += async (_, _) => await UpdateSicAsync();
         _updateSicCancelButton.Click += (_, _) => _updateSicCancellation?.Cancel();
-        _updateSicBrowseSource.Click += (_, _) => BrowseUpdateSicFolder("source");
-        _updateSicBrowseDestination.Click += (_, _) => BrowseUpdateSicFolder("destination");
-        _updateSicSource.TextChanged += (_, _) => QueueSettingsSave();
-        _updateSicDestination.TextChanged += (_, _) => QueueSettingsSave();
-        _updateSicVersion.TextChanged += (_, _) => QueueSettingsSave();
-        _updateSicRename.Checked = _settings.SicRenameWithVersion;
-        _updateSicRename.CheckedChanged += (_, _) => { _settings.SicRenameWithVersion = _updateSicRename.Checked; QueueSettingsSave(); };
+        _updateSicSingleDestinationBrowse.Click += (_, _) => BrowseUpdateSicFolder("singleDestination");
+        _updateSicSingleDestinationCheck.CheckedChanged += (_, _) =>
+        {
+            _settings.UpdateSicSingleDestinationEnabled = _updateSicSingleDestinationCheck.Checked;
+            UpdateUpdateSicSingleDestinationUI();
+            QueueSettingsSave();
+        };
+        _updateSicSingleDestination.TextChanged += (_, _) => { _settings.UpdateSicSingleDestinationRoot = _updateSicSingleDestination.Text.Trim(); QueueSettingsSave(); };
+        _updateSicAddRow.Click += (_, _) => AddUpdateSicRow();
+        _updateSicRemoveRow.Click += (_, _) => RemoveSelectedUpdateSicRows();
+        _updateSicGrid.DataError += (_, _) => { /* coleções do GridType já validam; evita popup nativo com recortes estriduais */ };
+        _updateSicGrid.CellValueChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellInEditMode) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); QueueSettingsSave(); };
+        _updateSicGrid.CurrentCellDirtyStateChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellDirty) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
         _restoreButton.Click += async (_, _) => await RestoreBaseAsync();
         _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
         _resetButton.Click += async (_, _) => await ResetBaseAsync();
@@ -1062,74 +1071,136 @@ internal sealed class MainForm : Form
         _restoreLog.ScrollToCaret();
     }
 
+    private static DataGridView CreateUpdateSicGrid()
+    {
+        var grid = new DataGridView
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            RowHeadersVisible = false,
+            AllowUserToAddRows = false,
+            AllowUserToDeleteRows = false,
+            AllowUserToResizeRows = false,
+            MultiSelect = false,
+            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            AutoGenerateColumns = false,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            RowTemplate = new DataGridViewRow { Height = 30 }
+        };
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Source", HeaderText = "Caminho de sincronização", DataPropertyName = nameof(UpdateSicEntry.SourceRoot), FillWeight = 38, MinimumWidth = 190 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Version", HeaderText = "Versão/Nome da pasta", DataPropertyName = nameof(UpdateSicEntry.Version), FillWeight = 14, MinimumWidth = 120 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Destination", HeaderText = "Destino", DataPropertyName = nameof(UpdateSicEntry.DestinationRoot), FillWeight = 38, MinimumWidth = 190 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "FileName", HeaderText = "nome arquivo", DataPropertyName = nameof(UpdateSicEntry.FileName), FillWeight = 15, MinimumWidth = 130 });
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "RenameWithVersion", HeaderText = "Renomeia com a versão", DataPropertyName = nameof(UpdateSicEntry.RenameWithVersion), FillWeight = 15, MinimumWidth = 125, FlatStyle = FlatStyle.Flat, ThreeState = false });
+        // Cabeçalho em várias linhas (sem cortar), semibold, aplicado no tema
+        grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        foreach (DataGridViewColumn column in grid.Columns)
+        {
+            column.HeaderCell.Style.WrapMode = DataGridViewTriState.True;
+            column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            column.HeaderCell.Style.Padding = new Padding(4, 2, 4, 2);
+        }
+        return grid;
+    }
+
     private Control BuildUpdateSicView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 7, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 276));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 60));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 224));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC da versão configurada"), 0, 0);
+        page.Controls.Add(BuildHeader("Atualizar SIC", "Baixe, extraia e aplique os executáveis do SIC, um a um"), 0, 0);
 
         page.Controls.Add(BuildHelpCard(page, 1,
-            "• Baixa os executáveis (SIC, Obra, PCP, Atualizador) da origem extrai sobre o destino.\r\n" +
-            "• Versão do SIC: ex. s145/146 (subpasta da origem)."), 0, 1);
+            "• Cada executável que você atualizar aparece como uma linha (origem, versão, destino, nome do arquivo).\r\n" +
+            "• A pasta da versão é concatenada à origem (ex.: ...\\Sistemas\\SIC + 146 → ...\\Sistemas\\SIC\\146).\r\n" +
+            "• Nome do arquivo sem a extensão (ex.: SIC → SIC.exe.zip).\r\n" +
+            "• Marque a checkbox para renomear os executáveis baixados com a versão (ex.: SIC.exe → SIC_146.exe)."), 0, 1);
 
-        var action = Card();
-        var sourceLabel = new Label { Text = "Origem dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 10) };
-        var destinationLabel = new Label { Text = "Destino dos executáveis", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 66) };
-        var versionLabel = new Label { Text = "Versão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 122) };
-        action.Controls.Add(sourceLabel);
-        action.Controls.Add(destinationLabel);
-        action.Controls.Add(versionLabel);
-        _updateSicSource.Location = new Point(18, 32);
-        _updateSicDestination.Location = new Point(18, 88);
-        _updateSicVersion.Location = new Point(18, 144);
-        _updateSicSource.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        _updateSicDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        _updateSicSource.Width = 760;
-        _updateSicDestination.Width = 760;
-        _updateSicBrowseSource.Left = 820;
-        _updateSicBrowseDestination.Left = 820;
-        action.Controls.Add(_updateSicSource);
-        action.Controls.Add(_updateSicDestination);
-        action.Controls.Add(_updateSicVersion);
+        var singleDestCard = Card();
+        _updateSicSingleDestinationCheck.Text = "Usar um único destino para todos os executáveis";
+        _updateSicSingleDestinationCheck.Location = new Point(18, 10);
+        _updateSicSingleDestinationCheck.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _updateSicSingleDestination.Location = new Point(18, 36);
+        _updateSicSingleDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        _updateSicSingleDestination.Height = 28;
+        _updateSicSingleDestinationBrowse.Location = new Point(0, 35);
+        singleDestCard.Controls.Add(_updateSicSingleDestinationCheck);
+        singleDestCard.Controls.Add(_updateSicSingleDestination);
+        singleDestCard.Controls.Add(_updateSicSingleDestinationBrowse);
 
-        _updateSicBrowseSource.Location = new Point(820, 31);
-        _updateSicBrowseDestination.Location = new Point(820, 87);
-        action.Resize += (_, _) =>
+        void LayoutSingleDest()
         {
-            var available = Math.Max(120, action.ClientSize.Width - 18 - _updateSicBrowseSource.Width - 24);
-            _updateSicSource.Width = available;
-            _updateSicDestination.Width = available;
-            _updateSicBrowseSource.Left = action.ClientSize.Width - _updateSicBrowseSource.Width - 18;
-            _updateSicBrowseDestination.Left = action.ClientSize.Width - _updateSicBrowseDestination.Width - 18;
-        };
-        action.Controls.Add(_updateSicBrowseSource);
-        action.Controls.Add(_updateSicBrowseDestination);
+            var available = Math.Max(120, singleDestCard.ClientSize.Width - 18 - _updateSicSingleDestinationBrowse.Width - 24);
+            _updateSicSingleDestination.Width = available;
+            _updateSicSingleDestinationBrowse.Left = singleDestCard.ClientSize.Width - _updateSicSingleDestinationBrowse.Width - 18;
+        }
+        singleDestCard.Resize += (_, _) => LayoutSingleDest();
+        LayoutSingleDest();
+        page.Controls.Add(singleDestCard, 0, 2);
 
+        var tableCard = Card();
+        // topPanel: cabeçalho "Executáveis a baixar" + botões Add/Remove
+        var topPanel = new Panel { Dock = DockStyle.Top, Height = 46 };
+        var tableHeader = new Label { Text = "Executáveis a baixar", AutoSize = true, ForeColor = Ink, Font = UiTypography.BodySemibold(11f), Location = new Point(18, 11) };
+        topPanel.Controls.Add(tableHeader);
+        _updateSicGrid.Dock = DockStyle.Fill;
+        // filho do card precisa do topPanel no topo para reservar espaço
+        _updateSicGrid.Margin = new Padding(12, 0, 12, 12);
+        _updateSicGrid.DataSource = _updateSicRows;
+        if (_updateSicGrid.Columns["RenameWithVersion"] is { } renameCol)
+            renameCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+        tableCard.Controls.Add(topPanel);
+        tableCard.Controls.Add(_updateSicGrid);
+        _updateSicGrid.BringToFront();
+        // Redimensionamento: botões ficam dentro do topPanel (dock top)
+        tableCard.Resize += (_, _) =>
+        {
+            _updateSicAddRow.Left = topPanel.ClientSize.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
+            _updateSicAddRow.Top = 7;
+            _updateSicAddRow.Size = new Size(170, 32);
+            _updateSicRemoveRow.Left = topPanel.ClientSize.Width - _updateSicRemoveRow.Width - 14;
+            _updateSicRemoveRow.Top = 7;
+            _updateSicRemoveRow.Size = new Size(165, 32);
+        };
+        tableCard.Controls.Add(_updateSicAddRow);
+        tableCard.Controls.Add(_updateSicRemoveRow);
+        _updateSicAddRow.Tag = "addSicRow";
+        _updateSicRemoveRow.Tag = "removeSicRow";
+        // ajuste inicial de posições em relação ao panel
+        _updateSicAddRow.Parent = topPanel;
+        _updateSicRemoveRow.Parent = topPanel;
+        topPanel.Resize += (_, _) =>
+        {
+            _updateSicAddRow.Left = topPanel.ClientSize.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
+            _updateSicAddRow.Top = 7;
+            _updateSicAddRow.Size = new Size(170, 32);
+            _updateSicRemoveRow.Left = topPanel.ClientSize.Width - _updateSicRemoveRow.Width - 14;
+            _updateSicRemoveRow.Top = 7;
+            _updateSicRemoveRow.Size = new Size(165, 32);
+        };
+        // forçar posicionamento inicial após parentamento
+        _updateSicAddRow.Left = topPanel.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
+        _updateSicAddRow.Top = 7;
+        _updateSicRemoveRow.Left = topPanel.Width - _updateSicRemoveRow.Width - 14;
+        _updateSicRemoveRow.Top = 7;
+        page.Controls.Add(tableCard, 0, 3);
+
+        var actionBar = new Panel { Dock = DockStyle.Fill };
         _updateSicButton.Size = new Size(220, 42);
-        _updateSicButton.Location = new Point(18, 188);
+        _updateSicButton.Location = new Point(0, 6);
         _updateSicButton.FlatAppearance.BorderSize = 0;
-        action.Controls.Add(_updateSicButton);
-        _updateSicCancelButton.Location = new Point(254, 188);
         _updateSicCancelButton.Size = new Size(100, 42);
+        _updateSicCancelButton.Location = new Point(234, 6);
         _updateSicCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _updateSicCancelButton.FlatAppearance.BorderSize = 1;
-        action.Controls.Add(_updateSicCancelButton);
-        _updateSicRename.Location = new Point(18, 238);
-        action.Controls.Add(_updateSicRename);
-        page.Controls.Add(action, 0, 2);
-
-        _updateSicProgressStatus.Location = new Point(2, 0);
-        _updateSicProgress.Location = new Point(2, 24);
-        _updateSicProgress.Controls.Add(_updateSicProgressFill);
-        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
-        _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
-        _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
-        _updateSicProgressRow.Controls.Add(_updateSicProgress);
-        page.Controls.Add(_updateSicProgressRow, 0, 4);
+        actionBar.Controls.Add(_updateSicButton);
+        actionBar.Controls.Add(_updateSicCancelButton);
+        page.Controls.Add(actionBar, 0, 4);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -1141,7 +1212,17 @@ internal sealed class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_updateSicLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 3);
+        page.Controls.Add(logCard, 0, 5);
+
+        _updateSicProgressStatus.Location = new Point(2, 0);
+        _updateSicProgress.Location = new Point(2, 24);
+        _updateSicProgress.Controls.Add(_updateSicProgressFill);
+        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
+        _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
+        _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
+        _updateSicProgressRow.Controls.Add(_updateSicProgress);
+        page.Controls.Add(_updateSicProgressRow, 0, 6);
+
         return page;
     }
 
@@ -1165,16 +1246,17 @@ internal sealed class MainForm : Form
         _arqSistNav.BackColor = Color.White;
         AcceptButton = _updateSicRunning ? null : _updateSicButton;
         ApplyNavigationColors();
-        _updateSicSource.Focus();
+        _updateSicGrid.Focus();
     }
 
     private void BrowseUpdateSicFolder(string kind)
     {
-        var seed = kind == "source" ? _updateSicSource.Text.Trim() : _updateSicDestination.Text.Trim();
-        using var dialog = new FolderBrowserDialog { Description = kind == "source" ? "Selecione a pasta base dos executáveis (ex.: ...\\Sistemas\\SIC)" : "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
+        if (kind != "singleDestination") return;
+        var seed = _updateSicSingleDestination.Text.Trim();
+        using var dialog = new FolderBrowserDialog { Description = "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
         if (dialog.ShowDialog(this) == DialogResult.OK)
         {
-            if (kind == "source") _updateSicSource.Text = dialog.SelectedPath; else _updateSicDestination.Text = dialog.SelectedPath;
+            _updateSicSingleDestination.Text = dialog.SelectedPath;
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a configuração: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         }
@@ -1197,43 +1279,62 @@ internal sealed class MainForm : Form
     {
         if (_updateSicRunning) return;
         ReadFields();
-        var sourceRoot = _updateSicSource.Text.Trim();
-        var destinationRoot = _updateSicDestination.Text.Trim();
-        var version = UpdateSicOperationRules.GetVersionOrDefault(_updateSicVersion.Text);
-        if (sourceRoot.Length == 0 || destinationRoot.Length == 0)
+        var singleDestination = _updateSicSingleDestination.Text.Trim();
+        var singleDestinationEnabled = _updateSicSingleDestinationCheck.Checked;
+
+        var rows = _updateSicRows.ToList();
+        if (rows.Count == 0)
         {
-            MessageBox.Show(this, "Preencha a pasta de origem e a pasta de destino para atualizar os executáveis.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            return;
-        }
-        if (!Directory.Exists(sourceRoot))
-        {
-            MessageBox.Show(this, $"A pasta de origem não foi encontrada:\n{sourceRoot}", "Origem indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            MessageBox.Show(this, "Adicione pelo menos um executável à tabela antes de prosseguir.", "Nada a atualizar", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
 
-        string sourceFolder;
-        try { sourceFolder = UpdateSicOperationRules.GetSourceRoot(sourceRoot, version); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Versão inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (!Directory.Exists(sourceFolder))
+        var errors = new List<UpdateSicOperationRules.UpdateSicValidationIssue>();
+        for (var i = 0; i < rows.Count; i++)
         {
-            MessageBox.Show(this, $"A pasta da versão {version} não foi encontrada:\n{sourceFolder}\n\nConfira a pasta de origem e a versão do SIC.", "Versão não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            UpdateSicOperationRules.ValidateEntry(rows[i], singleDestination, singleDestinationEnabled, i, errors);
+        }
+        if (errors.Count > 0)
+        {
+            var detail = string.Join(Environment.NewLine, errors.Select(e => e.Message));
+            MessageBox.Show(this, "Corrija os problemas abaixo antes de rodar a atualização:\n\n" + detail, "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
             return;
         }
-        if (!Directory.Exists(destinationRoot)) Directory.CreateDirectory(destinationRoot);
 
+        var plan = new List<(UpdateSicEntry row, string zipPath, string destination)>();
+        foreach (var row in rows)
+        {
+            if (!UpdateSicOperationRules.TryResolveExecutableZip(row.SourceRoot, row.Version, row.FileName, out var zipPath, out var error))
+            {
+                errors.Add(new UpdateSicOperationRules.UpdateSicValidationIssue { Row = rows.IndexOf(row), Message = $"Linha {rows.IndexOf(row) + 1}: {error}" });
+                continue;
+            }
+            var destination = singleDestinationEnabled ? singleDestination : row.DestinationRoot.Trim();
+            if (!Directory.Exists(destination)) Directory.CreateDirectory(destination);
+            plan.Add((row, zipPath, destination));
+        }
+        if (errors.Count > 0)
+        {
+            var detail = string.Join(Environment.NewLine, errors.Select(e => e.Message));
+            MessageBox.Show(this, "Não foi possível localizar arquivos/pastas:\n\n" + detail, "Arquivos não encontrados", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var destinations = plan.Select(p => p.destination).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+        var sources = plan.Select(p => $"{p.row.SourceRoot} (v{p.row.Version})").Distinct().ToList();
         var answer = MessageBox.Show(this,
-            $"Os executáveis serão copiados e extraídos:\n\n• Origem: {sourceFolder}\n• Destino: {destinationRoot}\n\nO destino será sobrescrito. Deseja continuar?",
+            $"Os executáveis serão copiados e extraídos:\n\nOrigem: {string.Join(", ", sources)}\nDestino: {string.Join(", ", destinations)}\n\nO destino será sobrescrito. Deseja continuar?",
             "Confirmar atualização", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1);
         if (answer != DialogResult.Yes) return;
 
         _updateSicRunning = true;
         _updateSicCancellation = new CancellationTokenSource();
-        _updateSicSource.Enabled = false;
-        _updateSicDestination.Enabled = false;
-        _updateSicVersion.Enabled = false;
-        _updateSicRename.Enabled = false;
-        _updateSicBrowseSource.Enabled = false;
-        _updateSicBrowseDestination.Enabled = false;
+        _updateSicGrid.Enabled = false;
+        _updateSicAddRow.Enabled = false;
+        _updateSicRemoveRow.Enabled = false;
+        _updateSicSingleDestination.Enabled = false;
+        _updateSicSingleDestinationCheck.Enabled = false;
+        _updateSicSingleDestinationBrowse.Enabled = false;
         _updateSicButton.Enabled = false;
         _updateSicCancelButton.Visible = true;
         foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
@@ -1241,13 +1342,11 @@ internal sealed class MainForm : Form
         var token = _updateSicCancellation.Token;
         var failures = new List<(string File, string Reason)>();
         long totalBytes = 0;
-        foreach (var zip in UpdateSicOperationRules.Executables)
+        foreach (var (row, zipPath, _) in plan)
         {
-            var path = Path.Combine(sourceFolder, zip);
-            if (!File.Exists(path)) continue;
             try
             {
-                using var za = ZipFile.OpenRead(path);
+                using var za = ZipFile.OpenRead(zipPath);
                 foreach (var entry in za.Entries) totalBytes += entry.Length;
             }
             catch { /* estimativa: se o zip não abrir, a barra vai até 100% ao final do arquivo */ }
@@ -1258,28 +1357,19 @@ internal sealed class MainForm : Form
         SetUpdateSicProgress("Preparando a atualização…");
         try
         {
-            AppendUpdateSicLog($"Iniciando a atualização do SIC {version}");
-            AppendUpdateSicLog($"Origem: {sourceFolder}  |  Destino: {destinationRoot}");
-            foreach (var zip in UpdateSicOperationRules.Executables)
+            AppendUpdateSicLog($"Iniciando atualização de {plan.Count} executável(is)");
+            foreach (var (row, zipPath, destination) in plan)
             {
                 token.ThrowIfCancellationRequested();
-                var source = Path.Combine(sourceFolder, zip);
-                if (!File.Exists(source))
-                {
-                    const string reason = "arquivo não encontrado na origem";
-                    failures.Add((zip, reason));
-                    AppendUpdateSicLog($"{zip}: {reason} — AVISO e seguindo para o próximo arquivo.");
-                    continue;
-                }
-
+                var zipName = Path.GetFileName(zipPath);
                 try
                 {
-                    AppendUpdateSicLog($"Extraindo {zip} (direto da origem)…");
-                    using var archive = ZipFile.OpenRead(source);
+                    AppendUpdateSicLog($"Extraindo {zipName} (direto da origem)…");
+                    using var archive = ZipFile.OpenRead(zipPath);
                     foreach (var entry in archive.Entries)
                     {
                         token.ThrowIfCancellationRequested();
-                        var target = ArchivePathSafety.GetSafeEntryPath(destinationRoot, entry.FullName);
+                        var target = ArchivePathSafety.GetSafeEntryPath(destination, entry.FullName);
                         if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
                         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                         await using var input = entry.Open();
@@ -1290,10 +1380,10 @@ internal sealed class MainForm : Form
                         {
                             await output.WriteAsync(buffer.AsMemory(0, (int)bytesRead), token);
                             _updateSicBytesDone += bytesRead;
-                            SetUpdateSicProgress($"Extraindo {zip}…");
+                            SetUpdateSicProgress($"Extraindo {zipName}…");
                         }
                     }
-                    AppendUpdateSicLog($"{zip}: executável atualizado.");
+                    AppendUpdateSicLog($"{zipName}: executável atualizado em {destination}.");
                 }
                 catch (OperationCanceledException)
                 {
@@ -1301,43 +1391,41 @@ internal sealed class MainForm : Form
                 }
                 catch (Exception ex)
                 {
-                    failures.Add((zip, ex.Message));
-                    AppendUpdateSicLog($"{zip}: ERRO — {ex.Message} — AVISO e seguindo para o próximo arquivo.");
+                    failures.Add((zipName, ex.Message));
+                    AppendUpdateSicLog($"{zipName}: ERRO — {ex.Message} — AVISO e seguindo para o próximo arquivo.");
                 }
             }
 
-            if (_updateSicRename.Checked)
+            foreach (var (row, _, destination) in plan.Where(p => p.Item1.RenameWithVersion))
             {
-                var tag = NormalizeVersionTag(version);
+                var tag = NormalizeVersionTag(row.Version);
                 if (tag is null)
                 {
-                    AppendUpdateSicLog("Renomeamento ignorado: versão inválida (esperado apenas letras/dígitos/_ ou vazio).");
+                    AppendUpdateSicLog($"Renomeamento ignorado para {row.FileName}: versão inválida (esperado apenas letras/dígitos/_ ou vazio).");
+                    continue;
                 }
-                else
+                AppendUpdateSicLog($"Renomeando executáveis de {row.FileName} ({destination}) com a versão {tag}…");
+                foreach (var exe in Directory.EnumerateFiles(destination, "*.exe", SearchOption.TopDirectoryOnly))
                 {
-                    AppendUpdateSicLog($"Renomeando executáveis com a versão {tag}…");
-                    foreach (var exe in Directory.EnumerateFiles(destinationRoot, "*.exe", SearchOption.TopDirectoryOnly))
+                    var name = Path.GetFileName(exe);
+                    var stem = Path.GetFileNameWithoutExtension(name);
+                    var suffix = "_" + tag;
+                    if (stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) continue;
+                    var newName = stem + suffix + ".exe";
+                    var newPath = Path.Combine(destination, newName);
+                    try
                     {
-                        var name = Path.GetFileName(exe);
-                        var stem = Path.GetFileNameWithoutExtension(name);
-                        var suffix = "_" + tag;
-                        if (stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) continue;
-                        var newName = stem + suffix + ".exe";
-                        var newPath = Path.Combine(destinationRoot, newName);
-                        try
+                        if (File.Exists(newPath))
                         {
-                            if (File.Exists(newPath))
-                            {
-                                AppendUpdateSicLog($"Mantido sem renomear: {name} (já existe '{newName}').");
-                                continue;
-                            }
-                            File.Move(exe, newPath);
-                            AppendUpdateSicLog($"Renomeado: {name} → {newName}");
+                            AppendUpdateSicLog($"Mantido sem renomear: {name} (já existe '{newName}').");
+                            continue;
                         }
-                        catch (Exception ex)
-                        {
-                            AppendUpdateSicLog($"Não foi possível renomear '{name}': {ex.Message}");
-                        }
+                        File.Move(exe, newPath);
+                        AppendUpdateSicLog($"Renomeado: {name} → {newName}");
+                    }
+                    catch (Exception ex)
+                    {
+                        AppendUpdateSicLog($"Não foi possível renomear '{name}': {ex.Message}");
                     }
                 }
             }
@@ -1347,7 +1435,7 @@ internal sealed class MainForm : Form
             if (failures.Count == 0)
             {
                 AppendUpdateSicLog("Atualização concluída com sucesso.");
-                MessageBox.Show(this, $"Os executáveis do SIC {version} foram atualizados.\n\nDestino: {destinationRoot}", "Atualização concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                MessageBox.Show(this, $"Executáveis atualizados:\n\n{string.Join("\n", plan.Select(p => $"• {p.zipPath.Split('\\').Last()} → {p.destination}"))}", "Atualização concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
             }
             else
             {
@@ -1373,16 +1461,92 @@ internal sealed class MainForm : Form
             _updateSicCancellation?.Dispose();
             _updateSicCancellation = null;
             _updateSicRunning = false;
-            _updateSicSource.Enabled = true;
-            _updateSicDestination.Enabled = true;
-            _updateSicVersion.Enabled = true;
-            _updateSicRename.Enabled = true;
-            _updateSicBrowseSource.Enabled = true;
-            _updateSicBrowseDestination.Enabled = true;
+            _updateSicGrid.Enabled = true;
+            _updateSicAddRow.Enabled = true;
+            _updateSicRemoveRow.Enabled = true;
+            _updateSicSingleDestination.Enabled = _updateSicSingleDestinationCheck.Checked;
+            _updateSicSingleDestinationCheck.Enabled = true;
+            _updateSicSingleDestinationBrowse.Enabled = _updateSicSingleDestinationCheck.Checked;
             _updateSicButton.Enabled = true;
             _updateSicCancelButton.Visible = false;
             foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
         }
+    }
+
+    /// <summary>Copia as linhas correntes (operadas pela grade) para a configuração persistida, sem arrastar objetos antigos.</summary>
+    private void SyncUpdateSicEntriesFromGrid()
+    {
+        _settings.UpdateSicSingleDestinationEnabled = _updateSicSingleDestinationCheck.Checked;
+        _settings.UpdateSicSingleDestinationRoot = _updateSicSingleDestination.Text.Trim();
+        _settings.UpdateSicEntries = _updateSicRows
+            .Select(row => new UpdateSicEntry
+            {
+                SourceRoot = (row.SourceRoot ?? "").Trim(),
+                Version = (row.Version ?? "").Trim(),
+                DestinationRoot = (row.DestinationRoot ?? "").Trim(),
+                FileName = (row.FileName ?? "").Trim(),
+                RenameWithVersion = row.RenameWithVersion
+            })
+            .ToList();
+    }
+
+    /// <summary>Hidden helper: lê a configuração e monta a lista editável na grade.</summary>
+    private void LoadUpdateSicRowsFromSettings()
+    {
+        _updateSicRows.Clear();
+        foreach (var entry in _settings.UpdateSicEntries ?? new List<UpdateSicEntry>())
+        {
+            _updateSicRows.Add(new UpdateSicEntry
+            {
+                SourceRoot = entry.SourceRoot ?? "",
+                Version = entry.Version ?? "",
+                DestinationRoot = entry.DestinationRoot ?? "",
+                FileName = entry.FileName ?? "",
+                RenameWithVersion = entry.RenameWithVersion
+            });
+        }
+    }
+
+    private void AddUpdateSicRow()
+    {
+        _updateSicRows.Add(new UpdateSicEntry { RenameWithVersion = false });
+        if (_updateSicGrid.Rows.Count > 0)
+        {
+            var row = _updateSicGrid.Rows[_updateSicGrid.Rows.Count - 1];
+            _updateSicGrid.CurrentCell = row.Cells["FileName"];
+            _updateSicGrid.BeginEdit(true);
+        }
+        QueueSettingsSave();
+    }
+
+    private void RemoveSelectedUpdateSicRows()
+    {
+        var selected = _updateSicGrid.SelectedRows.Cast<DataGridViewRow>().ToList();
+        if (selected.Count == 0)
+        {
+            // fallback: linha corrente quando não há seleção explícita
+            if (_updateSicGrid.CurrentRow is not null) selected.Add(_updateSicGrid.CurrentRow);
+        }
+        foreach (var row in selected.OrderByDescending(r => r.Index))
+        {
+            if (row.DataBoundItem is UpdateSicEntry entry) _updateSicRows.Remove(entry);
+        }
+        QueueSettingsSave();
+    }
+
+    private void UpdateUpdateSicSingleDestinationUI()
+    {
+        var enabled = _updateSicSingleDestinationCheck.Checked;
+        _updateSicSingleDestination.Enabled = enabled;
+        _updateSicSingleDestinationBrowse.Enabled = enabled;
+        if (_updateSicGrid.Columns["Destination"] is { } destinationCol)
+            destinationCol.Visible = !enabled;
+        foreach (DataGridViewRow row in _updateSicGrid.Rows)
+        {
+            var cell = row.Cells["Destination"];
+            if (cell is not null) cell.ReadOnly = enabled;
+        }
+        _updateSicSingleDestination.Focus();
     }
 
     private static void WireEnterNavigation(Control[] chain, Control? terminal)
@@ -1432,7 +1596,7 @@ internal sealed class MainForm : Form
         _updateSicProgressStatus.Visible = show;
         _updateSicProgress.Visible = show;
         page.SuspendLayout();
-        page.RowStyles[4].Height = show ? 56 : 0;
+        page.RowStyles[6].Height = show ? 56 : 0;
         page.ResumeLayout(true);
     }
 
@@ -2224,6 +2388,24 @@ internal sealed class MainForm : Form
             }
             else if (control is TableLayoutPanel || control is FlowLayoutPanel) control.BackColor = background;
 
+            if (control is DataGridView gridView)
+            {
+                var gridBackground = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                gridView.BackgroundColor = gridBackground;
+                gridView.DefaultCellStyle.BackColor = gridBackground;
+                gridView.DefaultCellStyle.ForeColor = text;
+                gridView.DefaultCellStyle.SelectionBackColor = Color.FromArgb(31, 111, 235);
+                gridView.DefaultCellStyle.SelectionForeColor = Color.White;
+                gridView.DefaultCellStyle.Font = UiTypography.Body(9f);
+                gridView.GridColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
+                gridView.ColumnHeadersDefaultCellStyle.BackColor = dark ? Color.FromArgb(34, 42, 55) : Color.FromArgb(231, 240, 255);
+                gridView.ColumnHeadersDefaultCellStyle.ForeColor = text;
+                gridView.ColumnHeadersDefaultCellStyle.Font = UiTypography.BodySemibold(9f);
+                gridView.EnableHeadersVisualStyles = false;
+                gridView.RowTemplate.DefaultCellStyle.BackColor = gridBackground;
+                gridView.RowTemplate.DefaultCellStyle.ForeColor = text;
+            }
+
             if (control is ThemedProgressBar progressBar)
             {
                 progressBar.TrackColor = dark ? Color.FromArgb(18, 25, 38) : Color.FromArgb(225, 232, 241);
@@ -2362,10 +2544,7 @@ internal sealed class MainForm : Form
         _settings.TempPath = _fields[nameof(AppSettings.TempPath)].Text.Trim();
         _settings.RenameSlFolderToClientName = _renameSl.Checked;
         _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
-        _settings.UpdateSicSourceRoot = _updateSicSource.Text.Trim();
-        _settings.UpdateSicDestinationRoot = _updateSicDestination.Text.Trim();
-        _settings.UpdateSicSicVersion = _updateSicVersion.Text.Trim();
-        _settings.SicRenameWithVersion = _updateSicRename.Checked;
+        SyncUpdateSicEntriesFromGrid();
         _settings.ArqEmpCommands = _arqEmpEditor.Text;
         _settings.ArqSistCommands = _arqSistEditor.Text;
     }

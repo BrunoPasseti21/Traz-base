@@ -89,7 +89,7 @@ Testa `MultiBaseOperationRules` (tratamento multi-base em SLs com pastas `ARQ##`
 
 ### `UpdateSicOperationRulesTests.cs` — 7 casos de teste
 
-Testa `UpdateSicOperationRules` (ação "Atualizar SIC" — lista e caminhos dos executáveis):
+Testa `UpdateSicOperationRules` (ação "Atualizar SIC" — caminhos e versão):
 
 | Teste | Verifica |
 |---|---|
@@ -97,8 +97,21 @@ Testa `UpdateSicOperationRules` (ação "Atualizar SIC" — lista e caminhos dos
 | `GetSourceRoot_CombinesRootAndVersion` | `C:\Sistemas\SIC` + `s126` → `C:\Sistemas\SIC\s126`. |
 | `GetSourceRoot_AcceptsRootWithTrailingSeparatorAndTrims` | Barra final ignorada; versão com espaços é aparada (`Arquivo` limpo). |
 | `GetSourceRoot_RejectsVersionWithPathTraversal` | Versão com `..` lança `ArgumentException`. |
-| `GetSourceRoot_RejectsEmptyInputs` | Origem vazia/versão vazia lançam `ArgumentException`. |
+| `GetSourceRoot_RejectsEmptyInputs` | Origem vazia ou versão vazia lança `ArgumentException`. |
 | `GetDestinationZip_CombinesDestinationAndFileName` | `C:\projetos\SIC\...` + arquivo → caminho completo. |
+
+### `UpdateSicEntryRulesTests.cs` — 6 testes novos
+
+Regras da tabela de executáveis (config da ação "Atualizar SIC"):
+
+| Teste | Verifica |
+|---|---|
+| `NormalizeBaseFileName_TrimsSpacesAndStripsInvalidChars` | Recorta espaços e caracteres inválidos no nome do arquivo. |
+| `ValidateEntry_DetectsMissingFieldsAndBadPath` | Linha em branco / caminho ruim → erros. |
+| `ValidateEntry_AcceptsCompleteRow` | Linha com origem/versão/destino/nome preenchidos → sem erros. |
+| `ValidateEntry_UsesSingleDestinationWhenEnabled` | Com modo destino único, o campo `DestinationRoot` da linha pode ficar vazio. |
+| `ValidateEntry_RequiresRootedPaths` | Caminhos relativos são rejeitados. |
+| `ResolveExecutableZip_CombinesRootAndVersionAndFileName` | `origem\146\SIC.exe.zip` resolve corretamente. |
 | `GetVersionOrDefault_UsesConfiguredValueOrFallback` | Versão configurada aparada; vazio → `s126`. |
 
 ### `ArchivePathSafetyTests.cs` — 6 testes

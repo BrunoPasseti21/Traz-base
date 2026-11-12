@@ -27,10 +27,11 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `CommandScriptsMigrated` | bool | `false` | `true` após a migração automática dos scripts legados para os comandos inline. |
 | `DarkMode` | bool | `false` | Preferência de tema escuro (reaplicada a cada início). |
 | `TempPath` | string | `""` | Pasta temporária usada no Registro (`TEMP`). Vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows. |
-| `UpdateSicSourceRoot` | string | `""` | Pasta base da origem dos executáveis SIC (ex.: `...\Sistemas\SIC`); a versão vem de `UpdateSicSicVersion`. |
-| `UpdateSicDestinationRoot` | string | `""` | Pasta que recebe os executáveis SIC extraídos (ex.: `C:\projetos\SIC\sic\desenvolvimento`). |
-| `UpdateSicSicVersion` | string | `""` | Versão do SIC usada como subpasta na origem (ex.: `s126`); vazio → `s126` no runtime. |
-| `SicRenameWithVersion` | bool | `false` | Se verdadeiro, renomeia os `.exe` diretos na pasta de destino ao concluir a atualização: `SIC.exe` → `SIC_146.exe` (sufixo `_<versão>`). |
+| `UpdateSicSourceRoot` / `UpdateSicDestinationRoot` / `UpdateSicSicVersion` | legado | `""` | Configuração legada da ação "Atualizar SIC" (pasta-base, destino e versão). Usada apenas para migrar para `UpdateSicEntries` na primeira abertura após a atualização |
+| `UpdateSicSingleDestinationEnabled` | bool | `false` | Se `true`, todos os executáveis vão para o mesmo destino (campo `UpdateSicSingleDestinationRoot`); a coluna `Destino` da tabela fica oculta |
+| `UpdateSicSingleDestinationRoot` | string | `""` | Destino único aplicado a todos os executáveis quando `UpdateSicSingleDestinationEnabled` estiver marcado |
+| `UpdateSicEntries` | lista de objetos | `[]` | Linhas da tabela "Executáveis a baixar" (tela **Atualizar SIC**). Cada entrada tem `SourceRoot` (pasta-base), `Version` (subpasta, ex.: `146`), `FileName` (nome sem extensão, ex.: `SIC`), `DestinationRoot` (quando destino único não está marcado) e `RenameWithVersion` (bool, por linha) |
+| `SicRenameWithVersion` | legado | `false` | Flag legada de renomeação; usada apenas para a migração |
 | `RenameSlFolderToClientName` | bool | `false` | Renomeia a pasta da solicitação para **`<primeiro nome>_<SL>`**: consulta `SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'` na **ARQSIST** e prioriza o NFANTASIA (se vazio/nulo, usa o NOME; sem nenhum dos dois, mantém a SL). Ex.: `JOAO_123456`. A verificação inicial de "pasta já existe" no fluxo Transferir considera `<SL>` exato ou qualquer pasta que termina em `_<SL>`. |
 | `ForceMultiBase` | bool | `false` | Sempre criar a estrutura multi-base (`ARQ01`/`ARQ00`), mesmo em SLs sem pastas `ARQ##`. |
 | `BaseCount` | number | `1` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (quando "Sempre criar estrutura multi-base" não está marcada). Entre 1 e 99. |

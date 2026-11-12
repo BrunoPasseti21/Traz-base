@@ -46,18 +46,64 @@ internal sealed class AppSettings
     public string UpdateSicSicVersion { get; set; } = "";
     public bool SicRenameWithVersion { get; set; }
 
+    // Nova configuração por executável (tabela na tela Atualizar SIC).
+    public bool UpdateSicSingleDestinationEnabled { get; set; }
+    public string UpdateSicSingleDestinationRoot { get; set; } = "";
+    public List<UpdateSicEntry> UpdateSicEntries { get; set; } = new();
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");
 
     public static AppSettings Load()
     {
+        AppSettings? settings = null;
         try
         {
             if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+                settings = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath));
         }
         catch { }
-        return new AppSettings();
+
+        settings ??= new AppSettings();
+        MigrateLegacySicUpdateIfMissing(settings);
+        return settings;
+    }
+
+    /// <summary>
+    /// Migra a antiga configuração "Atualizar SIC" (origem/destino/versão únicos + checkbox global
+    /// "Renomeia com a versão") para a tabela por executável. Mantém intactas as chaves legadas para
+    /// a versão de rollback continuar abrindo; a nova tela passa a usar <see cref="UpdateSicEntries"/>.
+    /// </summary>
+    private static void MigrateLegacySicUpdateIfMissing(AppSettings settings)
+    {
+        if (settings.UpdateSicEntries.Count > 0) return;
+
+        var source = (settings.UpdateSicSourceRoot ?? "").Trim();
+        if (source.Length == 0) return; // sem config antiga => começa do zero
+
+        var destination = (settings.UpdateSicDestinationRoot ?? "").Trim();
+        var version = (settings.UpdateSicSicVersion ?? "").Trim();
+        var rename = settings.SicRenameWithVersion;
+
+        string[] DefaultFiles =
+        [
+            "OSAtualizaSIC",
+            "SIC",
+            "Prj_Obra",
+            "Prj_PCP_FA"
+        ];
+
+        foreach (var fileName in DefaultFiles)
+        {
+            settings.UpdateSicEntries.Add(new UpdateSicEntry
+            {
+                SourceRoot = source,
+                Version = version,
+                DestinationRoot = destination,
+                FileName = fileName,
+                RenameWithVersion = rename
+            });
+        }
     }
 
     public void Save()
