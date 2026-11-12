@@ -2104,7 +2104,7 @@ internal sealed class MainForm : Form
         {
             _updateRow.Visible = true;
             _updateRow.Height = 34;
-            _updateButton.Font = UiTypography.BodySemibold(14f);
+            _updateButton.Font = UiTypography.BodySemibold(10f);
             UpdateDownloadButtonText();
         }
         ApplyMenuExpansionText(expanded);
