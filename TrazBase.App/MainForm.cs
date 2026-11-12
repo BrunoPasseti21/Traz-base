@@ -1197,7 +1197,7 @@ internal sealed class MainForm : Form
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 76));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 85));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurar caminhos", "Gerencie os executáveis baixados e extraídos pela tela de atualização"), 0, 0);
 
@@ -1402,6 +1402,27 @@ internal sealed class MainForm : Form
         return tag.Length == 0 ? null : tag;
     }
 
+    // Renomeia o destino de um .exe extraído para a raiz do destino (só vale quando o arquivo vem direto para a pasta de destino).
+    // Aplica a regra "Renomeia com a versão" já na gravação, evitando um estado intermediário com o nome original.
+    private static string? RenameExtractionTarget(string target, string destinationRoot, string tag)
+    {
+        if (!string.Equals(Path.GetExtension(target), ".exe", StringComparison.OrdinalIgnoreCase)) return null;
+
+        var normalizedRoot = Path.GetFullPath(destinationRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var parentDir = Path.GetDirectoryName(target) ?? string.Empty;
+        parentDir = parentDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (!string.Equals(parentDir, normalizedRoot, StringComparison.OrdinalIgnoreCase)) return null;
+
+        var stem = Path.GetFileNameWithoutExtension(target) ?? string.Empty;
+        if (stem.Length == 0) return null;
+
+        var suffix = "_" + tag;
+        if (stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) return target;
+
+        return Path.Combine(parentDir, stem + suffix + ".exe");
+    }
+
     private async Task UpdateSicAsync()
     {
         if (_updateSicRunning) return;
@@ -1489,6 +1510,10 @@ internal sealed class MainForm : Form
                 var zipName = Path.GetFileName(zipPath);
                 try
                 {
+                    var tag = row.RenameWithVersion ? NormalizeVersionTag(row.Version) : null;
+                    if (row.RenameWithVersion && tag is null)
+                        AppendUpdateSicLog($"Renomeamento ignorado para {row.FileName}: versão inválida (esperado apenas letras/dígitos/_ ou vazio).");
+
                     AppendUpdateSicLog($"Extraindo {zipName} (direto da origem)…");
                     using var archive = ZipFile.OpenRead(zipPath);
                     foreach (var entry in archive.Entries)
@@ -1496,6 +1521,15 @@ internal sealed class MainForm : Form
                         token.ThrowIfCancellationRequested();
                         var target = ArchivePathSafety.GetSafeEntryPath(destination, entry.FullName);
                         if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
+                        if (tag is not null)
+                        {
+                            var renamed = RenameExtractionTarget(target, destination, tag);
+                            if (renamed is not null && !string.Equals(renamed, target, StringComparison.OrdinalIgnoreCase))
+                            {
+                                target = renamed;
+                                AppendUpdateSicLog($"Extraindo como {Path.GetFileName(target)} (a renomear com a versão).");
+                            }
+                        }
                         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
                         await using var input = entry.Open();
                         await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
@@ -1521,39 +1555,7 @@ internal sealed class MainForm : Form
                 }
             }
 
-            foreach (var (row, _, destination) in plan.Where(p => p.Item1.RenameWithVersion))
-            {
-                var tag = NormalizeVersionTag(row.Version);
-                if (tag is null)
-                {
-                    AppendUpdateSicLog($"Renomeamento ignorado para {row.FileName}: versão inválida (esperado apenas letras/dígitos/_ ou vazio).");
-                    continue;
-                }
-                AppendUpdateSicLog($"Renomeando executáveis de {row.FileName} ({destination}) com a versão {tag}…");
-                foreach (var exe in Directory.EnumerateFiles(destination, "*.exe", SearchOption.TopDirectoryOnly))
-                {
-                    var name = Path.GetFileName(exe);
-                    var stem = Path.GetFileNameWithoutExtension(name);
-                    var suffix = "_" + tag;
-                    if (stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) continue;
-                    var newName = stem + suffix + ".exe";
-                    var newPath = Path.Combine(destination, newName);
-                    try
-                    {
-                        if (File.Exists(newPath))
-                        {
-                            AppendUpdateSicLog($"Mantido sem renomear: {name} (já existe '{newName}').");
-                            continue;
-                        }
-                        File.Move(exe, newPath);
-                        AppendUpdateSicLog($"Renomeado: {name} → {newName}");
-                    }
-                    catch (Exception ex)
-                    {
-                        AppendUpdateSicLog($"Não foi possível renomear '{name}': {ex.Message}");
-                    }
-                }
-            }
+            // O renomear com a versão é feito diretamente na extração (ver linha acima).
 
             _updateSicBytesDone = _updateSicTotalBytes; // força a barra chegar em 100%
             SetUpdateSicProgress("Concluído.");

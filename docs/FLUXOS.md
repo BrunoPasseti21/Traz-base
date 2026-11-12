@@ -122,7 +122,7 @@ Botão único **Atualizar executáveis** para rodar todas as linhas configuradas
    - se o `.zip` não existir na origem, registra um aviso no log e **segue para o próximo**;
    - **se uma etapa do arquivo falhar, avisa pelo log e continua com o próximo arquivo** (não aborta os demais). Cancelamento pelo operador encerra a operação.
 4. Ao final, o resultado é resumido: sucesso total ou um aviso listando os arquivos que falharam (e o motivo de cada um); os demais foram atualizados normalmente. **Cancelar** interrompe o loop entre blocos; navegação desabilitada enquanto roda.
-5. **Renomear com a versão** (por linha): após a extração, os `*.exe` diretos na pasta de destino recebem o sufixo `_<versão>` (ex.: `SIC.exe` → `SIC_146.exe`). Se o destino já tiver um arquivo com o nome final, mantém o original e registra no log; limita-se à raiz do destino. A versão usada é a **da própria linha** (somente letras/dígitos/`_`; caracteres inválidos são descartados).
+5. **Renomear com a versão** (por linha): a extração já grava o `.exe` com o sufixo `_<versão>` no destino raiz (ex.: `SIC.exe` → `SIC_146.exe`), sem estado intermediário com o nome original. Vale só para exes diretos na raiz do destino (arquivos aninhados em pastas não são renomeados). O arquivo final é sobrescrito quando já existe. A versão usada é a **da própria linha** (somente letras/dígitos/`_`; caracteres inválidos são descartados).
 
 ### Configurar caminhos executáveis
 
@@ -132,7 +132,7 @@ Tela de **gerenciamento da tabela** (mesma estrutura do Excel): o operador edita
 - **Versão/Nome da pasta** — subpasta dentro da origem (ex.: `146`). A pasta efetiva de origem é `<origem>\<versão>` (versão vazia usa `s126` apenas como verificação de compatibilidade).
 - **Destino** — pasta que recebe os arquivos extraídos. Tem botão com três pontos (`…`) ao lado. **Oculta** quando a checkbox "Usar um único destino para todos os executáveis" está marcada.
 - **nome arquivo** — nome do arquivo a baixar, sem a extensão (ex.: `SIC` → `SIC.exe.zip`); `.exe.zip` é adicionado automaticamente se o nome não terminar em `.zip`; também aceita `.zip` puro. O botão com três pontos (`…`) ao lado abre o seletor de arquivos e aceita **qualquer arquivo** (qualquer extensão), gravando apenas o nome sem a extensão.
-- **Renomeia com a versão** — checkbox **por linha**; renomeia os `.exe` daquela extração com o sufixo `_<versão>`.
+- **Renomeia com a versão** — checkbox **por linha**; já durante a extração, os `.exe` daquela linha gravados direto na raiz do destino recebem o sufixo `_<versão>`.
 - **Botão direito** na grade mostra o menu contextual com as opções **Renomear todos os exes** (marca todas as checkboxes) e **Não renomear os exes** (desmarca todas).
 - Botões **Adicionar executável** / **Remover selecionado** no topo da tabela manipulam as linhas.
 - **Destino único** (card no topo da aba): marcada a checkbox, usa um único destino para todos; desmarcada, cada linha tem o seu próprio destino (coluna Destino volta a aparecer).
