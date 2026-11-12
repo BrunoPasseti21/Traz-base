@@ -45,7 +45,7 @@ Execução:
 9. **Versão**: consulta `SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE` na ARQSIST do modo ativo e exibe "Versão atual: …" ao lado do campo SL.
 10. Mensagem de conclusão. O painel de progresso some; o log permanece.
 
-Cancelamento (botão **Cancelar operação** ou fechamento da janela): define o `CancellationToken`; cópias/extrações/SQL abortam cooperativamente, o SQL fecha a conexão; a tela registra "Operação cancelada." O fechamento da janela durante a execução é bloqueado até a operação terminar.
+Cancelamento (botão **Cancelar** ou fechamento da janela): define o `CancellationToken`; cópias/extrações/SQL abortam cooperativamente, o SQL fecha a conexão; a tela registra "Operação cancelada." O fechamento da janela durante a execução é bloqueado até a operação terminar.
 
 ## Fluxo 2 — Alterar base
 

@@ -52,13 +52,13 @@ A barra de título segue o tema em Windows 11+ via DWM (`DWMWA_CAPTION_COLOR`/`T
 
 ## Botões de ação
 
-Padrão único para todos os botões interativos (ações principais e auxiliares), seguindo o botão **Cancelar operação** / **Trazer e preparar base**:
+Padrão único para todos os botões interativos (ações principais e auxiliares), seguindo o botão **Trazer e preparar base**:
 
 - Fundo azul `#1F6FEB`, texto branco, `FlatStyle = Flat`, `BorderSize = 0`.
 - Fonte Segoe UI (Variable) Text Semibold 10 pt; botões auxiliares podem usar 9 pt.
 - Altura **42 px** para ações principais (ex.: Trazer e preparar), 36–40 px para ações de tela (Redefinir, Testar comando), 28–32 px para auxiliares (Limpar, Procurar, Trocar base). A cor, a fonte, o estilo plano e a remoção de borda são obrigatórios em todas.
 - Hover `#2D7DF5`, pressed `#195ECD` nos botões que definem essas cores explicitamente; os demais usam o comportamento padrão do `FlatButton` sem borda.
-- Botões secundários (ex.: **Abrir pasta**, **Cancelar** da redefinição / da restauração / do Atualizar SIC): fundo superfície, texto ink (claro) / texto claro (escuro), borda fina `#D0D9E6` (claro) / `#536277` (83,98,119, escuro); altura igual à do botão primário da mesma tela (36 px nas telas Redefinir/Restaurar, 42 px no Atualizar SIC) e largura 100 px.
+- Botões secundários (ex.: **Abrir pasta**, **Cancelar** da transferência / da redefinição / da restauração / do Atualizar SIC): fundo superfície, texto ink (claro) / texto claro (escuro), borda fina `#D0D9E6` (claro) / `#536277` (83,98,119, escuro); altura igual à do botão primário da mesma tela (42 px na Transferência e no Atualizar SIC, 36 px nas telas Redefinir/Restaurar) e largura 100 px.
 - Proibido criar botões de ação como links sublinhados ou introduzir cores/tipografias diferentes sem atualizar este documento.
 
 ## Menu lateral

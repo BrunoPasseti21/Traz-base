@@ -41,7 +41,7 @@ internal sealed class MainForm : Form
     private readonly Panel _progressFill = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(31, 111, 235), Location = new Point(0, 0), Width = 0, Height = 18 };
     private int _progressPercent;
     private readonly Button _start = new() { Text = "Trazer e preparar base", Width = 220, Height = 42, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly Button _cancel = new() { Text = "Cancelar operação", Width = 170, Height = 42, Visible = false, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Button _cancel = new() { Text = "Cancelar", Width = 100, Height = 42, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Panel _progressFooter = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly TableLayoutPanel _shell = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
     private readonly Panel _contentHost = new() { Dock = DockStyle.Fill };
@@ -2091,8 +2091,9 @@ internal sealed class MainForm : Form
         _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), 31);
         _start.FlatAppearance.BorderSize = 0;
         card.Controls.Add(_start);
-        _cancel.Location = new Point(450, 31);
-        _cancel.FlatAppearance.BorderSize = 0;
+        _cancel.Location = new Point(_start.Right + 16, 31);
+        _cancel.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _cancel.FlatAppearance.BorderSize = 1;
         card.Controls.Add(_cancel);
         _versionLabel.Location = new Point(card.ClientSize.Width - _versionLabel.Width - 18, 24);
         card.Resize += (_, _) => _versionLabel.Left = card.ClientSize.Width - _versionLabel.Width - 18;
@@ -2219,7 +2220,7 @@ internal sealed class MainForm : Form
             else if (control is Button button)
             {
                 var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
-                var isSecondaryAction = button == _openBaseFolderButton || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
                 {
