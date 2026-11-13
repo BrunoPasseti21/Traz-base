@@ -76,6 +76,13 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 - Opção selecionada recebe fundo `#E7F0FF` (claro) / `#30435E` (escuro); as demais ficam com o fundo do menu e hover próprio.
 - Rodapé do menu: versão do aplicativo sempre visível (compacta quando recolhido); "Criado por Bruno Passeti" e a linha de crédito só no modo expandido; botão de atualização quando há release disponível.
 - Acima do rodapé fica a **pílula de alternância de tema** (`ThemeToggle`, ícones `Claro.svg` e `Escuro.svg`): visível e acessível a partir de qualquer tela, centralizada na barra lateral (faixa própria, sem sobrepor opções nem textos), funcional também pelo teclado (Tab + Espaço/Enter).
+
+## Bandeja do Windows (tray)
+
+- Ícone "Traz Base" na bandeja, sempre visível; balão exibido só com a janela minimizada/oculta.
+- Menu de contexto (botão direito, `ContextMenuStrip` sem margem de ícones), nesta ordem: **Transferir** (linha com `Label` "Transferir" + `TextBox` de **Nº da SL**, Enter no edit ou clique no rótulo inicia a transferência — mesma validação da tela Transferir), divisória, **Atualizar executáveis**, divisória, **Fechar**.
+- Duplo clique esquerdo e clique no balão restauram a janela; **Fechar** sempre encerra de verdade.
+- Com `MinimizeToTrayOnClose` ligado, × / Alt+F4 escondem a janela (segundo plano) — nunca encerrado silenciosamente sem o menu do tray.
 - Navegação desabilitada durante operações longas (exceto o próprio menu/toggle).
 
 ## Cards e layout

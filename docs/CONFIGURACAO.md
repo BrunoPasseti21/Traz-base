@@ -26,6 +26,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `ArqSistCommands` | string | `""` | Idem para `ARQSIST.FDB`. |
 | `CommandScriptsMigrated` | bool | `false` | `true` após a migração automática dos scripts legados para os comandos inline. |
 | `DarkMode` | bool | `false` | Preferência de tema escuro (reaplicada a cada início). |
+| `MinimizeToTrayOnClose` | bool | `false` | Fechar a janela minimiza para a bandeja do Windows (segundo plano) em vez de encerrar o aplicativo. "Fechar" no menu da bandeja encerra de verdade. |
 | `TempPath` | string | `""` | Pasta temporária usada no Registro (`TEMP`). Vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows. |
 | `UpdateSicSourceRoot` / `UpdateSicDestinationRoot` / `UpdateSicSicVersion` | legado | `""` | Configuração legada da ação " (pasta-base, destino e versão). Usada apenas para migrar para `UpdateSicEntries` na primeira abertura após a atualização |
 | `UpdateSicSingleDestinationEnabled` | bool | `false` | Se `true`, todos os executáveis vão para o mesmo destino (campo `UpdateSicSingleDestinationRoot`); a coluna `Destino` da tabela fica oculta |

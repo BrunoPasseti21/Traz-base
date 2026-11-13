@@ -159,6 +159,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Pasta temporária** (`TempPath` — usada no Registro `TEMP`; vazio = `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows)
 - **Senha Firebird** (campo protegido; caixa **Salvar senha** grava protegida por DPAPI)
 - **Alternância de tema** — pílula claro/escuro (`Claro.svg`/`Escuro.svg`) presa à barra lateral, visível e acessível a partir de qualquer tela; alterna e persiste `DarkMode` na hora (sol = tema claro, lua = tema escuro)
+- **Fechar a janela minimiza para a bandeja do Windows (segundo plano)** (`MinimizeToTrayOnClose`, padrão `false`) — ao fechar a janela, o Traz Base some para a bandeja em vez de encerrar; o ícone da bandeja mostra um aviso (balão) com a dica do menu. "Fechar" no menu da bandeja encerra de verdade.
 - **Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)** (`ForceMultiBase`) — mesmo quando a SL não traz pastas `ARQ##`: o fluxo cria `ARQ01\` e move a `ARQSIST.FDB` para lá, cria `ARQ00\` e move `ARQEMP.FDB`/`ARQOCOR.FDB` para lá (ou copia da pasta de apoio/aninhadas), e usa o Registro no formato multi-base (`BASE1`…`BASE99` apenas com correspondente + `EMPRESA` = `ARQ00`). Os arquivos `*.fdb` são procurados também em subpastas (fora das pastas `ARQ##`); mais de uma candidata interrompe com aviso.
 - **Quantidade de bases** (`BaseCount`, padrão 1) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
 - **Tela inicial** (`DefaultScreen`, padrão "Transferir") — define qual tela o app exibe ao abrir. Opções: Transferir, Alterar base, Redefinir base, Restaurar base, Atualização de executáveis, Configuração, Comandos ARQEMP, Comandos ARQSIST.
@@ -167,7 +168,22 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 
 Alterações de tema, senha, multi-base forçado e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
 
-## Fluxo 8 — Atualização do aplicativo
+## Fluxo 8 — Bandeja do Windows (tray)
+
+O ícone "Traz Base" na bandeja fica disponível a qualquer momento:
+
+- **Botão direito** abre o menu, nesta ordem:
+  1. **Transferir** — linha com um edit ao lado, para informar o **Nº da SL** (apenas dígitos). Enter no edit (ou clique em "Transferir") inicia a transferência com essa SL, igual ao botão "Iniciar" da tela Transferir (mesma validação/senha/caminhos; a janela é restaurada antes de iniciar).
+  2. Divisória.
+  3. **Atualizar executáveis** — atalho: restaura a janela, abre a tela **Atualização de executáveis** e inicia a atualização.
+  4. Divisória.
+  5. **Fechar** — encerra de verdade (balões de "operação em andamento" continuam impedindo o fechamento).
+- **Duplo clique esquerdo** ou clique em um balão restauram a janela.
+- Balões de perguntas/mensagens de diálogos aparecem apenas com a janela minimizada/oculta (comportamento atual); ao minimizar com a nova opção `MinimizeToTrayOnClose`, um balão informativo explica o menu da bandeja (só na primeira vez por sessão).
+
+Com **"Fechar a janela minimiza para a bandeja do Windows (segundo plano)"** marcada em Configurações, clicar em × (ou Alt+F4) esconde a janela em vez de encerrar; a aplicação segue na bandeja. A opção só afeta o botão de fechar — o **Fechar** do menu da bandeja sempre encerra.
+
+## Fluxo 9 — Atualização do aplicativo
 
 Ao abrir a janela, em segundo plano:
 

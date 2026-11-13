@@ -31,6 +31,7 @@ internal sealed class AppSettings
     public string ArqSistCommands { get; set; } = "";
     public bool CommandScriptsMigrated { get; set; }
     public bool DarkMode { get; set; }
+    public bool MinimizeToTrayOnClose { get; set; }
     public string? ProtectedFirebirdPassword { get; set; }
     public string TempPath { get; set; } = "";
     public bool ForceMultiBase { get; set; }

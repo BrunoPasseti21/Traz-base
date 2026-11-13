@@ -19,6 +19,7 @@ internal sealed class MainForm : Form
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
@@ -63,6 +64,9 @@ internal sealed class MainForm : Form
     private readonly Panel _updateRow = new() { Dock = DockStyle.Top, Height = 34, Visible = false };
     private readonly Panel _themeToggleRow = new() { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(0, 6, 0, 6) };
     private readonly ThemeToggle _themeToggle = new();
+    private TextBox? _traySlBox;
+    private bool _exitRequested;
+    private bool _trayHintShown;
     private readonly PictureBox _updateAnimation = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.StretchImage, Visible = false, BackColor = Color.Transparent };
     private readonly ThemedProgressBar _updateProgress = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly RoundedButton _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
@@ -240,6 +244,14 @@ internal sealed class MainForm : Form
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de renomeação: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
+        _minimizeToTray.Checked = _settings.MinimizeToTrayOnClose;
+        _minimizeToTray.CheckedChanged += (_, _) =>
+        {
+            _settings.MinimizeToTrayOnClose = _minimizeToTray.Checked;
+            EnsureTrayIcon(); // ao ligar o modo, cria o ícone da bandeja já de saída
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de bandeja: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
         AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
         _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
         _baseCount.ValueChanged += (_, _) =>
@@ -254,6 +266,7 @@ internal sealed class MainForm : Form
         _appVersionLabel.Click += (_, _) => ShowChangelogDialog();
         Shown += async (_, _) =>
         {
+            EnsureTrayIcon();
             _sl.Focus(); // ao abrir o sistema, o cursor já fica no campo da SL
             MaybeShowChangelogOnStartup();
             await CheckForUpdatesAsync();
@@ -353,7 +366,15 @@ internal sealed class MainForm : Form
                 if (_resetRunning) _resetCancellation?.Cancel();
                 if (_restoreRunning) _restoreCancellation?.Cancel();
                 if (_updateSicRunning) _updateSicCancellation?.Cancel();
+                RestoreFromMinimized(); // garante a janela visível para o aviso
                 MessageBox.Show(this, "A operação foi cancelada. Aguarde o encerramento da etapa atual antes de fechar.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else if (!_exitRequested && _settings.MinimizeToTrayOnClose && e.CloseReason == CloseReason.UserClosing)
+            {
+                // Modo "segundo plano": fechar a janela apenas a esconde; a aplicação continua na bandeja.
+                e.Cancel = true;
+                Hide();
+                NotifyTrayHiddenOnce();
             }
             else
             {
@@ -543,7 +564,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 422));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 494));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -2301,7 +2322,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 352),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 424),
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Margin = Padding.Empty
         };
@@ -2394,6 +2415,8 @@ internal sealed class MainForm : Form
         host.Controls.Add(_forceMultiBase);
         _renameSl.Location = new Point(0, 306);
         host.Controls.Add(_renameSl);
+        _minimizeToTray.Location = new Point(0, 366);
+        host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
         {
@@ -3387,19 +3410,110 @@ internal sealed class MainForm : Form
 
     private void ShowBalloon(string caption, string? body)
     {
-        if (_notifyIcon is null)
-        {
-            _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = true };
-            _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
-        }
+        EnsureTrayIcon();
         var message = body is { Length: > 0 }
             ? body + "\nClique aqui para abrir a janela."
             : "O Traz Base precisa da sua atenção.\nClique aqui para abrir a janela.";
-        _notifyIcon.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+        _notifyIcon!.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+    }
+
+    private void EnsureTrayIcon()
+    {
+        if (_notifyIcon is not null) return;
+        var menu = new ContextMenuStrip { ShowImageMargin = false };
+
+        // Linha "Transferir" com o edit de número da SL embutido no menu.
+        var panel = new Panel { Width = 232, Height = 32, BackColor = SystemColors.Menu };
+        var label = new Label
+        {
+            Text = "Transferir",
+            AutoSize = true,
+            Location = new Point(8, 8),
+            Font = UiTypography.BodySemibold(9f),
+            ForeColor = SystemColors.MenuText,
+            Cursor = Cursors.Hand,
+            BackColor = Color.Transparent
+        };
+        var box = new TextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112 };
+        _traySlBox = box;
+        label.Click += (_, _) => _ = TrayTransferAsync();
+        box.KeyDown += async (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                await TrayTransferAsync();
+            }
+        };
+        panel.Controls.Add(label);
+        panel.Controls.Add(box);
+        var transferItem = new ToolStripControlHost(panel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
+        menu.Items.Add(transferItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync());
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add("Fechar", null, (_, _) => TrayExit());
+
+        _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = true, ContextMenuStrip = menu };
+        _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
+        _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
+    }
+
+    private async Task TrayTransferAsync()
+    {
+        if (_running)
+        {
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(4000, "Traz Base", "Aguarde a operação atual terminar antes de iniciar outra transferência.", ToolTipIcon.Info);
+            return;
+        }
+        var sl = _traySlBox?.Text.Trim() ?? "";
+        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c)))
+        {
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(4000, "Transferir", "Digite um número de SL válido (apenas dígitos) para iniciar.", ToolTipIcon.Warning);
+            return;
+        }
+        _sl.Text = sl;
+        _traySlBox?.Clear();
+        RestoreFromMinimized();
+        ShowView(settings: false);
+        await StartFlowAsync();
+    }
+
+    private async Task TrayUpdateSicAsync()
+    {
+        if (_updateSicRunning)
+        {
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(4000, "Atualizar executáveis", "A atualização dos executáveis já está em andamento.", ToolTipIcon.Info);
+            return;
+        }
+        RestoreFromMinimized();
+        ShowUpdateSicView();
+        await UpdateSicAsync();
+    }
+
+    private void TrayExit()
+    {
+        _exitRequested = true;
+        if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
+            RestoreFromMinimized(); // permite que o aviso de operação em andamento fique visível
+        Close();
+    }
+
+    private void NotifyTrayHiddenOnce()
+    {
+        if (_trayHintShown || _notifyIcon is null) return;
+        _trayHintShown = true;
+        _notifyIcon.ShowBalloonTip(5000, "Traz Base",
+            "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Transferir, Atualizar executáveis ou Fechar.",
+            ToolTipIcon.Info);
     }
 
     private void RestoreFromMinimized()
     {
+        if (!Visible) Show();
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         BringToFront();
         Activate();
