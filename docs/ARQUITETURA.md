@@ -22,7 +22,7 @@ Solução única, projeto único (`TrazBase.App`); não há separação em assem
 | `UpdateSicOperationRules.cs` | Regras puras da ": lista padrão dos executáveis `.zip` (usada só na migração), `GetSourceRoot`/`NormalizeBaseFileName`/`ResolveExecutableZip` por executável, `ValidateEntry` para checar linhas da tabela e `UpdateSicValidationIssue` para erros reportados. |
 | `GitHubReleaseUpdater.cs` | Consulta a API de releases do GitHub, escolhe o asset `*Setup.exe` mais recente e baixa o instalador com progresso. `ParseLatestRelease` é testável. |
 | `AppMessageBox.cs` | Diálogos próprios (`AppMessageDialog`) que substituem o `MessageBox` nativo, incluindo o diálogo de conflito de destino (`ShowFolderConflict`). |
-| `SvgIconLoader.cs` | Renderiza os ícones SVG (apenas `<path fill>`, com `translate()`) para `Bitmap` — os ícones do menu não usam biblioteca externa. |
+| `SvgIconLoader.cs` | Renderiza os ícones SVG (`<path fill>` com M/L/H/V/C/Q/A/Z, `translate()`, herança de `fill` da raiz, `currentColor`) para `Bitmap` — os ícones do menu não usam biblioteca externa. |
 | `ThemedScrollingControls.cs` | Controles com tema próprio: `ThemedProgressBar` (barra/marquee), `ThemedListView`, `ThemedTextBox`, `ThemedRichTextBox`, `PlainNavigationButton` e a interface `IThemedScrollingControl`. |
 | `UiTypography.cs` | Tipografia centralizada (Segoe UI Variable/Segoe UI com fallback), usada por toda a UI. |
 

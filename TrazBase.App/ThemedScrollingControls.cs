@@ -504,3 +504,154 @@ internal sealed class ThemedRichTextBox : RichTextBox, IThemedScrollingControl
 
     public void RefreshNativeTheme() => RecreateHandle();
 }
+
+/// <summary>
+/// Alternância de tema claro/escuro no formato de pílula (track arredondado + botão deslizante),
+/// desenhada com os ícones Claro.svg (sol) e Escuro.svg (lua), no estilo dos previews aprovados.
+/// No tema escuro a pílula mostra a lua visível à direita e o botão deslizante à esquerda;
+/// no tema claro, mostra o sol à esquerda e o botão deslizante à direita.
+/// </summary>
+internal sealed class ThemeToggle : Control
+{
+    private bool _pointerOver;
+    private bool _pressed;
+    private bool _dark = true;
+    private Bitmap? _sun;
+    private Bitmap? _moon;
+
+    public ThemeToggle()
+    {
+        SetStyle(ControlStyles.UserPaint | ControlStyles.AllPaintingInWmPaint | ControlStyles.OptimizedDoubleBuffer | ControlStyles.ResizeRedraw, true);
+        SetStyle(ControlStyles.ApplyThemingImplicitly, false);
+        Size = new Size(48, 28);
+        Cursor = Cursors.Hand;
+        TabStop = true;
+        AccessibleName = "Alternar tema claro/escuro";
+    }
+
+    /// <summary>Verdadeiro quando o modo escuro está ativo.</summary>
+    [System.ComponentModel.DesignerSerializationVisibility(System.ComponentModel.DesignerSerializationVisibility.Hidden)]
+    public bool DarkMode
+    {
+        get => _dark;
+        set
+        {
+            if (_dark == value) return;
+            _dark = value;
+            Invalidate();
+        }
+    }
+
+    public event EventHandler? Toggled;
+
+    private void Toggle()
+    {
+        _dark = !_dark;
+        Invalidate();
+        Toggled?.Invoke(this, EventArgs.Empty);
+    }
+
+    protected override void OnClick(EventArgs e)
+    {
+        Toggle();
+        base.OnClick(e);
+    }
+
+    protected override bool IsInputKey(Keys keyData) =>
+        keyData is Keys.Space or Keys.Enter || base.IsInputKey(keyData);
+
+    protected override void OnKeyDown(KeyEventArgs e)
+    {
+        if (e.KeyCode is Keys.Space or Keys.Enter)
+        {
+            Toggle();
+            e.SuppressKeyPress = true;
+            return;
+        }
+        base.OnKeyDown(e);
+    }
+
+    protected override void OnMouseEnter(EventArgs e)
+    {
+        _pointerOver = true;
+        Invalidate();
+        base.OnMouseEnter(e);
+    }
+
+    protected override void OnMouseLeave(EventArgs e)
+    {
+        _pointerOver = false;
+        _pressed = false;
+        Invalidate();
+        base.OnMouseLeave(e);
+    }
+
+    protected override void OnMouseDown(MouseEventArgs e)
+    {
+        _pressed = e.Button == MouseButtons.Left;
+        Invalidate();
+        base.OnMouseDown(e);
+    }
+
+    protected override void OnMouseUp(MouseEventArgs e)
+    {
+        _pressed = false;
+        Invalidate();
+        base.OnMouseUp(e);
+    }
+
+    protected override void OnPaint(PaintEventArgs e)
+    {
+        var graphics = e.Graphics;
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+
+        // Fundo igual à barra lateral, nos cantos da pílula.
+        var sidebarBack = ThemeState.IsDark ? Color.FromArgb(28, 35, 47) : Color.White;
+        using (var background = new SolidBrush(sidebarBack))
+            graphics.FillRectangle(background, ClientRectangle);
+
+        _sun ??= SvgIconLoader.Load("Claro.svg", 15, Color.White);
+        _moon ??= SvgIconLoader.Load("Escuro.svg", 15, Color.White);
+
+        var track = new Rectangle(0, 2, Width - 1, Height - 5);
+        var radius = track.Height / 2f;
+        using var trackPath = CreateRoundedPath(track, radius);
+        var trackColor = _pressed
+            ? Color.FromArgb(28, 56, 96)
+            : _pointerOver ? Color.FromArgb(43, 80, 128) : Color.FromArgb(36, 65, 114);
+        using (var brush = new SolidBrush(trackColor))
+            graphics.FillPath(brush, trackPath);
+
+        var iconY = track.Top + (track.Height - 15) / 2;
+        graphics.DrawImage(_sun, track.Left + 6, iconY, 15, 15);
+        graphics.DrawImage(_moon, track.Right - 6 - 15, iconY, 15, 15);
+
+        const int knobDiameter = 18;
+        var knobX = _dark ? track.Left + 3 : track.Right - 3 - knobDiameter;
+        var knobY = track.Top + (track.Height - knobDiameter) / 2;
+        using (var knobBrush = new SolidBrush(Color.FromArgb(226, 232, 240)))
+            graphics.FillEllipse(knobBrush, knobX, knobY, knobDiameter, knobDiameter);
+    }
+
+    private static System.Drawing.Drawing2D.GraphicsPath CreateRoundedPath(Rectangle bounds, float radius)
+    {
+        var path = new System.Drawing.Drawing2D.GraphicsPath();
+        var diameter = radius * 2;
+        path.AddArc(bounds.Left, bounds.Top, diameter, diameter, 180, 90);
+        path.AddArc(bounds.Right - diameter, bounds.Top, diameter, diameter, 270, 90);
+        path.AddArc(bounds.Right - diameter, bounds.Bottom - diameter, diameter, diameter, 0, 90);
+        path.AddArc(bounds.Left, bounds.Bottom - diameter, diameter, diameter, 90, 90);
+        path.CloseFigure();
+        return path;
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+        {
+            _sun?.Dispose();
+            _moon?.Dispose();
+        }
+        base.Dispose(disposing);
+    }
+}

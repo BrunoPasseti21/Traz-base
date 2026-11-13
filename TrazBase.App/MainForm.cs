@@ -17,7 +17,6 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, TextBox> _fields = new();
     private readonly TextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _darkMode = new() { Text = "Usar modo escuro", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
@@ -62,6 +61,8 @@ internal sealed class MainForm : Form
     private readonly Label _appVersionLabel = new() { Dock = DockStyle.Top, Height = 30, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.FromArgb(38, 50, 68), ForeColor = Color.FromArgb(190, 208, 230), Font = UiTypography.BodySemibold(9f) };
     private readonly Label _creatorLabel = new() { Dock = DockStyle.Top, Height = 24, AutoEllipsis = true, Text = "Criado por Bruno Passeti", TextAlign = ContentAlignment.MiddleCenter, Font = UiTypography.Body(8.5f) };
     private readonly Panel _updateRow = new() { Dock = DockStyle.Top, Height = 34, Visible = false };
+    private readonly Panel _themeToggleRow = new() { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(0, 6, 0, 6) };
+    private readonly ThemeToggle _themeToggle = new();
     private readonly PictureBox _updateAnimation = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.StretchImage, Visible = false, BackColor = Color.Transparent };
     private readonly ThemedProgressBar _updateProgress = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly RoundedButton _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
@@ -153,6 +154,9 @@ internal sealed class MainForm : Form
         _shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _shell.Controls.Add(_sidebar, 0, 0);
         _shell.Controls.Add(_contentHost, 1, 0);
+        _themeToggleRow.Controls.Add(_themeToggle);
+        _themeToggleRow.Resize += (_, _) => CenterThemeToggle();
+        _sidebar.Controls.Add(_themeToggleRow); // adicionado antes do rodapé para o rodapé continuar na borda inferior
         _updateRow.Controls.Add(_updateButton);
         _updateRow.Controls.Add(_updateProgress);
         _updateRow.Controls.Add(_updateAnimation);
@@ -217,16 +221,9 @@ internal sealed class MainForm : Form
         WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
         ShowStartScreen();
-        _darkMode.Checked = _settings.DarkMode;
-        _darkMode.CheckedChanged += (_, _) =>
-        {
-            _settings.DarkMode = _darkMode.Checked;
-            Application.SetColorMode(_settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
-            RefreshNativeScrollingThemes();
-            ApplyTheme();
-            try { PersistSettings(); }
-            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de tema: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
-        };
+        _themeToggle.DarkMode = _settings.DarkMode;
+        _themeToggle.Toggled += (_, _) => ApplyDarkMode(_themeToggle.DarkMode);
+        _menuToolTip.SetToolTip(_themeToggle, "Alternar entre tema claro e escuro");
         HandleCreated += (_, _) => ApplyTitleBarTheme();
         ApplyTheme();
         _forceMultiBase.Checked = _settings.ForceMultiBase;
@@ -373,6 +370,22 @@ internal sealed class MainForm : Form
                 }
             }
         };
+    }
+
+    private void CenterThemeToggle() =>
+        _themeToggle.Location = new Point(
+            Math.Max(0, (_themeToggleRow.Width - _themeToggle.Width) / 2),
+            Math.Max(0, (_themeToggleRow.Height - _themeToggle.Height) / 2));
+
+    private void ApplyDarkMode(bool dark)
+    {
+        _settings.DarkMode = dark;
+        _themeToggle.DarkMode = dark;
+        Application.SetColorMode(dark ? SystemColorMode.Dark : SystemColorMode.Classic);
+        RefreshNativeScrollingThemes();
+        ApplyTheme();
+        try { PersistSettings(); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de tema: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
 
     // Garante que a janela caiba na área útil do monitor, evitando que o rodapé fique cortado
@@ -2377,9 +2390,7 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _darkMode.Location = new Point(0, 246);
-        host.Controls.Add(_darkMode);
-        _forceMultiBase.Location = new Point(0, 276);
+        _forceMultiBase.Location = new Point(0, 246);
         host.Controls.Add(_forceMultiBase);
         _renameSl.Location = new Point(0, 306);
         host.Controls.Add(_renameSl);
@@ -2535,7 +2546,7 @@ internal sealed class MainForm : Form
             {
                 if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel == _progressFill || panel == _updateSicProgressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
-                else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow || panel == _themeToggleRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
                 else if (panel == _settingsFieldsHost) panel.BackColor = surface;
                 else if (panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);

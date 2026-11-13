@@ -75,6 +75,7 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 - **Transição animada**: alternar expande/recolhe com animação de largura de ~220 ms e easing ease-out cúbico (passos de 15 ms). Ao **recolher**, os rótulos somem de imediato; ao **expandir**, os rótulos aparecem ao final da animação. Cliques rápidos no botão sanduíche redirecionam a animação a partir da largura atual, sem sacudidas.
 - Opção selecionada recebe fundo `#E7F0FF` (claro) / `#30435E` (escuro); as demais ficam com o fundo do menu e hover próprio.
 - Rodapé do menu: versão do aplicativo sempre visível (compacta quando recolhido); "Criado por Bruno Passeti" e a linha de crédito só no modo expandido; botão de atualização quando há release disponível.
+- Acima do rodapé fica a **pílula de alternância de tema** (`ThemeToggle`, ícones `Claro.svg` e `Escuro.svg`): visível e acessível a partir de qualquer tela, centralizada na barra lateral (faixa própria, sem sobrepor opções nem textos), funcional também pelo teclado (Tab + Espaço/Enter).
 - Navegação desabilitada durante operações longas (exceto o próprio menu/toggle).
 
 ## Cards e layout
@@ -121,8 +122,8 @@ Todas as mensagens da aplicação usam o diálogo próprio (`AppMessageDialog`),
 
 ## Ýcones
 
-- SVGs próprios em `Imagens/` (menu sanduíche, Transferir, Trocar-Base, Redefinir, Configuração, SQL, Atualizar), renderizados por `SvgIconLoader` (suporta apenas `<path fill>` e `translate()`).
-- Para ícones novos, exporte SVG com `fill` explícito e apenas paths simples; registre o arquivo em `TrazBase.App.csproj` como `Content` (já coberto pelo glob `..\Imagens\*.svg`).
+- SVGs próprios em `Imagens/` (menu sanduíche, Transferir, Trocar-Base, Redefinir, Configuração, SQL, Atualizar, Claro, Escuro), renderizados por `SvgIconLoader` (comandos `M/L/H/V/C/Q/A/Z`, `translate()`, herança de `fill` da raiz do SVG e suporte a `currentColor`).
+- Para ícones novos, exporte SVG com `fill` explícito ou `currentColor` na raiz; registre o arquivo em `TrazBase.App.csproj` como `Content` (já coberto pelo glob `..\Imagens\*.svg`).
 - Navegação usa os mesmos ícones 24 px; o botão de atualização usa 16 px.
 
 ## Acessibilidade e DPI
