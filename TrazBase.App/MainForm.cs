@@ -42,6 +42,7 @@ internal sealed class MainForm : Form
     private readonly Panel _progress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
     private readonly Panel _progressFill = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(31, 111, 235), Location = new Point(0, 0), Width = 0, Height = 18 };
     private int _progressPercent;
+    private string? _trayShortStatus;
     private readonly RoundedButton _start = new() { Text = "Trazer e preparar base", Width = 220, Height = 42, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _cancel = new() { Text = "Cancelar", Width = 100, Height = 42, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Panel _progressFooter = new() { Dock = DockStyle.Fill, Visible = false };
@@ -1666,6 +1667,7 @@ internal sealed class MainForm : Form
             _updateSicCancellation?.Dispose();
             _updateSicCancellation = null;
             _updateSicRunning = false;
+            _trayShortStatus = null;
             RefreshTrayTooltip();
             _updateSicGrid.Enabled = true;
             _updateSicAddRow.Enabled = true;
@@ -2984,7 +2986,7 @@ internal sealed class MainForm : Form
         }
         catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
         catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Transferir para saber em que etapa aconteceu.", error: true); }
-        finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; SetBusy(false); RefreshTrayTooltip(); }
+        finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; _trayShortStatus = null; SetBusy(false); RefreshTrayTooltip(); }
     }
 
     private async Task ExtractArchivesAsync(string root, CancellationToken token)
@@ -3008,7 +3010,7 @@ internal sealed class MainForm : Form
             foreach (var zip in selected)
             {
                 Log("Extraindo " + Path.GetFileName(zip));
-                SetArchiveProgress(0, "Extraindo " + Path.GetFileName(zip));
+                SetArchiveProgress(0, "Extraindo " + Path.GetFileName(zip), $"Extraindo {Path.GetFileName(zip)} (0%)");
                 using var archive = ZipFile.OpenRead(zip);
                 foreach (var entry in archive.Entries)
                 {
@@ -3020,7 +3022,7 @@ internal sealed class MainForm : Form
                     await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
                     await input.CopyToAsync(output, 1024 * 1024, token);
                 }
-                SetArchiveProgress(100, "ZIP extraído com sucesso");
+                SetArchiveProgress(100, "ZIP extraído com sucesso", $"Extraindo {Path.GetFileName(zip)} (100%)");
             }
         }
     }
@@ -3028,13 +3030,14 @@ internal sealed class MainForm : Form
     private async Task ExtractRarArchiveAsync(string archivePath, string destinationRoot, CancellationToken token)
     {
         Log("Extraindo " + Path.GetFileName(archivePath));
-        SetArchiveProgress(0, "Extraindo " + Path.GetFileName(archivePath));
+        var rarName = Path.GetFileName(archivePath);
+        SetArchiveProgress(0, "Extraindo " + rarName, $"Extraindo {rarName} (0%)");
         await using var archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
         var extractionProgress = new Progress<ProgressReport>(report =>
         {
             var percent = (int)Math.Clamp(Math.Round(report.PercentComplete ?? 0), 0d, 100d);
             var entryName = string.IsNullOrWhiteSpace(report.EntryPath) ? Path.GetFileName(archivePath) : Path.GetFileName(report.EntryPath);
-            SetArchiveProgress(percent, $"Extraindo {entryName} ({percent}%)");
+            SetArchiveProgress(percent, $"Extraindo {entryName} ({percent}%)", $"Extraindo {entryName} ({percent}%)");
         });
         var readerOptions = ReaderOptions.ForExternalStream.WithProgress(extractionProgress);
         await using var reader = await ReaderFactory.OpenAsyncReader(archiveStream, readerOptions, token);
@@ -3044,6 +3047,7 @@ internal sealed class MainForm : Form
             var entry = reader.Entry;
             var entryKey = entry.Key ?? throw new InvalidOperationException("Há um arquivo sem nome dentro do RAR. Recompacte o arquivo ou extraia manualmente.");
             SetStatus("Extraindo " + Path.GetFileName(entryKey));
+            _trayShortStatus = "Extraindo " + Path.GetFileName(entryKey);
             var outputPath = GetSafeArchiveEntryPath(destinationRoot, entryKey);
             if (entry.IsDirectory)
             {
@@ -3055,12 +3059,13 @@ internal sealed class MainForm : Form
             await using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
             await reader.WriteEntryToAsync(output, token);
         }
-        SetArchiveProgress(100, "RAR extraído com sucesso");
+        SetArchiveProgress(100, "RAR extraído com sucesso", $"Extraindo {Path.GetFileName(archivePath)} (100%)");
     }
 
-    private void SetArchiveProgress(int percent, string status)
+    private void SetArchiveProgress(int percent, string status, string? trayStatus = null)
     {
         _progressPercent = Math.Clamp(percent, 0, 100);
+        _trayShortStatus = trayStatus ?? status;
         UpdateProgressFill();
         SetStatus(status);
     }
@@ -3259,6 +3264,7 @@ internal sealed class MainForm : Form
         var copiedMb = bytesCopied / 1024d / 1024d;
         var totalMb = totalBytes / 1024d / 1024d;
         _status.Text = $"Copiando: {percent}%  ·  {copiedMb:N1} de {totalMb:N1} MB  ·  {filesCopied} de {totalFiles} arquivos";
+        _trayShortStatus = $"Copiando ({percent}%)";
         RefreshTrayTooltip();
     }
 
@@ -3458,12 +3464,10 @@ internal sealed class MainForm : Form
             if (_notifyIcon.Text != "Traz Base") _notifyIcon.Text = "Traz Base";
             return;
         }
-        var step = _status.Text?.Trim();
+        var step = string.IsNullOrEmpty(_trayShortStatus) ? _status.Text?.Trim() : _trayShortStatus;
         if (string.IsNullOrEmpty(step)) step = "Processando…";
         string tip;
-        if (_running && _progressPercent is > 0 and < 100)
-            tip = $"Traz Base — {step} ({Math.Clamp(_progressPercent, 0, 100)}%)";
-        else if (_updateSicRunning && _updateSicTotalBytes > 1 && _updateSicBytesDone > 0)
+        if (_updateSicRunning && _updateSicTotalBytes > 1 && _updateSicBytesDone > 0)
             tip = $"Traz Base — {step} ({Math.Clamp((long)_updateSicBytesDone * 100 / _updateSicTotalBytes, 0, 100)}%)";
         else
             tip = $"Traz Base — {step}";
