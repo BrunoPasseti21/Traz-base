@@ -173,12 +173,13 @@ Alterações de tema, senha, multi-base forçado e quantidade de bases são salv
 O ícone "Traz Base" na bandeja fica disponível a qualquer momento:
 
 - **Botão direito** abre o menu, nesta ordem:
-  1. **Transferir** — linha com um edit ao lado, para informar o **Nº da SL** (apenas dígitos). Enter no edit (ou clique em "Transferir") inicia a transferência com essa SL, igual ao botão "Iniciar" da tela Transferir (mesma validação/senha/caminhos; a janela é restaurada antes de iniciar).
+  1. **Transferir** — linha com um edit ao lado, para informar o **Nº da SL** (apenas dígitos). Enter no edit (ou clique em "Transferir") inicia a transferência com essa SL, igual ao botão "Iniciar" da tela Transferir (mesma validação/senha/caminhos). **A janela não restaura**: a ação roda inteiramente em segundo plano e o resultado chega por balão ("Pronto!" quando concluída; erro detalhado caso falhe).
   2. Divisória.
-  3. **Atualizar executáveis** — atalho: restaura a janela, abre a tela **Atualização de executáveis** e inicia a atualização.
+  3. **Atualizar executáveis** — atalho: inicia a atualização dos executáveis configurados sem restaurar a janela; a confirmação "Deseja atualizar os executáveis?" é pulada quando iniciada pela bandeja, pois a ação é deliberada. Ao final (sucesso ou lista dos que falharam, com dica para ver o log na tela), um balão avisa o resultado.
   4. Divisória.
   5. **Fechar** — encerra de verdade (balões de "operação em andamento" continuam impedindo o fechamento).
 - **Duplo clique esquerdo** ou clique em um balão restauram a janela.
+- Durante uma ação iniciada pela bandeja, diálogos que exigem decisão do usuário (conflito de pasta de destino, escolha de quais arquivos RAR/ZIP extrair) aparecem como janelas próprias; o restante — validações, progresso, conclusão ou erro — vai apenas para o balão ao final.
 - Balões de perguntas/mensagens de diálogos aparecem apenas com a janela minimizada/oculta (comportamento atual); ao minimizar com a nova opção `MinimizeToTrayOnClose`, um balão informativo explica o menu da bandeja (só na primeira vez por sessão).
 
 Com **"Fechar a janela minimiza para a bandeja do Windows (segundo plano)"** marcada em Configurações, clicar em × (ou Alt+F4) esconde a janela em vez de encerrar; a aplicação segue na bandeja. A opção só afeta o botão de fechar — o **Fechar** do menu da bandeja sempre encerra.

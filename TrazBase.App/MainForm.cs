@@ -65,6 +65,8 @@ internal sealed class MainForm : Form
     private readonly Panel _themeToggleRow = new() { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(0, 6, 0, 6) };
     private readonly ThemeToggle _themeToggle = new();
     private TextBox? _traySlBox;
+    // true quando o fluxo foi iniciado pela bandeja: a janela não abre e o resultado vai por balão.
+    private bool _backgroundTrayRun;
     private bool _exitRequested;
     private bool _trayHintShown;
     private readonly PictureBox _updateAnimation = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.StretchImage, Visible = false, BackColor = Color.Transparent };
@@ -1482,7 +1484,7 @@ internal sealed class MainForm : Form
         var rows = _updateSicRows.ToList();
         if (rows.Count == 0)
         {
-            MessageBox.Show(this, "Adicione pelo menos um executável à tabela antes de prosseguir.", "Nada a atualizar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            FlowNotify("Nada a atualizar", "Adicione pelo menos um executável à tabela antes de prosseguir.");
             return;
         }
 
@@ -1494,7 +1496,7 @@ internal sealed class MainForm : Form
         if (errors.Count > 0)
         {
             var detail = string.Join(Environment.NewLine, errors.Select(e => e.Message));
-            MessageBox.Show(this, "Corrija os problemas abaixo antes de rodar a atualização:\n\n" + detail, "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            FlowNotify("Configuração incompleta", "Corrija os problemas abaixo antes de rodar a atualização:\n\n" + detail, error: true);
             return;
         }
 
@@ -1513,14 +1515,17 @@ internal sealed class MainForm : Form
         if (errors.Count > 0)
         {
             var detail = string.Join(Environment.NewLine, errors.Select(e => e.Message));
-            MessageBox.Show(this, "Não foi possível localizar arquivos/pastas:\n\n" + detail, "Arquivos não encontrados", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            FlowNotify("Arquivos não encontrados", "Não foi possível localizar arquivos/pastas:\n\n" + detail, error: true);
             return;
         }
 
-        var answer = MessageBox.Show(this,
-            "Deseja atualizar os executáveis?\n\nOs executáveis serão substituídos se já existirem.\n\nDeseja continuar?",
-            "Atualizar executáveis", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
-        if (answer != DialogResult.Yes) return;
+        if (!_backgroundTrayRun)
+        {
+            var answer = MessageBox.Show(this,
+                "Deseja atualizar os executáveis?\n\nOs executáveis serão substituídos se já existirem.\n\nDeseja continuar?",
+                "Atualizar executáveis", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
+            if (answer != DialogResult.Yes) return;
+        }
 
         _updateSicRunning = true;
         _updateSicCancellation = new CancellationTokenSource();
@@ -1611,15 +1616,15 @@ internal sealed class MainForm : Form
             if (failures.Count == 0)
             {
                 AppendUpdateSicLog("Atualização concluída com sucesso.");
-                MessageBox.Show(this, "Os executáveis foram atualizados.", "Atualização concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                FlowNotify("Atualização executáveis", "Os executáveis foram atualizados.");
             }
             else
             {
                 var detail = string.Join("\n", failures.Select(failure => $"• {failure.File}"));
                 AppendUpdateSicLog($"Concluído com {failures.Count} falha(s): {string.Join(" | ", failures.Select(f => $"{f.File}: {f.Reason}"))}.");
-                MessageBox.Show(this,
-                    $"Os seguintes executáveis não foram atualizados:\n\n{detail}\n\nVeja o log para mais detalhes.",
-                    "Atualização incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                FlowNotify("Atualização incompleta",
+                    $"Não foram atualizados {failures.Count} executável(is):\n\n{detail}\n\nVeja o log na tela Atualização de executáveis para mais detalhes.",
+                    error: true);
             }
         }
         catch (OperationCanceledException)
@@ -1629,7 +1634,7 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             AppendUpdateSicLog("ERRO: " + ex.Message);
-            MessageBox.Show(this, ex.Message, "Falha ao atualizar o SIC", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            FlowNotify("Falha ao atualizar o SIC", ex.Message, error: true);
         }
         finally
         {
@@ -2810,18 +2815,18 @@ internal sealed class MainForm : Form
         if (_running) return;
         ReadFields();
         var sl = _sl.Text.Trim();
-        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c))) { MessageBox.Show(this, "Digite o número da solicitação usando apenas números.\n\nExemplo: 123456", "Número inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot)) { MessageBox.Show(this, "Antes de começar, defina estas pastas na tela Configuração:\n• Pasta local das bases\n• Pasta de bases de apoio", "Configuração necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (!Directory.Exists(_settings.SolicitationRoot)) { MessageBox.Show(this, "Não foi possível acessar a pasta de origem das solicitações.\n\nVerifique se o compartilhamento de rede está disponível e tente novamente.", "Origem indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot)) { MessageBox.Show(this, $"As pastas configuradas precisam existir e estar acessíveis:\n• Pasta local das bases: {_settings.BasesRoot}\n• Pasta de bases de apoio: {_settings.SupportRoot}\n\nConfira os caminhos na tela Configuração.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
-        if (string.IsNullOrWhiteSpace(_password.Text)) { MessageBox.Show(this, "Para conectar ao Firebird, informe a senha na tela Configuração.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c))) { FlowNotify("Número inválido", "Digite o número da solicitação usando apenas números.\n\nExemplo: 123456", error: true); return; }
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot)) { FlowNotify("Configuração necessária", "Antes de começar, defina estas pastas na tela Configuração:\n• Pasta local das bases\n• Pasta de bases de apoio", error: true); return; }
+        if (!Directory.Exists(_settings.SolicitationRoot)) { FlowNotify("Origem indisponível", "Não foi possível acessar a pasta de origem das solicitações.\n\nVerifique se o compartilhamento de rede está disponível e tente novamente.", error: true); return; }
+        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot)) { FlowNotify("Pastas indisponíveis", $"As pastas configuradas precisam existir e estar acessíveis:\n• Pasta local das bases: {_settings.BasesRoot}\n• Pasta de bases de apoio: {_settings.SupportRoot}\n\nConfira os caminhos na tela Configuração.", error: true); return; }
+        if (string.IsNullOrWhiteSpace(_password.Text)) { FlowNotify("Senha necessária", "Para conectar ao Firebird, informe a senha na tela Configuração.", error: true); return; }
         try { PersistSettings(); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações.\n\nDetalhe: {ex.Message}", "Configuração não salva", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+        catch (Exception ex) { FlowNotify("Configuração não salva", $"Não foi possível salvar as configurações.\n\nDetalhe: {ex.Message}", error: true); return; }
 
         var source = Path.GetFullPath(Path.Combine(_settings.SolicitationRoot, sl));
         string destination;
         try { destination = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
-        catch (Exception ex) { MessageBox.Show(this, ex.Message, "Não foi possível definir a pasta de destino", MessageBoxButtons.OK, MessageBoxIcon.Error); return; }
+        catch (Exception ex) { FlowNotify("Não foi possível definir a pasta de destino", ex.Message, error: true); return; }
         try
         {
             var baseRoot = Path.GetFullPath(_settings.BasesRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
@@ -2835,7 +2840,7 @@ internal sealed class MainForm : Form
             }
         }
         catch { /* best-effort; a verificação pontual acima é suficiente */ }
-        if (!Directory.Exists(source)) { MessageBox.Show(this, $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", "SL não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning); return; }
+        if (!Directory.Exists(source)) { FlowNotify("SL não encontrada", $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", error: true); return; }
         var destinationConflictChoice = ExistingDestinationAction.Cancel;
         if (Directory.Exists(destination))
         {
@@ -2945,10 +2950,10 @@ internal sealed class MainForm : Form
             await ShowVersionAsync(arqSistDatabase, _runCancellation.Token);
             Log("Base preparada com sucesso. Ela já está selecionada para uso.");
             _status.Text = "Tudo pronto!";
-            MessageBox.Show(this, $"A base da SL {sl} foi preparada e selecionada.\n\nÉ só abrir o sistema e trabalhar normalmente.", "Pronto!", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            FlowNotify("Pronto!", $"A base da SL {sl} foi preparada e selecionada.\n\nÉ só abrir o sistema e trabalhar normalmente.");
         }
         catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
-        catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; MessageBox.Show(this, $"Algo não saiu como esperado:\n{ex.Message}\n\nVeja o log acima para saber em que etapa aconteceu.", "Não foi possível preparar a base", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Transferir para saber em que etapa aconteceu.", error: true); }
         finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; SetBusy(false); }
     }
 
@@ -3459,6 +3464,17 @@ internal sealed class MainForm : Form
         _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
     }
 
+    private void FlowNotify(string caption, string message, bool error = false)
+    {
+        if (_backgroundTrayRun)
+        {
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(6000, caption, message, error ? ToolTipIcon.Error : ToolTipIcon.Info);
+            return;
+        }
+        MessageBox.Show(this, message, caption, MessageBoxButtons.OK, error ? MessageBoxIcon.Error : MessageBoxIcon.Information);
+    }
+
     private async Task TrayTransferAsync()
     {
         if (_running)
@@ -3476,9 +3492,10 @@ internal sealed class MainForm : Form
         }
         _sl.Text = sl;
         _traySlBox?.Clear();
-        RestoreFromMinimized();
         ShowView(settings: false);
-        await StartFlowAsync();
+        _backgroundTrayRun = true;
+        try { await StartFlowAsync(); }
+        finally { _backgroundTrayRun = false; }
     }
 
     private async Task TrayUpdateSicAsync()
@@ -3489,9 +3506,10 @@ internal sealed class MainForm : Form
             _notifyIcon?.ShowBalloonTip(4000, "Atualizar executáveis", "A atualização dos executáveis já está em andamento.", ToolTipIcon.Info);
             return;
         }
-        RestoreFromMinimized();
         ShowUpdateSicView();
-        await UpdateSicAsync();
+        _backgroundTrayRun = true;
+        try { await UpdateSicAsync(); }
+        finally { _backgroundTrayRun = false; }
     }
 
     private void TrayExit()
