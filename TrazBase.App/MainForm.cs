@@ -2418,9 +2418,9 @@ internal sealed class MainForm : Form
 
         _forceMultiBase.Location = new Point(0, 284);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 324);
+        _renameSl.Location = new Point(0, 310);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 364);
+        _minimizeToTray.Location = new Point(0, 336);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
