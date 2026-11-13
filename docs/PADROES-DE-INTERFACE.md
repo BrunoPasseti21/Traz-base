@@ -79,10 +79,11 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 
 ## Bandeja do Windows (tray)
 
-- Ícone "Traz Base" na bandeja, sempre visível; balão exibido só com a janela minimizada/oculta.
-- Menu de contexto (botão direito, `ContextMenuStrip` sem margem de ícones), nesta ordem: **Transferir** (linha com `Label` "Transferir" + `TextBox` de **Nº da SL**, Enter no edit ou clique no rótulo inicia a transferência — mesma validação da tela Transferir), divisória, **Atualizar executáveis**, divisória, **Fechar**.
-- As ações iniciadas pelo menu **rodam em segundo plano** (a janela não restaura); o resultado (sucesso/erro e, nas validações, o motivo) chega por balão. A confirmação do fluxo de atualização é pulada quando iniciado pela bandeja.
-- Duplo clique esquerdo e clique no balão restauram a janela; **Fechar** sempre encerra de verdade.
+- Ícone "Traz Base" na bandeja, **visível apenas com a janela oculta ou minimizada** (segundo plano); com a janela aberta ele some.
+- Tooltip do ícone com a etapa atual do processo e a porcentagem (quando há barra de progresso ativa).
+- Menu de contexto (botão direito, `ContextMenuStrip` sem margem de ícones), nesta ordem: **Transferir** (linha com texto estático "Transferir" + `TextBox` de **Nº da SL** — Enter no edit inicia a transferência, com a mesma validação da tela Transferir), divisória, **Atualizar executáveis**, divisória, **Fechar**.
+- As ações iniciadas pelo menu **rodam em segundo plano** (a janela não restaura); o resultado (sucesso/erro e, nas validações, o motivo) chega por balão. A confirmação do fluxo de atualização é pulada quando iniciado pela bandeja; iniciar a atualização dispara balão "Atualização iniciada" (igual à transferência).
+- Duplo clique esquerdo e clique no balão restauram a janela; **Fechar** sempre encerra de verdade. Com `MinimizeToTrayOnClose` ligado, fechar durante um processo apenas esconde a janela — a operação continua em segundo plano.
 - Com `MinimizeToTrayOnClose` ligado, × / Alt+F4 escondem a janela (segundo plano) — nunca encerrado silenciosamente sem o menu do tray.
 - Navegação desabilitada durante operações longas (exceto o próprio menu/toggle).
 

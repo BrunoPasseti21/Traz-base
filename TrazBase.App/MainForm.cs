@@ -364,6 +364,14 @@ internal sealed class MainForm : Form
             if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
             {
                 e.Cancel = true;
+                if (_settings.MinimizeToTrayOnClose && !_exitRequested)
+                {
+                    // Modo "segundo plano": fechar durante um processo apenas esconde a janela; a operação continua em segundo plano.
+                    Hide();
+                    EnsureTrayIcon(); // janela oculta => o ícone da bandeja aparece
+                    NotifyTrayHiddenOnce();
+                    return;
+                }
                 if (_running) _runCancellation?.Cancel();
                 if (_resetRunning) _resetCancellation?.Cancel();
                 if (_restoreRunning) _restoreCancellation?.Cancel();
@@ -376,6 +384,7 @@ internal sealed class MainForm : Form
                 // Modo "segundo plano": fechar a janela apenas a esconde; a aplicação continua na bandeja.
                 e.Cancel = true;
                 Hide();
+                EnsureTrayIcon(); // janela oculta => o ícone da bandeja aparece
                 NotifyTrayHiddenOnce();
             }
             else
@@ -393,6 +402,12 @@ internal sealed class MainForm : Form
                 }
             }
         };
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        RefreshTrayIconVisibility();
     }
 
     private void CenterThemeToggle() =>
@@ -926,6 +941,7 @@ internal sealed class MainForm : Form
             _resetCancellation.Dispose();
             _resetCancellation = null;
             _resetRunning = false;
+            RefreshTrayTooltip();
             _resetSl.Enabled = true;
             _resetButton.Enabled = true;
             _resetCancelButton.Visible = false;
@@ -1086,6 +1102,7 @@ internal sealed class MainForm : Form
             _restoreCancellation?.Dispose();
             _restoreCancellation = null;
             _restoreRunning = false;
+            RefreshTrayTooltip();
             _restoreFolder.Enabled = true;
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
@@ -1528,6 +1545,11 @@ internal sealed class MainForm : Form
         }
 
         _updateSicRunning = true;
+        if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
+        {
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(4000, "Atualização iniciada", $"Atualizando {plan.Count} executável(is) configurado(s)…", ToolTipIcon.Info);
+        }
         _updateSicCancellation = new CancellationTokenSource();
         _updateSicGrid.Enabled = false;
         _updateSicAddRow.Enabled = false;
@@ -1642,6 +1664,7 @@ internal sealed class MainForm : Form
             _updateSicCancellation?.Dispose();
             _updateSicCancellation = null;
             _updateSicRunning = false;
+            RefreshTrayTooltip();
             _updateSicGrid.Enabled = true;
             _updateSicAddRow.Enabled = true;
             _updateSicRemoveRow.Enabled = true;
@@ -2959,7 +2982,7 @@ internal sealed class MainForm : Form
         }
         catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
         catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Transferir para saber em que etapa aconteceu.", error: true); }
-        finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; SetBusy(false); }
+        finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; SetBusy(false); RefreshTrayTooltip(); }
     }
 
     private async Task ExtractArchivesAsync(string root, CancellationToken token)
@@ -3234,6 +3257,7 @@ internal sealed class MainForm : Form
         var copiedMb = bytesCopied / 1024d / 1024d;
         var totalMb = totalBytes / 1024d / 1024d;
         _status.Text = $"Copiando: {percent}%  ·  {copiedMb:N1} de {totalMb:N1} MB  ·  {filesCopied} de {totalFiles} arquivos";
+        RefreshTrayTooltip();
     }
 
     private void UpdateProgressFill()
@@ -3418,6 +3442,32 @@ internal sealed class MainForm : Form
         ShowBalloon(caption, body);
     }
 
+    // Tooltip do ícone da bandeja: expõe a etapa atual do processo e, quando há barra de progresso, a porcentagem.
+    private void RefreshTrayTooltip()
+    {
+        if (_notifyIcon is null) return;
+        if (!ShouldShowTrayIcon())
+        {
+            if (_notifyIcon.Text != "Traz Base") _notifyIcon.Text = "Traz Base";
+            return;
+        }
+        if (!(_running || _resetRunning || _restoreRunning || _updateSicRunning))
+        {
+            if (_notifyIcon.Text != "Traz Base") _notifyIcon.Text = "Traz Base";
+            return;
+        }
+        var step = _status.Text?.Trim();
+        if (string.IsNullOrEmpty(step)) step = "Processando…";
+        string tip;
+        if (_running && _progressPercent is > 0 and < 100)
+            tip = $"Traz Base — {step} ({Math.Clamp(_progressPercent, 0, 100)}%)";
+        else if (_updateSicRunning && _updateSicTotalBytes > 1 && _updateSicBytesDone > 0)
+            tip = $"Traz Base — {step} ({Math.Clamp((long)_updateSicBytesDone * 100 / _updateSicTotalBytes, 0, 100)}%)";
+        else
+            tip = $"Traz Base — {step}";
+        _notifyIcon.Text = tip.Length > 120 ? tip[..117] + "…" : tip;
+    }
+
     private void ShowBalloon(string caption, string? body)
     {
         EnsureTrayIcon();
@@ -3432,7 +3482,7 @@ internal sealed class MainForm : Form
         if (_notifyIcon is not null) return;
         var menu = new ContextMenuStrip { ShowImageMargin = false };
 
-        // Linha "Transferir" com o edit de número da SL embutido no menu.
+        // Linha "Transferir" — texto estático; a interação acontece exclusivamente pelo edit.
         var panel = new Panel { Width = 232, Height = 32, BackColor = SystemColors.Menu };
         var label = new Label
         {
@@ -3441,12 +3491,10 @@ internal sealed class MainForm : Form
             Location = new Point(8, 8),
             Font = UiTypography.BodySemibold(9f),
             ForeColor = SystemColors.MenuText,
-            Cursor = Cursors.Hand,
             BackColor = Color.Transparent
         };
         var box = new TextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112 };
         _traySlBox = box;
-        label.Click += (_, _) => _ = TrayTransferAsync();
         box.KeyDown += async (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
@@ -3464,9 +3512,17 @@ internal sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add("Fechar", null, (_, _) => TrayExit());
 
-        _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = true, ContextMenuStrip = menu };
+        _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = ShouldShowTrayIcon(), ContextMenuStrip = menu };
         _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
         _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
+    }
+
+    /// <summary>O ícone da bandeja só existe visualmente com a janela oculta ou minimizada (segundo plano).</summary>
+    private bool ShouldShowTrayIcon() => !Visible || WindowState == FormWindowState.Minimized;
+
+    private void RefreshTrayIconVisibility()
+    {
+        if (_notifyIcon is not null) _notifyIcon.Visible = ShouldShowTrayIcon();
     }
 
     private void FlowNotify(string caption, string message, bool error = false)
@@ -3540,6 +3596,7 @@ internal sealed class MainForm : Form
         if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
         BringToFront();
         Activate();
+        RefreshTrayIconVisibility(); // janela visível => oculta o ícone da bandeja
     }
 
     private string GetConfiguredTempPath()
@@ -3795,6 +3852,7 @@ internal sealed class MainForm : Form
     {
         if (InvokeRequired) { BeginInvoke(new Action(() => SetStatus(text))); return; }
         _status.Text = text;
+        RefreshTrayTooltip();
     }
 
     private void Log(string message)
