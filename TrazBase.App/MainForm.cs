@@ -2400,15 +2400,15 @@ internal sealed class MainForm : Form
         host.Controls.Add(labels[4]);
         host.Controls.Add(_password);
         host.Controls.Add(_savePassword);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 187) });
-        _baseCount.Location = new Point(200, 180);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 207) });
+        _baseCount.Location = new Point(200, 200);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 223) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 247) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
-        _defaultScreen.Location = new Point(200, 216);
+        _defaultScreen.Location = new Point(200, 240);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2416,11 +2416,11 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 246);
+        _forceMultiBase.Location = new Point(0, 284);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 306);
+        _renameSl.Location = new Point(0, 324);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 366);
+        _minimizeToTray.Location = new Point(0, 364);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
@@ -2430,9 +2430,9 @@ internal sealed class MainForm : Form
             const int rightInset = 18;
             for (var i = 0; i < labels.Length; i++)
             {
-                var y = i * 36;
-                labels[i].Location = new Point(i == 2 ? 24 : 0, y + 7);
-                if (i == 2) supportHelp.Location = new Point(0, y + 6);
+                var y = i * 40;
+                labels[i].Location = new Point(i == 2 ? 24 : 0, y + 8);
+                if (i == 2) supportHelp.Location = new Point(0, y + 7);
                 if (i < pathFields.Length)
                 {
                     pathFields[i].Location = new Point(fieldLeft, y);
