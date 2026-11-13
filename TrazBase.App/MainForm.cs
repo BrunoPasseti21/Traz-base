@@ -369,6 +369,7 @@ internal sealed class MainForm : Form
                     // Modo "segundo plano": fechar durante um processo apenas esconde a janela; a operação continua em segundo plano.
                     Hide();
                     EnsureTrayIcon(); // janela oculta => o ícone da bandeja aparece
+                    RefreshTrayIconVisibility();
                     NotifyTrayHiddenOnce();
                     return;
                 }
@@ -385,6 +386,7 @@ internal sealed class MainForm : Form
                 e.Cancel = true;
                 Hide();
                 EnsureTrayIcon(); // janela oculta => o ícone da bandeja aparece
+                RefreshTrayIconVisibility();
                 NotifyTrayHiddenOnce();
             }
             else
@@ -3515,6 +3517,7 @@ internal sealed class MainForm : Form
         _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = ShouldShowTrayIcon(), ContextMenuStrip = menu };
         _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
         _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
+        RefreshTrayIconVisibility();
     }
 
     /// <summary>O ícone da bandeja só existe visualmente com a janela oculta ou minimizada (segundo plano).</summary>
