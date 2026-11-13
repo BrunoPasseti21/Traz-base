@@ -2854,6 +2854,11 @@ internal sealed class MainForm : Form
         _versionLabel.Text = "";
         _versionLabel.Visible = false;
         _runCancellation = new CancellationTokenSource();
+        if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
+        {
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(4000, "Transferência iniciada", $"Preparando a SL {sl}…", ToolTipIcon.Info);
+        }
         SetBusy(true);
         try
         {

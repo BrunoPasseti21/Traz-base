@@ -29,6 +29,8 @@ Pré-condições validadas ao clicar em **Trazer e preparar base** (ou Enter no 
 4. Senha Firebird informada (não exige salvar).
 5. Configuração persistida antes de começar; falha ao salvar aborta o fluxo.
 
+Ao iniciar a transferência efetiva (passadas todas as validações/confirmações), a aplicação dispara um balão **"Transferência iniciada"** — apenas quando o operador não está vendo a janela (iniciada pela bandeja, ou com a janela oculta/minimizada); com a janela aberta o progresso já aparece na tela.
+
 Execução:
 
 1. Origem = `SolicitationRoot\<SL>`; destino = `BasesRoot\<SL>` (resolvido por `BaseOperationRules.ResolveLocalBaseDirectory`, com proteção contra path traversal).
