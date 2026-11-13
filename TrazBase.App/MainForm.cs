@@ -566,7 +566,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 494));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 434));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -2327,7 +2327,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 424),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 372),
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Margin = Padding.Empty
         };
