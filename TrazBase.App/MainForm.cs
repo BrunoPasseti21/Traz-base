@@ -425,6 +425,7 @@ internal sealed class MainForm : Form
         Application.SetColorMode(dark ? SystemColorMode.Dark : SystemColorMode.Classic);
         RefreshNativeScrollingThemes();
         ApplyTheme();
+        RefreshTrayMenuTheme();
         try { PersistSettings(); }
         catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de tema: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
     }
@@ -3496,20 +3497,37 @@ internal sealed class MainForm : Form
     private void EnsureTrayIcon()
     {
         if (_notifyIcon is not null) return;
-        var menu = new ContextMenuStrip { ShowImageMargin = false };
+        var menu = BuildTrayMenu();
+        _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = ShouldShowTrayIcon(), ContextMenuStrip = menu };
+        _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
+        _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
+        RefreshTrayIconVisibility();
+    }
+
+    private void RefreshTrayMenuTheme()
+    {
+        if (_notifyIcon?.ContextMenuStrip is not { } current) return;
+        _notifyIcon.ContextMenuStrip = null;
+        current.Dispose();
+        _notifyIcon.ContextMenuStrip = BuildTrayMenu();
+    }
+
+    private ContextMenuStrip BuildTrayMenu()
+    {
+        var menu = new ContextMenuStrip { ShowImageMargin = false, Renderer = new ToolStripProfessionalRenderer(new TrayMenuColorTable()) };
 
         // Linha "Transferir" — texto estático; a interação acontece exclusivamente pelo edit.
-        var panel = new Panel { Width = 232, Height = 32, BackColor = SystemColors.Menu };
+        var panel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
         var label = new Label
         {
             Text = "Transferir",
             AutoSize = true,
             Location = new Point(8, 8),
             Font = UiTypography.BodySemibold(9f),
-            ForeColor = SystemColors.MenuText,
+            ForeColor = TrayMenuTheme.Text,
             BackColor = Color.Transparent
         };
-        var box = new TextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112 };
+        var box = new TextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
         _traySlBox = box;
         box.KeyDown += async (_, e) =>
         {
@@ -3524,14 +3542,12 @@ internal sealed class MainForm : Form
         var transferItem = new ToolStripControlHost(panel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
         menu.Items.Add(transferItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync());
+        var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
+        menu.Items.Add(updateItem);
         menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add("Fechar", null, (_, _) => TrayExit());
-
-        _notifyIcon = new NotifyIcon { Icon = Icon, Text = "Traz Base", Visible = ShouldShowTrayIcon(), ContextMenuStrip = menu };
-        _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
-        _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
-        RefreshTrayIconVisibility();
+        var closeItem = new ToolStripMenuItem("Fechar", null, (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text };
+        menu.Items.Add(closeItem);
+        return menu;
     }
 
     /// <summary>O ícone da bandeja só existe visualmente com a janela oculta ou minimizada (segundo plano).</summary>
