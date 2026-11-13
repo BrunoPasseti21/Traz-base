@@ -3478,9 +3478,9 @@ internal sealed class MainForm : Form
         if (string.IsNullOrEmpty(step)) step = "Processando…";
         string tip;
         if (_updateSicRunning && _updateSicTotalBytes > 1 && _updateSicBytesDone > 0)
-            tip = $"Traz Base — {step} ({Math.Clamp((long)_updateSicBytesDone * 100 / _updateSicTotalBytes, 0, 100)}%)";
+            tip = $"{step} ({Math.Clamp((long)_updateSicBytesDone * 100 / _updateSicTotalBytes, 0, 100)}%)";
         else
-            tip = $"Traz Base — {step}";
+            tip = step;
         _notifyIcon.Text = tip.Length > 120 ? tip[..117] + "…" : tip;
     }
 
