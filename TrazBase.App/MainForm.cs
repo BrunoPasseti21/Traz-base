@@ -2572,7 +2572,7 @@ internal sealed class MainForm : Form
             if (control is Label label)
             {
                 label.ForeColor = label == _appVersionLabel
-                    ? Color.FromArgb(190, 208, 230)
+                    ? dark ? Color.FromArgb(190, 208, 230) : Color.FromArgb(25, 94, 205)
                     : label.Text == "TRAZ BASE" || label == _versionLabel || label == _changeBaseVersionLabel
                     ? Color.FromArgb(31, 111, 235)
                     : label.Text is "Preparar base por solicitação" or "Transferir" or "Configurações" or "Comandos ARQEMP" or "Comandos ARQSIST"

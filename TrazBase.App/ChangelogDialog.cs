@@ -82,8 +82,8 @@ internal sealed class ChangelogDialog : Form
             Multiline = true,
             ScrollBars = RichTextBoxScrollBars.Vertical,
             WordWrap = true,
-            BackColor = Color.FromArgb(18, 25, 38),
-            ForeColor = Color.FromArgb(220, 229, 242),
+            BackColor = dark ? Color.FromArgb(23, 23, 23) : Color.White,
+            ForeColor = dark ? Color.FromArgb(220, 229, 242) : Color.FromArgb(29, 42, 61),
             BorderStyle = BorderStyle.None,
             Font = new Font("Consolas", 10f),
             Text = notes
