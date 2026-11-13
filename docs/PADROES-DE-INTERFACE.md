@@ -80,7 +80,7 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 ## Bandeja do Windows (tray)
 
 - Ícone "Traz Base" na bandeja, **visível apenas com a janela oculta ou minimizada** (segundo plano); com a janela aberta ele some.
-- Tooltip do ícone com a etapa atual em formato curto e porcentagem (`Copiando (43%)`, `Extraindo SIC.exe.zip (61%)`).
+- Tooltip do ícone com a etapa atual em formato curto e porcentagem quando há progresso (`Copiando (43%)`, `Extraindo SIC.exe.zip (61%)`, `Executando comando ARQEMP`, `Executando comando ARQSIST`).
 - Menu de contexto (botão direito, `ContextMenuStrip` sem margem de ícones), nesta ordem: **Transferir** (linha com texto estático "Transferir" + `TextBox` de **Nº da SL** — Enter no edit inicia a transferência, com a mesma validação da tela Transferir), divisória, **Atualizar executáveis**, divisória, **Fechar**.
 - As ações iniciadas pelo menu **rodam em segundo plano** (a janela não restaura); o resultado (sucesso/erro e, nas validações, o motivo) chega por balão. A confirmação do fluxo de atualização é pulada quando iniciado pela bandeja; iniciar a atualização dispara balão "Atualização iniciada" (igual à transferência).
 - Duplo clique esquerdo e clique no balão restauram a janela; **Fechar** sempre encerra de verdade. Com `MinimizeToTrayOnClose` ligado, fechar durante um processo apenas esconde a janela — a operação continua em segundo plano.

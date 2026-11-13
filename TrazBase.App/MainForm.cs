@@ -3420,6 +3420,7 @@ internal sealed class MainForm : Form
     {
         if (string.IsNullOrWhiteSpace(commands)) { WriteOperationLog(operationLog, $"{label}: nada a executar (campo vazio)."); return; }
         token.ThrowIfCancellationRequested();
+        _trayShortStatus = null; // dica do tray volta para o texto do status (ex.: "Conectando em ...")
         SetStatus($"Conectando em {Path.GetFileName(database)}…");
         WriteOperationLog(operationLog, $"Conectando ao banco {database}");
         var connectionString = BuildFirebirdConnectionString(database);
@@ -3432,6 +3433,7 @@ internal sealed class MainForm : Form
         batch.AppendSqlStatements(parsedScript);
 
         SetStatus($"Executando {label} no banco…");
+        SetTraySqlHint(label);
         WriteOperationLog(operationLog, $"{label}: executando os comandos no banco…");
         using var cancelRegistration = token.Register(() =>
         {
@@ -3441,6 +3443,14 @@ internal sealed class MainForm : Form
         catch (Exception) when (token.IsCancellationRequested) { throw new OperationCanceledException(token); }
         token.ThrowIfCancellationRequested();
         WriteOperationLog(operationLog, $"{label}: comandos executados com sucesso.");
+    }
+
+    private void SetTraySqlHint(string label)
+    {
+        const string prefix = "Comandos ";
+        var trimmed = label.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? label[prefix.Length..] : label;
+        _trayShortStatus = $"Executando comando {trimmed.Trim()}";
+        RefreshTrayTooltip();
     }
 
     private void NotifyIfMinimized(string caption, string? body = null)
