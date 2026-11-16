@@ -63,6 +63,7 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _folderShortcutsNav = new() { Text = "", Image = SvgIconLoader.Load("Atalho.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly Panel _menuFooter = new() { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(6, 4, 6, 6) };
     private readonly Label _appVersionLabel = new() { Dock = DockStyle.Top, Height = 30, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.FromArgb(38, 50, 68), ForeColor = Color.FromArgb(190, 208, 230), Font = UiTypography.BodySemibold(9f) };
     private readonly Label _creatorLabel = new() { Dock = DockStyle.Top, Height = 24, AutoEllipsis = true, Text = "Criado por Bruno Passeti", TextAlign = ContentAlignment.MiddleCenter, Font = UiTypography.Body(8.5f) };
@@ -88,7 +89,19 @@ internal sealed class MainForm : Form
     private Control _configureSicView = null!;
     private readonly Label _updateSicSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) };
     private Control _arqEmpView = null!;
+    private readonly ThemedListView _folderShortcutList = new() { View = View.Details, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false, ShowItemToolTips = true, GridLines = false };
+    private readonly UnthemedTextBox _folderShortcutName = new() { PlaceholderText = "Ex.: Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Top, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _folderShortcutPath = new() { PlaceholderText = "Ex.: C:\\SupraSys\\SIC\\Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Top, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly RoundedButton _folderShortcutBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly ThemedCheckBox _folderShortcutShowExe = new() { Text = "Apenas .exe", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _folderShortcutShowBat = new() { Text = "Apenas .bat", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _folderShortcutShowAll = new() { Text = "Todos os arquivos", AutoSize = true, Anchor = AnchorStyles.Left, Checked = true };
+    private readonly RoundedButton _folderShortcutAddUpdate = new() { Text = "Adicionar / atualizar", Width = 172, Height = 32, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _folderShortcutNew = new() { Text = "Novo", Width = 92, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _folderShortcutRemove = new() { Text = "Remover", Width = 112, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly Label _folderShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
     private Control _arqSistView = null!;
+    private Control _folderShortcutsView = null!;
     private Panel _settingsFieldsHost = null!;
     private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private Panel _changeBaseListCard = null!;
@@ -180,6 +193,8 @@ internal sealed class MainForm : Form
         _sidebar.Controls.Add(_arqEmpNav);
         _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
+        _sidebar.Controls.Add(_folderShortcutsNav); // acima de Configuração, com uma divisória extra
+        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos de pasta"
         _sidebar.Controls.Add(_configureSicNav);
         _sidebar.Controls.Add(_updateSicNav);
         _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
@@ -201,6 +216,7 @@ internal sealed class MainForm : Form
         RefreshUpdateSicSummary();
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
+        _folderShortcutsView = BuildFolderShortcutsView();
         ThemeState.IsDark = _settings.DarkMode;
         // A base selecionada (.FDB) NÃO é persistida: fica apenas na sessão atual.
         _arqEmpEditor.Text = _settings.ArqEmpCommands;
@@ -215,6 +231,7 @@ internal sealed class MainForm : Form
         _contentHost.Controls.Add(_configureSicView);
         _contentHost.Controls.Add(_arqEmpView);
         _contentHost.Controls.Add(_arqSistView);
+        _contentHost.Controls.Add(_folderShortcutsView);
         _contentHost.Controls.Add(_transferView);
         Controls.Add(_shell);
         WireEnterNavigation([_sl], _start);
@@ -310,6 +327,7 @@ internal sealed class MainForm : Form
         _restoreNav.Click += (_, _) => ShowRestoreView();
         _updateSicNav.Click += (_, _) => ShowUpdateSicView();
         _configureSicNav.Click += (_, _) => ShowConfigureSicView();
+        _folderShortcutsNav.Click += (_, _) => ShowFolderShortcutsView();
         _updateSicButton.Click += async (_, _) => await UpdateSicAsync();
         _updateSicCancelButton.Click += (_, _) => _updateSicCancellation?.Cancel();
         _updateSicSingleDestinationBrowse.Click += (_, _) => BrowseUpdateSicFolder("singleDestination");
@@ -637,6 +655,276 @@ internal sealed class MainForm : Form
         return page;
     }
 
+    private Control BuildFolderShortcutsView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
+        page.Controls.Add(BuildHeader("Atalhos de pasta", "Atalhos para as pastas que você usa no dia a dia, com filtro por tipo de arquivo"), 0, 0);
+
+        var listCard = Card();
+        listCard.Controls.Add(new Label { Text = "PASTAS CADASTRADAS", Font = UiTypography.BodySemibold(9f), ForeColor = Muted, AutoSize = true, Location = new Point(18, 14) });
+        _folderShortcutList.Columns.Clear();
+        _folderShortcutList.Columns.Add("Nome", 230);
+        _folderShortcutList.Columns.Add("Caminho", 640);
+        _folderShortcutList.Columns.Add("Filtro", 160);
+        _folderShortcutList.Location = new Point(18, 46);
+        _folderShortcutList.Size = new Size(900, 140);
+        listCard.Controls.Add(_folderShortcutList);
+        _folderShortcutSummaryLabel.AutoSize = false;
+        _folderShortcutSummaryLabel.Size = new Size(700, 20);
+        listCard.Controls.Add(_folderShortcutSummaryLabel);
+        listCard.Resize += (_, _) =>
+        {
+            _folderShortcutList.Location = new Point(18, 46);
+            _folderShortcutList.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), Math.Max(72, listCard.ClientSize.Height - 46 - 34));
+            _folderShortcutSummaryLabel.Location = new Point(18, listCard.ClientSize.Height - 24);
+            _folderShortcutSummaryLabel.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), 18);
+        };
+        page.Controls.Add(listCard, 0, 1);
+
+        var editor = Card();
+        editor.Controls.Add(new Label { Text = "Adicionar / editar atalho", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 13) });
+        editor.Controls.Add(new Label { Text = "Nome", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 47) });
+        _folderShortcutName.Location = new Point(18, 67);
+        _folderShortcutName.Width = 320;
+        _folderShortcutName.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        editor.Controls.Add(_folderShortcutName);
+        editor.Controls.Add(new Label { Text = "Caminho da pasta", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 107) });
+        _folderShortcutPath.Location = new Point(18, 127);
+        editor.Controls.Add(_folderShortcutPath);
+        _folderShortcutBrowse.Location = new Point(0, 122);
+        _folderShortcutBrowse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        editor.Controls.Add(_folderShortcutBrowse);
+        editor.Controls.Add(new Label { Text = "Mostrar na lista", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 169) });
+        editor.Controls.Add(_folderShortcutShowAll);
+        editor.Controls.Add(_folderShortcutShowExe);
+        editor.Controls.Add(_folderShortcutShowBat);
+        editor.Controls.Add(_folderShortcutAddUpdate);
+        editor.Controls.Add(_folderShortcutNew);
+        editor.Controls.Add(_folderShortcutRemove);
+        var hint = new Label { Text = "Preencha o nome e o caminho; o filtro define quais arquivos aparecem na listagem.", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(8.5f), Location = new Point(18, 270) };
+        editor.Controls.Add(hint);
+        _folderShortcutSummaryLabel.Text = "";
+        void Layout()
+        {
+            var width = editor.ClientSize.Width;
+            _folderShortcutPath.Width = Math.Max(120, width - 36 - 130);
+            _folderShortcutBrowse.Location = new Point(width - 18 - 110, 124);
+            hint.Location = new Point(18, editor.ClientSize.Height - 24);
+            hint.AutoSize = false;
+            hint.Width = Math.Max(120, width - 36);
+            _folderShortcutShowExe.Location = new Point(18, 190);
+            _folderShortcutShowBat.Location = new Point(_folderShortcutShowExe.Right + 16, 193);
+            _folderShortcutShowAll.Location = new Point(_folderShortcutShowBat.Right + 16, 193);
+            _folderShortcutAddUpdate.Location = new Point(18, editor.ClientSize.Height - 70);
+            _folderShortcutNew.Location = new Point(_folderShortcutAddUpdate.Right + 12, editor.ClientSize.Height - 70);
+            _folderShortcutRemove.Location = new Point(_folderShortcutNew.Right + 12, editor.ClientSize.Height - 70);
+        }
+        editor.Resize += (_, _) => Layout();
+        Layout();
+        page.Controls.Add(editor, 0, 2);
+
+        _folderShortcutBrowse.Click += (_, _) => BrowseFolderShortcutFolder();
+        _folderShortcutAddUpdate.Click += (_, _) => AddOrUpdateFolderShortcut();
+        _folderShortcutNew.Click += (_, _) => ClearFolderShortcutsEditor();
+        _folderShortcutRemove.Click += (_, _) => RemoveSelectedFolderShortcut();
+        _folderShortcutShowAll.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("all");
+        _folderShortcutShowExe.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("exe");
+        _folderShortcutShowBat.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("bat");
+        _folderShortcutList.SelectedIndexChanged += (_, _) => OnFolderShortcutSelectionChanged();
+        _folderShortcutList.DoubleClick += (_, _) => OpenSelectedFolderShortcut();
+        LoadFolderShortcutsFromSettings();
+        return page;
+    }
+
+    private void LoadFolderShortcutsFromSettings()
+    {
+        if (_loadingFolderShortcuts) return;
+        _loadingFolderShortcuts = true;
+        try
+        {
+            RefreshFolderShortcutList();
+            ClearFolderShortcutsEditor();
+        }
+        finally { _loadingFolderShortcuts = false; }
+    }
+
+    private void ClearFolderShortcutsEditor()
+    {
+        _folderShortcutName.Text = "";
+        _folderShortcutPath.Text = "";
+        _folderShortcutSettingFilters = true;
+        _folderShortcutShowAll.Checked = true;
+        _folderShortcutShowExe.Checked = false;
+        _folderShortcutShowBat.Checked = false;
+        _folderShortcutSettingFilters = false;
+        _folderShortcutList.SelectedItems.Clear();
+        UpdateFolderShortcutSummary();
+        _folderShortcutName.Focus();
+    }
+
+    private void RefreshFolderShortcutList()
+    {
+        _loadingFolderShortcuts = true;
+        try
+        {
+            _folderShortcutList.BeginUpdate();
+            _folderShortcutList.Items.Clear();
+            var index = 0;
+            foreach (var folder in _settings.FolderShortcuts)
+            {
+                var item = new ListViewItem(new[] { SafeListColumn(folder.Name), SafeListColumn(folder.Path), SafeListColumn(folder.FilterLabel) }) { Tag = index++ };
+                _folderShortcutList.Items.Add(item);
+            }
+            _folderShortcutList.EndUpdate();
+        }
+        finally { _loadingFolderShortcuts = false; }
+        UpdateFolderShortcutSummary();
+    }
+
+    private void UpdateFolderShortcutSummary()
+    {
+        _folderShortcutSummaryLabel.Text = _settings.FolderShortcuts.Count == 0
+            ? "Nenhuma pasta cadastrada. Use o formulário abaixo."
+            : $"{_settings.FolderShortcuts.Count} pasta(s) cadastrada(s). Duplo clique abre no Explorer.";
+    }
+
+    private void OnFolderShortcutFilterChanged(string source)
+    {
+        if (_folderShortcutSettingFilters) return;
+        _folderShortcutSettingFilters = true;
+        try
+        {
+            switch (source)
+            {
+                case "all":
+                    if (_folderShortcutShowAll.Checked) { _folderShortcutShowExe.Checked = false; _folderShortcutShowBat.Checked = false; }
+                    else if (!_folderShortcutShowExe.Checked && !_folderShortcutShowBat.Checked) _folderShortcutShowExe.Checked = true;
+                    break;
+                case "exe":
+                    if (_folderShortcutShowExe.Checked) _folderShortcutShowAll.Checked = false;
+                    else if (!_folderShortcutShowBat.Checked) _folderShortcutShowAll.Checked = true;
+                    break;
+                case "bat":
+                    if (_folderShortcutShowBat.Checked) _folderShortcutShowAll.Checked = false;
+                    else if (!_folderShortcutShowExe.Checked) _folderShortcutShowAll.Checked = true;
+                    break;
+            }
+        }
+        finally { _folderShortcutSettingFilters = false; }
+    }
+
+    private void OnFolderShortcutSelectionChanged()
+    {
+        if (_loadingFolderShortcuts) return;
+        if (_folderShortcutList.SelectedItems.Count == 0) { ClearFolderShortcutsEditor(); return; }
+        var tag = _folderShortcutList.SelectedItems[0].Tag;
+        if (tag is not int index || index < 0 || index >= _settings.FolderShortcuts.Count) return;
+        var folder = _settings.FolderShortcuts[index];
+        _folderShortcutName.Text = folder.Name;
+        _folderShortcutPath.Text = folder.Path;
+        _folderShortcutSettingFilters = true;
+        _folderShortcutShowAll.Checked = folder.ShowAllFiles;
+        _folderShortcutShowExe.Checked = !folder.ShowAllFiles && folder.ShowExeFiles;
+        _folderShortcutShowBat.Checked = !folder.ShowAllFiles && folder.ShowBatFiles;
+        _folderShortcutSettingFilters = false;
+    }
+
+    private void BrowseFolderShortcutFolder()
+    {
+        using var dialog = new FolderBrowserDialog { Description = "Selecione a pasta para o atalho", ShowNewFolderButton = false, SelectedPath = _folderShortcutPath.Text.Trim() };
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _folderShortcutPath.Text = dialog.SelectedPath;
+            if (string.IsNullOrWhiteSpace(_folderShortcutName.Text))
+                _folderShortcutName.Text = Path.GetFileName(dialog.SelectedPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        }
+    }
+
+    private void AddOrUpdateFolderShortcut()
+    {
+        var name = _folderShortcutName.Text.Trim();
+        var path = _folderShortcutPath.Text.Trim();
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(path))
+        {
+            MessageBox.Show(this, "Informe o nome e o caminho da pasta.", "Atalho inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        var showAll = _folderShortcutShowAll.Checked;
+        var showExe = !showAll && _folderShortcutShowExe.Checked;
+        var showBat = !showAll && _folderShortcutShowBat.Checked;
+
+        var editingIndex = GetSelectedFolderShortcutIndex();
+        var folder = editingIndex >= 0 ? _settings.FolderShortcuts[editingIndex] : new FolderShortcut();
+        folder.Name = name;
+        folder.Path = path;
+        folder.ShowAllFiles = showAll;
+        folder.ShowExeFiles = showExe;
+        folder.ShowBatFiles = showBat;
+        if (editingIndex < 0) _settings.FolderShortcuts.Add(folder);
+        PersistFolderShortcuts();
+        var newIndex = editingIndex >= 0 ? editingIndex : _settings.FolderShortcuts.Count - 1;
+        RefreshFolderShortcutList();
+        SelectFolderShortcut(newIndex);
+    }
+
+    private void RemoveSelectedFolderShortcut()
+    {
+        var index = GetSelectedFolderShortcutIndex();
+        if (index < 0 || index >= _settings.FolderShortcuts.Count) return;
+        _settings.FolderShortcuts.RemoveAt(index);
+        PersistFolderShortcuts();
+        RefreshFolderShortcutList();
+        ClearFolderShortcutsEditor();
+    }
+
+    private int GetSelectedFolderShortcutIndex()
+    {
+        if (_folderShortcutList.SelectedItems.Count == 0) return -1;
+        var tag = _folderShortcutList.SelectedItems[0].Tag;
+        return tag is int index ? index : -1;
+    }
+
+    private void SelectFolderShortcut(int index)
+    {
+        _loadingFolderShortcuts = true;
+        try
+        {
+            foreach (ListViewItem item in _folderShortcutList.Items)
+            {
+                if (item.Tag is int i && i == index) { item.Selected = true; item.Focused = true; item.EnsureVisible(); break; }
+            }
+        }
+        finally { _loadingFolderShortcuts = false; }
+        OnFolderShortcutSelectionChanged();
+    }
+
+    private void OpenSelectedFolderShortcut()
+    {
+        var index = GetSelectedFolderShortcutIndex();
+        if (index < 0 || index >= _settings.FolderShortcuts.Count) return;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _settings.FolderShortcuts[index].Path, UseShellExecute = true }); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private bool PersistFolderShortcuts()
+    {
+        try { PersistSettings(); return true; }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Não foi possível salvar os atalhos de pasta:\n\n{ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+    }
+
+    private static string SafeListColumn(string value) => value.Contains('\t') || value.Contains('\n') ? value.Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ') : value;
+    private bool _loadingFolderShortcuts;
+    private bool _folderShortcutSettingFilters;
+
+
+
     private Control BuildChangeBaseView()
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
@@ -954,7 +1242,7 @@ internal sealed class MainForm : Form
         _resetSl.Enabled = false;
         _resetButton.Enabled = false;
         _resetCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = false;
         _resetLog.Clear();
         var token = _resetCancellation.Token;
         try
@@ -995,7 +1283,7 @@ internal sealed class MainForm : Form
             _resetSl.Enabled = true;
             _resetButton.Enabled = true;
             _resetCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
         }
     }
 
@@ -1078,7 +1366,7 @@ internal sealed class MainForm : Form
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = false;
         _restoreLog.Clear();
         var token = _restoreCancellation.Token;
         try
@@ -1157,7 +1445,7 @@ internal sealed class MainForm : Form
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
             _restoreCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
         }
     }
 
@@ -1455,6 +1743,7 @@ internal sealed class MainForm : Form
         _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -1464,6 +1753,7 @@ internal sealed class MainForm : Form
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
         AcceptButton = _updateSicRunning ? null : _updateSicButton;
         ApplyNavigationColors();
         _updateSicButton.Focus();
@@ -1480,6 +1770,7 @@ internal sealed class MainForm : Form
         _configureSicView.Visible = true;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -1489,6 +1780,7 @@ internal sealed class MainForm : Form
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
         AcceptButton = null;
         ApplyNavigationColors();
         _updateSicGrid.Focus();
@@ -1609,7 +1901,7 @@ internal sealed class MainForm : Form
         _updateSicSingleDestinationBrowse.Enabled = false;
         _updateSicButton.Enabled = false;
         _updateSicCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = false;
         _updateSicLog.Clear();
         var token = _updateSicCancellation.Token;
         var failures = new List<(string File, string Reason)>();
@@ -1724,7 +2016,7 @@ internal sealed class MainForm : Form
             _updateSicSingleDestinationBrowse.Enabled = _updateSicSingleDestinationCheck.Checked;
             _updateSicButton.Enabled = true;
             _updateSicCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
         }
     }
 
@@ -1882,6 +2174,7 @@ internal sealed class MainForm : Form
         _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.FromArgb(231, 240, 255);
         _resetNav.BackColor = Color.White;
@@ -1891,6 +2184,7 @@ internal sealed class MainForm : Form
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
         AcceptButton = _changeBaseButton;
         RefreshBaseFolders();
         ApplyNavigationColors();
@@ -1910,6 +2204,7 @@ internal sealed class MainForm : Form
         _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
@@ -1920,6 +2215,7 @@ internal sealed class MainForm : Form
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
         AcceptButton = _resetButton;
         ApplyNavigationColors();
         RefreshBaseFolders();
@@ -1936,6 +2232,7 @@ internal sealed class MainForm : Form
         _restoreView.Visible = true;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -1943,6 +2240,7 @@ internal sealed class MainForm : Form
         _settingsNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
         AcceptButton = _restoreRunning ? null : _restoreButton;
         ApplyNavigationColors();
         if (!_restoreRunning) _restoreFolder.Focus();
@@ -2240,6 +2538,7 @@ internal sealed class MainForm : Form
         _updateSicNav.Text = expanded ? "Atualização de executáveis" : "";
         _configureSicNav.Text = expanded ? "Configurar caminhos" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
+        _folderShortcutsNav.Text = expanded ? "Atalhos de pasta" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
         _menuToggle.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -2247,7 +2546,7 @@ internal sealed class MainForm : Form
         _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
         _menuToggle.FlatAppearance.BorderSize = 0;
         _menuToggle.Font = UiTypography.Body(12f);
-        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav })
+        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav })
         {
             button.Font = UiTypography.Body(12f);
             button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -2360,6 +2659,7 @@ internal sealed class MainForm : Form
         _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
         _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -2369,6 +2669,7 @@ internal sealed class MainForm : Form
         _configureSicNav.BackColor = Color.White;
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
         AcceptButton = settings ? null : _start;
         ApplyNavigationColors();
         if (settings) _fields[nameof(AppSettings.SolicitationRoot)].Focus();
@@ -2386,6 +2687,7 @@ internal sealed class MainForm : Form
         _configureSicView.Visible = false;
         _arqEmpView.Visible = arqEmp;
         _arqSistView.Visible = !arqEmp;
+        _folderShortcutsView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -2398,6 +2700,33 @@ internal sealed class MainForm : Form
         AcceptButton = null;
         ApplyNavigationColors();
         (arqEmp ? _arqEmpEditor : _arqSistEditor).Focus();
+    }
+
+    private void ShowFolderShortcutsView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = true;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.FromArgb(231, 240, 255);
+        AcceptButton = null;
+        ApplyNavigationColors();
+        _folderShortcutName.Focus();
     }
 
     private Control BuildSettingsPanel()
@@ -2737,7 +3066,7 @@ internal sealed class MainForm : Form
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
-                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav;
+                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav || button == _folderShortcutsNav;
                 var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
@@ -2771,7 +3100,7 @@ internal sealed class MainForm : Form
     {
         var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
         var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
-        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav }) button.BackColor = inactive;
+        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) button.BackColor = inactive;
         if (_transferView.Visible) _transferNav.BackColor = active;
         else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
         else if (_resetView.Visible) _resetNav.BackColor = active;
@@ -2781,6 +3110,7 @@ internal sealed class MainForm : Form
         else if (_settingsView.Visible) _settingsNav.BackColor = active;
         else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
         else if (_arqSistView.Visible) _arqSistNav.BackColor = active;
+        else if (_folderShortcutsView.Visible) _folderShortcutsNav.BackColor = active;
     }
 
     private static IEnumerable<Control> EnumerateControls(Control root)
@@ -4004,6 +4334,7 @@ internal sealed class MainForm : Form
         _settingsNav.Enabled = !busy;
         _arqEmpNav.Enabled = !busy;
         _arqSistNav.Enabled = !busy;
+        _folderShortcutsNav.Enabled = !busy;
         _cancel.Visible = busy;
         _cancel.Enabled = busy;
         _progressFooter.Visible = busy;

@@ -53,6 +53,9 @@ internal sealed class AppSettings
     public string UpdateSicSingleDestinationRoot { get; set; } = "";
     public List<UpdateSicEntry> UpdateSicEntries { get; set; } = new();
 
+    // Atalhos de pasta (tela Atalhos de pasta).
+    public List<FolderShortcut> FolderShortcuts { get; set; } = new();
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");
 

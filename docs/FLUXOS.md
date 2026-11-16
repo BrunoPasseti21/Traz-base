@@ -151,6 +151,16 @@ Duas telas idênticas para os dois bancos. Cada uma tem:
 - Comandos são salvos automaticamente ~700 ms após a última digitação (`_commandSaveTimer`) e na saída do aplicativo. A base Firebird (.FDB) escolhida para testar **não é persistida** — vale apenas para a sessão atual.
 - Migração automática: configurações antigas que apontavam para arquivos `.sql` externos (`ScriptArqEmp`/`ScriptArqSist`) são incorporadas aos comandos inline na primeira execução após a atualização (`CommandScriptsMigrated`).
 
+## Fluxo 10 — Atalhos de pasta
+
+Nova tela (criada na barra lateral como **Atalhos de pasta**, acima de **Configuração**) para cadastrar atalhos para pastas com nome livre, caminho e filtro por tipo de arquivo:
+
+- Duas áreas: **Pastas cadastradas** (lista de colunas Nome / Caminho / Filtro; duplo clique abre a pasta no Explorer) e **Adicionar / editar atalho** (campos Nome, Caminho, filtro **Apenas .exe** / **Apenas .bat** / **Todos os arquivos**, com botões **Adicionar / atualizar**, **Novo**, **Remover**).
+- Editar: selecione um item na lista para preencher o formulário; os botões **Novo** limpam o formulário para começar outro cadastro e **Remover** exclui o selecionado.
+- O filtro é exibida entre as colunas e controla quais arquivos aparecem nas listagens filtradas (use no submenu que a tela **Atalhos de pasta** expõe para abrir a lista; ou programaticamente via `FolderShortcut.FilterLabel`).
+- Atalhos ficam em `FolderShortcuts` dentro do `settings.json` (persistidos a cada alteração, como as demais configurações).
+
+
 ## Fluxo 7 — Configuração
 
 Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
