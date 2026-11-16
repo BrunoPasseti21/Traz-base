@@ -663,7 +663,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 474));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 513));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -2767,7 +2767,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(100, 438),
+            Size = new Size(100, 452),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
@@ -2850,17 +2850,17 @@ internal sealed class MainForm : Form
         host.Controls.Add(_sicPassword);
         host.Controls.Add(_sicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicPassword);
-        _useSupportAsCompany.Location = new Point(0, 2 * 40 + 31);
+        _useSupportAsCompany.Location = new Point(0, 2 * 40 + 40 + 7);
         host.Controls.Add(_useSupportAsCompany);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 273) });
-        _baseCount.Location = new Point(200, 266);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 287) });
+        _baseCount.Location = new Point(200, 280);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 313) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 327) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
-        _defaultScreen.Location = new Point(200, 306);
+        _defaultScreen.Location = new Point(200, 320);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2868,11 +2868,11 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 350);
+        _forceMultiBase.Location = new Point(0, 364);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 376);
+        _renameSl.Location = new Point(0, 390);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 402);
+        _minimizeToTray.Location = new Point(0, 416);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
@@ -2880,7 +2880,7 @@ internal sealed class MainForm : Form
             const int fieldLeft = 200;
             const int buttonWidth = 120;
             const int rightInset = 18;
-            const int supportCompanyRowOffset = 26; // espaço do checkbox "EMPRESA" abaixo da linha "Pasta de bases de apoio"
+            const int supportCompanyRowOffset = 40; // linha própria do checkbox "EMPRESA" abaixo de "Pasta de bases de apoio"
             for (var i = 0; i < labels.Length; i++)
             {
                 var y = i * 40 + (i > 2 ? supportCompanyRowOffset : 0);
