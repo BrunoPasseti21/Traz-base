@@ -4214,9 +4214,8 @@ internal sealed class MainForm : Form
         }
     }
 
-    /// <summary>Submenu da bandeja com margem de ícones ligada (o ToolStripDropDown automático não pinta imagens; o ContextMenuStrip, que é um ToolStripDropDownMenu, pinta).</summary>
-    private static ContextMenuStrip CreateTraySubMenu() =>
-        new() { ShowImageMargin = true, ShowCheckMargin = false, Renderer = new TrayMenuRenderer() };
+    /// <summary>Submenu da bandeja: ícones ligados; altura limitada a ~20 itens (excedente com rolagem nativa — setas ou roda do mouse).</summary>
+    private static ContextMenuStrip CreateTraySubMenu() => new TrayDropDownMenu();
 
     private static readonly Dictionary<string, Image?> _fileIconCache = new(StringComparer.OrdinalIgnoreCase);
     private static Image? _trayFolderIcon;

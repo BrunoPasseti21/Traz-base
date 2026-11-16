@@ -38,6 +38,28 @@ internal sealed class SubmenuMenuItem : ToolStripMenuItem
     public override bool HasDropDownItems => true;
 }
 
+/// <summary>Submenu da bandeja com margem de ícones ligada (o ToolStripDropDown automático não pinta imagens; o ContextMenuStrip, que é um ToolStripDropDownMenu, pinta). Altura limitada a ~20 itens; o excedente usa a rolagem nativa do Windows Forms (setas do topo/rodapé ou roda do mouse).</summary>
+internal sealed class TrayDropDownMenu : ContextMenuStrip
+{
+    private const int MaxVisibleItems = 20;
+
+    public TrayDropDownMenu()
+    {
+        ShowImageMargin = true;
+        ShowCheckMargin = false;
+        Renderer = new TrayMenuRenderer();
+    }
+
+    public override Size GetPreferredSize(Size proposedSize)
+    {
+        var size = base.GetPreferredSize(proposedSize);
+        var itemHeight = Items.Count > 0 ? Items[0].GetPreferredSize(Size.Empty).Height : 22;
+        var cap = Math.Max(140, itemHeight * MaxVisibleItems + 3);
+        if (size.Height > cap) size = new Size(size.Width, cap);
+        return size;
+    }
+}
+
 /// <summary>Tabela de cores do ProfessionalColorTable limitada à paleta do aplicativo (claro/escuro).</summary>
 internal sealed class TrayMenuColorTable : ProfessionalColorTable
 {
