@@ -283,10 +283,7 @@ internal sealed class MainForm : Form
         _password.Leave += (_, _) => { if (_savePassword.Checked) SavePasswordPreference(); };
 
         _sicPassword.Text = _settings.GetSicPassword() ?? "";
-        _sicPassword.BorderStyle = BorderStyle.FixedSingle;
-        _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
-        _sicPassword.Margin = Padding.Empty;
-        _saveSicPassword.Margin = Padding.Empty;
+
         _saveSicPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
         _saveSicPassword.CheckedChanged += (_, _) => SaveSicPasswordPreference();
         _sicPassword.Leave += (_, _) => { if (_saveSicPassword.Checked) SaveSicPasswordPreference(); };
@@ -2440,6 +2437,10 @@ internal sealed class MainForm : Form
         _password.BackColor = Color.FromArgb(249, 251, 254);
         _password.Margin = Padding.Empty;
         _savePassword.Margin = Padding.Empty;
+        _sicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicPassword.Margin = Padding.Empty;
+        _saveSicPassword.Margin = Padding.Empty;
         host.Controls.Add(labels[4]);
         host.Controls.Add(_password);
         host.Controls.Add(_savePassword);
