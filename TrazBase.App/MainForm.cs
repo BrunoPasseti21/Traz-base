@@ -2506,7 +2506,8 @@ internal sealed class MainForm : Form
                     pwdField.Height = 30;
                     pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y + 1);
                     pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-                    pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + 6);
+                    var saveHeight = pwdSave.PreferredSize.Height;
+                    pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
                     pwdSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
                 }
             }
