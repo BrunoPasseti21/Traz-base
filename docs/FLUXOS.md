@@ -4,6 +4,8 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 ## Estrutura da janela e navegação
 
+**Instância única** — abrir o `TrazBase.exe` com a aplicação já em execução **não abre outra janela**: o segundo processo detecta a instância em execução (mutex `Local\TrazBase.SingleInstance`), sinaliza-a (evento `Local\TrazBase.ShowWindow`) e encerra na hora. A instância em execução então **restaura a janela** (se estava oculta/minimizada na bandeja) e a traz para frente. O escopo é a sessão do usuário — cada sessão do Windows mantém a sua instância.
+
 Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualização de executáveis** → botão "Atualizar executáveis"; **Configurar caminhos executáveis** → grade de executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
 1. **Transferir** — copiar/extrair e preparar base por solicitação.
 2. **Alterar base** — apontar o Registro para uma base local já existente.

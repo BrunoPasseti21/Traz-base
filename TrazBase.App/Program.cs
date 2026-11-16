@@ -19,10 +19,24 @@ internal static class Program
             catch { /* o app continua rodando mesmo com falha na caixa */ }
         };
 
-        var settings = AppSettings.Load();
-        ApplicationConfiguration.Initialize();
-        ToastNotifier.Initialize();
-        Application.SetColorMode(settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
-        Application.Run(new MainForm());
+        var primaryInstanceMutex = SingleInstance.TryAcquirePrimaryInstance();
+        if (primaryInstanceMutex is null)
+        {
+            // Já há uma instância em execução: pede para ela vir para frente e encerra.
+            SingleInstance.NotifyPrimaryInstance();
+            return;
+        }
+        try
+        {
+            var settings = AppSettings.Load();
+            ApplicationConfiguration.Initialize();
+            ToastNotifier.Initialize();
+            Application.SetColorMode(settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
+            Application.Run(new MainForm());
+        }
+        finally
+        {
+            primaryInstanceMutex.Dispose();
+        }
     }
 }

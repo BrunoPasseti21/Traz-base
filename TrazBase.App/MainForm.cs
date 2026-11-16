@@ -72,6 +72,8 @@ internal sealed class MainForm : Form
     private readonly ThemeToggle _themeToggle = new();
     private TextBox? _traySlBox;
     private TextBox? _trayChangeBaseBox;
+    private readonly EventWaitHandle _showEvent = new(false, EventResetMode.AutoReset, SingleInstance.ShowEventName);
+    private volatile bool _showWindowRequested;
     // true quando o fluxo foi iniciado pela bandeja: a janela não abre e o resultado vai por balão.
     private bool _backgroundTrayRun;
     private bool _exitRequested;
@@ -254,7 +256,18 @@ internal sealed class MainForm : Form
         _themeToggle.DarkMode = _settings.DarkMode;
         _themeToggle.Toggled += (_, _) => ApplyDarkMode(_themeToggle.DarkMode);
         _menuToolTip.SetToolTip(_themeToggle, "Alternar entre tema claro e escuro");
-        HandleCreated += (_, _) => { ApplyTitleBarTheme(); RegisterSicPasswordHotKey(); };
+        HandleCreated += (_, _) =>
+        {
+            ApplyTitleBarTheme();
+            RegisterSicPasswordHotKey();
+            if (_showWindowRequested)
+            {
+                _showWindowRequested = false;
+                BeginInvoke(new Action(RestoreFromMinimized));
+            }
+        };
+        var singleInstanceWatcher = new Thread(ShowWindowRequestedLoop) { IsBackground = true, Name = "TrazBaseSingleInstance" };
+        singleInstanceWatcher.Start();
         ApplyTheme();
         _forceMultiBase.Checked = _settings.ForceMultiBase;
         _forceMultiBase.CheckedChanged += (_, _) =>
@@ -4355,6 +4368,22 @@ internal sealed class MainForm : Form
         ShowBackgroundNotification(
             "Traz Base",
             "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Transferir, Atualizar executáveis ou Fechar.");
+    }
+
+    /// <summary>Thread de escuta do evento de instância única: quando uma segunda tentativa de abrir o app acontece, traz a janela para frente (se estiver oculta/minimizada, restaura da bandeja).</summary>
+    private void ShowWindowRequestedLoop()
+    {
+        while (true)
+        {
+            try { _showEvent.WaitOne(); }
+            catch { break; }
+            _showWindowRequested = true;
+            if (IsHandleCreated && !IsDisposed)
+            {
+                _showWindowRequested = false;
+                BeginInvoke(new Action(RestoreFromMinimized));
+            }
+        }
     }
 
     private void RestoreFromMinimized()

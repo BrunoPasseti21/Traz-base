@@ -12,7 +12,8 @@ Solução única, projeto único (`TrazBase.App`); não há separação em assem
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `Program.cs` | Ponto de entrada: carrega `AppSettings`, aplica o modo de cor (claro/escuro) antes de `ApplicationConfiguration.Initialize()` e abre `MainForm`. |
+| `Program.cs` | Ponto de entrada: impõe **instância única** (mutex `Local\TrazBase.SingleInstance`; uma segunda execução sinaliza o evento `Local\TrazBase.ShowWindow` e encerra), carrega `AppSettings`, aplica o modo de cor (claro/escuro) antes de `ApplicationConfiguration.Initialize()` e abre `MainForm`. |
+| `SingleInstance.cs` | Nomes e regras da instância única: mutex que concede a primazia à primeira execução e evento para pedir a ela que venha para frente. |
 | `MainForm.cs` | Janela principal: layout, menu lateral, tema claro/escuro, orquestração dos fluxos (Transferir, Alterar base, Redefinir base, Comandos SQL), cópia/extração, Registro, SQL, versão, atualização. É um arquivo grande (~1 700 linhas) e concentra a UI e o fluxo. |
 | `AppSettings.cs` | Configuração persistida em JSON (`%APPDATA%\TrazBase\settings.json`), proteção da senha com DPAPI (`CurrentUser`), migração de scripts legados. |
 | `BaseOperationRules.cs` | Regras puras de operação: resolução do destino local com proteção de path traversal, lista de bases de apoio a copiar (`ARQEMP.FDB`, `ARQOCOR.FDB`), interpretação do diálogo de conflito de destino (`ExistingDestinationAction`). |
