@@ -19,7 +19,6 @@ internal sealed class MainForm : Form
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
-    private static readonly Color EyeIconColor = Color.FromArgb(110, 116, 129);
     private readonly RoundedButton _passwordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly RoundedButton _sicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
@@ -2858,7 +2857,9 @@ internal sealed class MainForm : Form
 
     private void WirePasswordToggle(TextBox field, RoundedButton toggle)
     {
-        toggle.Image = SvgIconLoader.Load("Eye.svg", 16, EyeIconColor);
+        const string hiddenIcon = "Visualizar.svg";
+        const string visibleIcon = "Nao-Visualizar.svg";
+        toggle.Image = SvgIconLoader.Load(hiddenIcon, 16);
         toggle.FlatAppearance.BorderSize = 0;
         toggle.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
         toggle.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
@@ -2867,7 +2868,7 @@ internal sealed class MainForm : Form
         {
             var willShow = field.UseSystemPasswordChar; // oculto no momento => a senha passará a ser exibida
             field.UseSystemPasswordChar = !willShow;
-            toggle.Image = SvgIconLoader.Load(willShow ? "EyeOff.svg" : "Eye.svg", 16, EyeIconColor);
+            toggle.Image = SvgIconLoader.Load(willShow ? visibleIcon : hiddenIcon, 16);
             _menuToolTip.SetToolTip(toggle, willShow ? "Ocultar senha" : "Mostrar senha");
         };
     }
