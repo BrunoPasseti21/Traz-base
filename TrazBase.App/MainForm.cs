@@ -34,9 +34,8 @@ internal sealed class MainForm : Form
         (StartScreen.RedefinirBase, "Redefinir base"),
         (StartScreen.RestaurarBase, "Restaurar base"),
         (StartScreen.AtualizarSic, "Atualização de executáveis"),
-        (StartScreen.Configuracao, "Configuração"),
-        (StartScreen.ComandosArqEmp, "Comandos ARQEMP"),
-        (StartScreen.ComandosArqSist, "Comandos ARQSIST"),
+        (StartScreen.ConfigurarSic, "Configurar caminhos"),
+        (StartScreen.Atalhos, "Atalhos de pasta")
     ];
     private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 220, Height = 30 };
     private readonly UnthemedTextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
@@ -2594,10 +2593,12 @@ internal sealed class MainForm : Form
             case StartScreen.RedefinirBase: ShowResetView(); break;
             case StartScreen.RestaurarBase: ShowRestoreView(); break;
             case StartScreen.AtualizarSic: ShowUpdateSicView(); break;
-            case StartScreen.Configuracao: ShowView(settings: true); break;
-            case StartScreen.ComandosArqEmp: ShowCommandView(arqEmp: true); break;
-            case StartScreen.ComandosArqSist: ShowCommandView(arqEmp: false); break;
+            case StartScreen.ConfigurarSic: ShowConfigureSicView(); break;
+            case StartScreen.Atalhos: ShowFolderShortcutsView(); break;
             case StartScreen.Transferir:
+            case StartScreen.Configuracao:     // removido das opções — abre na Transferir
+            case StartScreen.ComandosArqEmp:   // removido das opções — abre na Transferir
+            case StartScreen.ComandosArqSist:  // removido das opções — abre na Transferir
             default: ShowView(settings: false); break;
         }
     }
@@ -2859,6 +2860,7 @@ internal sealed class MainForm : Form
         host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 327) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
+        if (initialIndex < 0) _settings.DefaultScreen = StartScreenItems[0].Value; // valor antigo fora da lista: normaliza para o padrão
         _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
         _defaultScreen.Location = new Point(200, 320);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>

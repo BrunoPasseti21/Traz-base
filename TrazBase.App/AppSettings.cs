@@ -12,9 +12,12 @@ internal enum StartScreen
     RedefinirBase,
     RestaurarBase,
     AtualizarSic,
+    // Mantidos por compatibilidade com settings.json existentes; não aparecem mais na lista de opções.
     Configuracao,
     ComandosArqEmp,
-    ComandosArqSist
+    ComandosArqSist,
+    ConfigurarSic,
+    Atalhos
 }
 
 internal sealed class AppSettings
