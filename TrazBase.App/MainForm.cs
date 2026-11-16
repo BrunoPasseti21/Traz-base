@@ -97,7 +97,6 @@ internal sealed class MainForm : Form
     private readonly ThemedCheckBox _folderShortcutShowBat = new() { Text = "Apenas .bat", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _folderShortcutShowAll = new() { Text = "Todos os arquivos", AutoSize = true, Anchor = AnchorStyles.Left, Checked = true };
     private readonly RoundedButton _folderShortcutAddUpdate = new() { Text = "Adicionar / atualizar", Width = 172, Height = 32, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
-    private readonly RoundedButton _folderShortcutNew = new() { Text = "Novo", Width = 92, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
     private readonly RoundedButton _folderShortcutRemove = new() { Text = "Remover", Width = 112, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
     private readonly Label _folderShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
     private Control _arqSistView = null!;
@@ -702,7 +701,6 @@ internal sealed class MainForm : Form
         editor.Controls.Add(_folderShortcutShowExe);
         editor.Controls.Add(_folderShortcutShowBat);
         editor.Controls.Add(_folderShortcutAddUpdate);
-        editor.Controls.Add(_folderShortcutNew);
         editor.Controls.Add(_folderShortcutRemove);
         void Layout()
         {
@@ -713,8 +711,7 @@ internal sealed class MainForm : Form
             _folderShortcutShowBat.Location = new Point(_folderShortcutShowExe.Right + 16, 193);
             _folderShortcutShowAll.Location = new Point(_folderShortcutShowBat.Right + 16, 193);
             _folderShortcutAddUpdate.Location = new Point(18, editor.ClientSize.Height - 70);
-            _folderShortcutNew.Location = new Point(_folderShortcutAddUpdate.Right + 12, editor.ClientSize.Height - 70);
-            _folderShortcutRemove.Location = new Point(_folderShortcutNew.Right + 12, editor.ClientSize.Height - 70);
+            _folderShortcutRemove.Location = new Point(_folderShortcutAddUpdate.Right + 12, editor.ClientSize.Height - 70);
         }
         editor.Resize += (_, _) => Layout();
         Layout();
@@ -722,7 +719,6 @@ internal sealed class MainForm : Form
 
         _folderShortcutBrowse.Click += (_, _) => BrowseFolderShortcutFolder();
         _folderShortcutAddUpdate.Click += (_, _) => AddOrUpdateFolderShortcut();
-        _folderShortcutNew.Click += (_, _) => ClearFolderShortcutsEditor();
         _folderShortcutRemove.Click += (_, _) => RemoveSelectedFolderShortcut();
         _folderShortcutShowAll.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("all");
         _folderShortcutShowExe.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("exe");
@@ -862,6 +858,7 @@ internal sealed class MainForm : Form
         var newIndex = editingIndex >= 0 ? editingIndex : _settings.FolderShortcuts.Count - 1;
         RefreshFolderShortcutList();
         SelectFolderShortcut(newIndex);
+        ClearFolderShortcutsEditor(); // limpa o formulário para o próximo cadastro (equivalente a "Novo")
     }
 
     private void RemoveSelectedFolderShortcut()
@@ -3061,7 +3058,7 @@ internal sealed class MainForm : Form
             else if (control is Button button)
             {
                 var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav || button == _folderShortcutsNav;
-                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton || button == _folderShortcutNew || button == _folderShortcutRemove;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton || button == _folderShortcutRemove;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
                 {

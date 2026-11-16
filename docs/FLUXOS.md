@@ -155,8 +155,8 @@ Duas telas idênticas para os dois bancos. Cada uma tem:
 
 Nova tela (criada na barra lateral como **Atalhos de pasta**, acima de **Configuração**) para cadastrar atalhos para pastas com nome livre, caminho e filtro por tipo de arquivo:
 
-- Duas áreas: **Pastas cadastradas** (lista de colunas Nome / Caminho / Filtro; duplo clique abre a pasta no Explorer) e **Adicionar / editar atalho** (campos Nome, Caminho, filtro **Apenas .exe** / **Apenas .bat** / **Todos os arquivos**, com botões **Adicionar / atualizar**, **Novo**, **Remover**).
-- Editar: selecione um item na lista para preencher o formulário; os botões **Novo** limpam o formulário para começar outro cadastro e **Remover** exclui o selecionado.
+- Duas áreas: **Pastas cadastradas** (lista de colunas Nome / Caminho / Filtro; duplo clique abre a pasta no Explorer) e **Adicionar / editar atalho** (campos Nome, Caminho, filtro **Apenas .exe** / **Apenas .bat** / **Todos os arquivos**, com botões **Adicionar / atualizar**, **Remover**).
+- Editar: selecione um item na lista para preencher o formulário. **Adicionar / atualizar** salva o item e limpa o formulário automaticamente para o próximo cadastro (equivalente a um "Novo"); **Remover** exclui o selecionado.
 - O filtro é exibida entre as colunas e controla quais arquivos aparecem nas listagens filtradas (use no submenu que a tela **Atalhos de pasta** expõe para abrir a lista; ou programaticamente via `FolderShortcut.FilterLabel`).
 - Atalhos ficam em `FolderShortcuts` dentro do `settings.json` (persistidos a cada alteração, como as demais configurações).
 - O mesmo submenu também fica disponível na **bandeja** (ícone de segundo plano → menu de contexto → **Atalhos**). O submenu é gerado ao abrir, lê sempre do `settings.json`, e oferece: **Abrir esta pasta no Explorer** (sempre), **abrir arquivos** com o filtro da pasta ativo, **navegar subpastas**, e **Gerenciar atalhos...** para abrir este cadastro.
