@@ -20,9 +20,12 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
 
     protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
     {
-        // O menu principal da bandeja desenha os ícones sempre à esquerda (x=2), na mesma
-        // grade das linhas de entrada (Transferir/Alterar base/Buscar chamado).
-        if (e.Item is { Image: not null } item && e.TextDirection == ToolStripTextDirection.Horizontal)
+        // O menu principal da bandeja (sem margem de ícones) desenha os ícones à esquerda,
+        // na mesma grade das linhas de entrada. Os submenus usam ShowImageMargin=true — aí o
+        // próprio Windows Forms pinta o ícone, e este override não desenha de novo.
+        var item = e.Item;
+        var menuPaintsImage = item?.Owner is ToolStripDropDownMenu dropDown && dropDown.ShowImageMargin;
+        if (item is { Image: not null } && e.TextDirection == ToolStripTextDirection.Horizontal && !menuPaintsImage)
         {
             var previousMode = e.Graphics.InterpolationMode;
             e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
