@@ -4022,7 +4022,7 @@ internal sealed class MainForm : Form
 
     private ContextMenuStrip BuildTrayMenu()
     {
-        var menu = new ContextMenuStrip { ShowImageMargin = true, ShowCheckMargin = false, Renderer = new TrayMenuRenderer() };
+        var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = false, Renderer = new TrayMenuRenderer() };
 
         // Linhas de entrada (texto estático + edit). Os ícones ficam à esquerda de cada linha.
         var transferRow = CreateTrayInputRow("Transferir", "Transferir.svg", "Nº da SL");

@@ -18,6 +18,25 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
     {
     }
 
+    protected override void OnRenderItemText(ToolStripItemTextRenderEventArgs e)
+    {
+        // O menu principal da bandeja desenha os ícones sempre à esquerda (x=2), na mesma
+        // grade das linhas de entrada (Transferir/Alterar base/Buscar chamado).
+        if (e.Item is { Image: not null } item && e.TextDirection == ToolStripTextDirection.Horizontal)
+        {
+            var previousMode = e.Graphics.InterpolationMode;
+            e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+            e.Graphics.DrawImage(item.Image, new Rectangle(2, (item.Height - 16) / 2, 16, 16));
+            e.Graphics.InterpolationMode = previousMode;
+
+            var rect = e.TextRectangle;
+            e = new ToolStripItemTextRenderEventArgs(e.Graphics, item, e.Text,
+                new Rectangle(rect.X + 22, rect.Y, Math.Max(0, rect.Width - 22), rect.Height),
+                e.TextColor, e.TextFont, e.TextFormat);
+        }
+        base.OnRenderItemText(e);
+    }
+
     protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
     {
         if (e.Item is not null)
