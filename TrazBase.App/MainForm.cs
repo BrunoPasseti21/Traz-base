@@ -762,8 +762,9 @@ internal sealed class MainForm : Form
             _folderShortcutShowExe.Location = new Point(18, 190);
             _folderShortcutShowBat.Location = new Point(_folderShortcutShowExe.Right + 16, 193);
             _folderShortcutShowAll.Location = new Point(_folderShortcutShowBat.Right + 16, 193);
-            _folderShortcutAddUpdate.Location = new Point(18, editor.ClientSize.Height - 70);
-            _folderShortcutRemove.Location = new Point(_folderShortcutAddUpdate.Right + 12, editor.ClientSize.Height - 70);
+            // Botões sempre abaixo das caixas de seleção, sem sobreposição em telas menores.
+            _folderShortcutAddUpdate.Location = new Point(18, 244);
+            _folderShortcutRemove.Location = new Point(_folderShortcutAddUpdate.Right + 12, 244);
         }
         editor.Resize += (_, _) => Layout();
         Layout();
