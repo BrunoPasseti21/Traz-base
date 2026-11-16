@@ -36,7 +36,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `RenameSlFolderToClientName` | bool | `false` | Renomeia a pasta da solicitação para **`<primeiro nome>_<SL>`**: consulta `SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'` na **ARQSIST** e prioriza o NFANTASIA (se vazio/nulo, usa o NOME; sem nenhum dos dois, mantém a SL). Ex.: `JOAO_123456`. A verificação inicial de "pasta já existe" no fluxo Transferir considera `<SL>` exato ou qualquer pasta que termina em `_<SL>`. |
 | `FolderShortcuts` | lista de objetos | `[]` | Atalhos de pasta exibidos na tela **Atalhos de pasta** (menu acima de Configuração). Cada atalho tem `Name`, `Path`, `ShowAllFiles`, `ShowExeFiles`, `ShowBatFiles`; filtros inclusivos. |
 | `ForceMultiBase` | bool | `false` | Sempre criar a estrutura multi-base (`ARQ01`/`ARQ00`), mesmo em SLs sem pastas `ARQ##`. |
-| `BaseCount` | number | `1` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (quando "Sempre criar estrutura multi-base" não está marcada). Entre 1 e 99. |
+| `BaseCount` | number | `1` | Quantidade de chaves `BASE1`…`BASE<n>` gravadas no Registro no modo simples (pasta sem a estrutura `ARQ##`). Entre 1 e 99. |
 | `DefaultScreen` | string | `"Transferir"` | Tela aberta ao iniciar a aplicação. Valores: `Transferir`, `AlterarBase`, `RedefinirBase`, `RestaurarBase`, `AtualizarSic`, `Configuracao`, `ComandosArqEmp`, `ComandosArqSist`. |
 | `LastChangelogVersion` | string? | `null` | Última versão exibida na tela "Novidades". `null` → mostrar na próxima abertura (atualização/versão nova). |
 | `ProtectedFirebirdPassword` | string? | omitida | Senha Firebird protegida por DPAPI (Base64), gravada somente quando "Salvar senha" está marcado. |

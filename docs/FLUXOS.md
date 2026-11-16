@@ -54,7 +54,7 @@ Cancelamento (botão **Cancelar** ou fechamento da janela): define o `Cancellati
 1. Lista, na pasta `BasesRoot`, as subpastas existentes (ordenadas, sem navegação recursiva).
 2. O operador seleciona uma pasta; o caminho completo aparece no campo inferior, e a tela exibe no canto superior direito **"Versão atual: …"** (consulta `SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE` na `ARQSIST.FDB` da pasta selecionada — raiz no modo simples, `ARQ01` no modelo multi-base). A versão é atualizada ao exibir a tela, ao alterar a seleção e após a troca da base; falhas (base ilegível, senha ausente) só alteram o texto do rótulo.
 3. **Trocar base** (ou duplo clique) grava no Registro, atualiza a versão exibida e confirma com mensagem; **Abrir pasta** abre o Explorer.
-4. A mesma etapa de Registro do Fluxo 1 é reutilizada (`UpdateRegistryAsync`).
+4. A seleção do modo de Registro (simples × multi-base) é **deduzida da própria pasta**: havendo pastas `ARQ##` (ex.: `ARQ01` + `ARQ00`), o Registro aponta para elas — `BASE<n>` = caminho de cada `ARQ<n>` (exceto `ARQ00`), chaves `BASE1`…`BASE99` sem pasta correspondente são removidas e `EMPRESA` = `ARQ00\` —, **independente** da opção **Sempre criar estrutura multi-base** (que atua só na preparação da SL pela Transferir). Sem pastas `ARQ##`, mantém-se o comportamento anterior (`BASE1`…`BASE<n>` + `EMPRESA` = a pasta escolhida). Se a estrutura multi-base estiver incompleta (pasta `ARQ00` ausente), a troca é recusada com aviso e o Registro não é alterado. A pré-seleção pela base atual do Registro também reconhece a estrutura multi-base (a base é pré-selecionada quando `BASE1` aponta para uma pasta `ARQ##` dela).
 
 Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações):
 
@@ -67,7 +67,7 @@ Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações
 
 ## Registro — modo multi-base
 
-Quando a SL traz pastas `ARQ##`:
+Quando a SL traz pastas `ARQ##` (detectado automaticamente, inclusive na troca de base pela tela **Alterar base** e no apontamento do Registro oferecido ao final da **Restaurar base**):
 
 | Valor | Conteúdo |
 |---|---|

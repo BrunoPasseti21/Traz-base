@@ -1116,6 +1116,23 @@ internal sealed class MainForm : Form
         catch { return null; }
     }
 
+    private static bool BaseMatchesRegistry(string folder, string normalizedRegistryPath)
+    {
+        try
+        {
+            var full = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(full, normalizedRegistryPath, StringComparison.OrdinalIgnoreCase)) return true;
+            // Estrutura multi-base: o Registro aponta para uma pasta ARQ## dentro da base; a base que a contém corresponde.
+            foreach (var sub in MultiBaseOperationRules.FindDatabaseFolders(full))
+            {
+                var subPath = Path.GetFullPath(sub.DirectoryPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(subPath, normalizedRegistryPath, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+        catch { return false; }
+    }
+
     private static void SelectMatchingRegistryEntry(ThemedListView list, Action<string> onSelected)
     {
         var normalized = FindRegistryBasePath();
@@ -1125,7 +1142,7 @@ internal sealed class MainForm : Form
             for (var i = 0; i < list.Items.Count; i++)
             {
                 var folder = list.Items[i].Tag as string;
-                if (folder is not null && string.Equals(Path.GetFullPath(folder), normalized, StringComparison.OrdinalIgnoreCase))
+                if (folder is not null && BaseMatchesRegistry(folder, normalized))
                 {
                     list.Items[i].Selected = true;
                     list.EnsureVisible(i);
@@ -1155,7 +1172,13 @@ internal sealed class MainForm : Form
         _changeBaseButton.Enabled = false;
         try
         {
-            await UpdateRegistryAsync(folder);
+            var multiBase = MultiBaseOperationRules.IsMultiBase(folder);
+            if (multiBase && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(folder)))
+            {
+                MessageBox.Show(this, $"A pasta selecionada tem a estrutura multi-base (pastas ARQ##), mas a pasta ARQ00 não existe:\n{MultiBaseOperationRules.GetCompanyDirectory(folder)}\n\nSem a ARQ00 o sistema não teria para onde apontar a EMPRESA. Nenhuma alteração foi feita no Registro.", "Estrutura multi-base incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            await UpdateRegistryForFolderAsync(folder);
             _status.Text = "Base alterada para: " + folder;
             _ = UpdateChangeBaseVersionAsync(folder);
             MessageBox.Show(this, $"O Registro foi atualizado para a base:\n{folder}", "Base alterada", MessageBoxButtons.OK, MessageBoxIcon.Information);
@@ -1413,7 +1436,7 @@ internal sealed class MainForm : Form
                 var answer = MessageBox.Show(this,
                     $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
                     "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
-                if (answer == DialogResult.Yes) await UpdateRegistryAsync(restoredFolder, AppendRestoreLog);
+                if (answer == DialogResult.Yes) await UpdateRegistryForFolderAsync(restoredFolder, AppendRestoreLog);
             }
 
             if (cancelled)
@@ -4240,6 +4263,15 @@ internal sealed class MainForm : Form
             ServerType = FbServerType.Default
         };
         return builder.ToString();
+    }
+
+    private async Task UpdateRegistryForFolderAsync(string folder, Action<string>? operationLog = null)
+    {
+        // Multi-base é deduzido da própria pasta (pastas ARQ##), independente da opção "Sempre criar estrutura multi-base" (que atua só na transferência).
+        if (MultiBaseOperationRules.IsMultiBase(folder))
+            await UpdateRegistryForMultiBaseAsync(folder, operationLog);
+        else
+            await UpdateRegistryAsync(folder, operationLog);
     }
 
     private async Task UpdateRegistryAsync(string root, Action<string>? operationLog = null)
