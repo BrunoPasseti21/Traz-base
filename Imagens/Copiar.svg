@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="500" height="500">
+<path d="M175 60 L385 60 Q420 60 420 95 L420 320 Q420 355 385 355 L175 355 Q140 355 140 320 L140 95 Q140 60 175 60 Z" fill="#0F4C81"/>
+<path d="M80 145 L290 145 Q325 145 325 180 L325 405 Q325 440 290 440 L80 440 Q45 440 45 405 L45 180 Q45 145 80 145 Z" fill="#28AFE9"/>
+</svg>

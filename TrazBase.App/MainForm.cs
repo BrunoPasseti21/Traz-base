@@ -4022,22 +4022,12 @@ internal sealed class MainForm : Form
 
     private ContextMenuStrip BuildTrayMenu()
     {
-        var menu = new ContextMenuStrip { ShowImageMargin = false, Renderer = new TrayMenuRenderer() };
+        var menu = new ContextMenuStrip { ShowImageMargin = true, ShowCheckMargin = false, Renderer = new TrayMenuRenderer() };
 
-        // Linha "Transferir" — texto estático; a interação acontece exclusivamente pelo edit.
-        var panel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
-        var label = new Label
-        {
-            Text = "Transferir",
-            AutoSize = true,
-            Location = new Point(8, 8),
-            Font = UiTypography.BodySemibold(9f),
-            ForeColor = TrayMenuTheme.Text,
-            BackColor = Color.Transparent
-        };
-        var box = new UnthemedTextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
-        _traySlBox = box;
-        box.KeyDown += async (_, e) =>
+        // Linhas de entrada (texto estático + edit). Os ícones ficam à esquerda de cada linha.
+        var transferRow = CreateTrayInputRow("Transferir", "Transferir.svg", "Nº da SL");
+        _traySlBox = transferRow.Box;
+        transferRow.Box.KeyDown += async (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
             {
@@ -4045,28 +4035,12 @@ internal sealed class MainForm : Form
                 await TrayTransferAsync();
             }
         };
-        panel.Controls.Add(label);
-        panel.Controls.Add(box);
-        var transferItem = new ToolStripControlHost(panel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
+        var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty };
         menu.Items.Add(transferItem);
 
-        // Linha "Alterar base" — edit para informar o nome da base; Enter aponta o Registro para ela.
-        var changeBasePanel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
-        var changeBaseLabel = new Label
-        {
-            Text = "Alterar base",
-            AutoSize = true,
-            Location = new Point(8, 8),
-            Font = UiTypography.BodySemibold(9f),
-            ForeColor = TrayMenuTheme.Text,
-            BackColor = Color.Transparent
-        };
-        var changeBaseBox = new UnthemedTextBox { PlaceholderText = "Nome da base", BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
-        var changeBaseBoxX = changeBaseLabel.PreferredSize.Width + 14; // 8 (borda) + 6 (folga)
-        changeBaseBox.Location = new Point(changeBaseBoxX, 5);
-        changeBaseBox.Width = Math.Max(60, changeBasePanel.Width - changeBaseBoxX - 8);
-        _trayChangeBaseBox = changeBaseBox;
-        changeBaseBox.KeyDown += async (_, e) =>
+        var changeBaseRow = CreateTrayInputRow("Alterar base", "Trocar-Base.svg", "Nome da base");
+        _trayChangeBaseBox = changeBaseRow.Box;
+        changeBaseRow.Box.KeyDown += async (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
             {
@@ -4074,28 +4048,13 @@ internal sealed class MainForm : Form
                 await TrayChangeBaseAsync();
             }
         };
-        changeBasePanel.Controls.Add(changeBaseLabel);
-        changeBasePanel.Controls.Add(changeBaseBox);
-        var changeBaseItem = new ToolStripControlHost(changeBasePanel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
+        var changeBaseItem = new ToolStripControlHost(changeBaseRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty };
         menu.Items.Add(changeBaseItem);
+        menu.Items.Add(new ToolStripSeparator()); // separador logo abaixo do Alterar base
 
-        // Linha "Buscar chamado" — igual ao SupraAgil: abre o chamado no navegador.
-        var ticketPanel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
-        var ticketLabel = new Label
-        {
-            Text = "Buscar chamado",
-            AutoSize = true,
-            Location = new Point(8, 8),
-            Font = UiTypography.BodySemibold(9f),
-            ForeColor = TrayMenuTheme.Text,
-            BackColor = Color.Transparent
-        };
-        var ticketBox = new UnthemedTextBox { PlaceholderText = "Nº do chamado", BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
-        var ticketBoxX = ticketLabel.PreferredSize.Width + 14; // 8 (borda) + 6 (folga)
-        ticketBox.Location = new Point(ticketBoxX, 5);
-        ticketBox.Width = Math.Max(60, ticketPanel.Width - ticketBoxX - 8);
-        _trayTicketBox = ticketBox;
-        ticketBox.KeyDown += (_, e) =>
+        var ticketRow = CreateTrayInputRow("Buscar chamado", "Chamado.svg", "Nº do chamado");
+        _trayTicketBox = ticketRow.Box;
+        ticketRow.Box.KeyDown += (_, e) =>
         {
             if (e.KeyCode == Keys.Enter)
             {
@@ -4103,25 +4062,23 @@ internal sealed class MainForm : Form
                 TrayOpenTicket();
             }
         };
-        ticketPanel.Controls.Add(ticketLabel);
-        ticketPanel.Controls.Add(ticketBox);
-        var ticketItem = new ToolStripControlHost(ticketPanel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
+        var ticketItem = new ToolStripControlHost(ticketRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty };
         menu.Items.Add(ticketItem);
 
         menu.Items.Add(new ToolStripSeparator());
-        var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
+        var updateItem = new ToolStripMenuItem("Atualizar executáveis", SvgIconLoader.Load("Atualizar.svg", 16), async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
-        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
+        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
         menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
-        var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text };
+        var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text, Image = SvgIconLoader.Load("Atalho.svg", 16) };
         shortcutsItem.DropDown = CreateTraySubMenu();
         shortcutsItem.DropDownOpening += (_, _) => PopulateFolderShortcutsMenu(shortcutsItem);
         PopulateFolderShortcutsMenu(shortcutsItem); // carrega já de cara: a seta de submenu só é pintada quando o DropDown tem itens
         menu.Items.Add(shortcutsItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
-        var closeItem = new ToolStripMenuItem("Fechar", null, (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text };
+        var closeItem = new ToolStripMenuItem("Fechar", SvgIconLoader.Load("Fechar.svg", 16), (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(closeItem);
         return menu;
     }
@@ -4265,7 +4222,30 @@ internal sealed class MainForm : Form
         }
     }
 
-    /// <summary>Submenu da bandeja: ícones ligados; altura limitada a ~20 itens (excedente com rolagem nativa — setas ou roda do mouse).</summary>
+    /// <summary>Linha de entrada da bandeja (ícone + texto estático + edit). Devolve o painel e o edit; o Enter no edit é ligado por quem chama.</summary>
+    private (Panel Panel, TextBox Box) CreateTrayInputRow(string labelText, string iconFile, string placeholder)
+    {
+        var panel = new Panel { Width = 300, Height = 32, BackColor = TrayMenuTheme.Background };
+        panel.Controls.Add(new PictureBox { Size = new Size(16, 16), Location = new Point(2, 8), SizeMode = PictureBoxSizeMode.Zoom, Image = SvgIconLoader.Load(iconFile, 16), BackColor = Color.Transparent });
+        var label = new Label
+        {
+            Text = labelText,
+            AutoSize = true,
+            Location = new Point(24, 8),
+            Font = UiTypography.BodySemibold(9f),
+            ForeColor = TrayMenuTheme.Text,
+            BackColor = Color.Transparent
+        };
+        var box = new UnthemedTextBox { PlaceholderText = placeholder, Height = 24, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        var boxX = label.PreferredSize.Width + 24 + 8; // após o rótulo
+        box.Location = new Point(boxX, 4);
+        box.Width = Math.Max(60, panel.Width - boxX - 8);
+        panel.Controls.Add(label);
+        panel.Controls.Add(box);
+        return (panel, box);
+    }
+
+    /// <summary>Submenu da bandeja com margem de ícones ligada (o ToolStripDropDown automático não pinta imagens; o ContextMenuStrip, que é um ToolStripDropDownMenu, pinta). Altura limitada a ~20 itens; o excedente usa a rolagem nativa do Windows Forms (setas do topo/rodapé ou roda do mouse).</summary>
     private static ContextMenuStrip CreateTraySubMenu() => new TrayDropDownMenu();
 
     private static readonly Dictionary<string, Image?> _fileIconCache = new(StringComparer.OrdinalIgnoreCase);
