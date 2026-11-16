@@ -72,6 +72,7 @@ internal sealed class MainForm : Form
     private readonly ThemeToggle _themeToggle = new();
     private TextBox? _traySlBox;
     private TextBox? _trayChangeBaseBox;
+    private TextBox? _trayTicketBox;
     private readonly EventWaitHandle _showEvent = new(false, EventResetMode.AutoReset, SingleInstance.ShowEventName);
     private volatile bool _showWindowRequested;
     // true quando o fluxo foi iniciado pela bandeja: a janela não abre e o resultado vai por balão.
@@ -4077,6 +4078,36 @@ internal sealed class MainForm : Form
         changeBasePanel.Controls.Add(changeBaseBox);
         var changeBaseItem = new ToolStripControlHost(changeBasePanel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
         menu.Items.Add(changeBaseItem);
+
+        // Linha "Buscar chamado" — igual ao SupraAgil: abre o chamado no navegador.
+        var ticketPanel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
+        var ticketLabel = new Label
+        {
+            Text = "Buscar chamado",
+            AutoSize = true,
+            Location = new Point(8, 8),
+            Font = UiTypography.BodySemibold(9f),
+            ForeColor = TrayMenuTheme.Text,
+            BackColor = Color.Transparent
+        };
+        var ticketBox = new UnthemedTextBox { PlaceholderText = "Nº do chamado", BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        var ticketBoxX = ticketLabel.PreferredSize.Width + 14; // 8 (borda) + 6 (folga)
+        ticketBox.Location = new Point(ticketBoxX, 5);
+        ticketBox.Width = Math.Max(60, ticketPanel.Width - ticketBoxX - 8);
+        _trayTicketBox = ticketBox;
+        ticketBox.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                TrayOpenTicket();
+            }
+        };
+        ticketPanel.Controls.Add(ticketLabel);
+        ticketPanel.Controls.Add(ticketBox);
+        var ticketItem = new ToolStripControlHost(ticketPanel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
+        menu.Items.Add(ticketItem);
+
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
@@ -4179,6 +4210,26 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             ShowBackgroundNotification("Alterar base", $"Não foi possível alterar a base no Registro:\n{ex.Message}");
+        }
+    }
+
+    private void TrayOpenTicket()
+    {
+        var typed = _trayTicketBox?.Text.Trim() ?? "";
+        if (typed.Length == 0 || typed.Length > 12 || typed.Any(character => character is < '0' or > '9'))
+        {
+            ShowBackgroundNotification("Buscar chamado", "Informe um número de chamado com até 12 dígitos.");
+            return;
+        }
+        try
+        {
+            var uri = $"https://suporte.suprasys.com.br/intranet/admin/find_tickets.php?q={typed}&what=seqid";
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = uri, UseShellExecute = true });
+            _trayTicketBox?.Clear();
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Buscar chamado", $"Não foi possível abrir o navegador:\n{ex.Message}");
         }
     }
 
