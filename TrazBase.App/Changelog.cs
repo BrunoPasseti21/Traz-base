@@ -4,6 +4,12 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.1"] =
+        [
+            "Tela \"Atalhos de pasta\" ajustada em monitores menores (ex.: 1366×768 em 125% de escala): a página rola verticalmente quando o conteúdo não cabe, as colunas da grade se ajustam à largura (Nome e Filtro fixos, \"Caminho\" ocupa a sobra) e os botões \"Adicionar / atualizar\" e \"Remover\" ficam sempre abaixo das caixas \"Apenas .exe / .bat / Todos os arquivos\", sem sobreposição.",
+            "Tela \"Configurar caminhos\": as linhas da grade acompanham o tema claro/escuro (antes ficavam escuras no tema claro).",
+            "Verificação de atualização agora roda a cada 1 minuto (antes apenas na abertura da aplicação), com cache de ETag para não esgotar o rate limit do GitHub."
+        ],
         ["0.9.0"] =
         [
             "Novo menu da bandeja totalmente redesenhado: ícones em todas as opções e grade única de alinhamento (ícone e texto em colunas únicas).",
