@@ -11,6 +11,23 @@ internal static class TrayMenuTheme
     public static Color InputForeground => ThemeState.IsDark ? Color.FromArgb(220, 229, 242) : Color.FromArgb(29, 42, 61);
 }
 
+/// <summary>Renderer do menu da bandeja: além da paleta do aplicativo, garante que a seta de submenu seja desenhada sempre com a mesma cor do texto do item (e não com SystemColors.ControlText, que fica invisível no tema escuro).</summary>
+internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
+{
+    public TrayMenuRenderer() : base(new TrayMenuColorTable())
+    {
+    }
+
+    protected override void OnRenderArrow(ToolStripArrowRenderEventArgs e)
+    {
+        if (e.Item is not null)
+            e.ArrowColor = e.Item.Enabled
+                ? e.Item.ForeColor
+                : Color.FromArgb(128, e.Item.ForeColor);
+        base.OnRenderArrow(e);
+    }
+}
+
 /// <summary>Tabela de cores do ProfessionalColorTable limitada à paleta do aplicativo (claro/escuro).</summary>
 internal sealed class TrayMenuColorTable : ProfessionalColorTable
 {

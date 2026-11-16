@@ -3948,7 +3948,7 @@ internal sealed class MainForm : Form
 
     private ContextMenuStrip BuildTrayMenu()
     {
-        var menu = new ContextMenuStrip { ShowImageMargin = false, Renderer = new ToolStripProfessionalRenderer(new TrayMenuColorTable()) };
+        var menu = new ContextMenuStrip { ShowImageMargin = false, Renderer = new TrayMenuRenderer() };
 
         // Linha "Transferir" — texto estático; a interação acontece exclusivamente pelo edit.
         var panel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
