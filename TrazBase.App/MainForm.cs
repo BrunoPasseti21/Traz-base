@@ -2850,7 +2850,7 @@ internal sealed class MainForm : Form
         host.Controls.Add(_sicPassword);
         host.Controls.Add(_sicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicPassword);
-        _useSupportAsCompany.Location = new Point(0, 2 * 40 + 40 + 7);
+        _useSupportAsCompany.Location = new Point(0, 2 * 40 + 32);
         host.Controls.Add(_useSupportAsCompany);
         host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 287) });
         _baseCount.Location = new Point(200, 280);
