@@ -380,6 +380,19 @@ internal class RoundedButton : Button
     }
 }
 
+/// <summary>TextBox sem theming implícito do Windows: a moldura/cores são sempre as controladas pelo aplicativo.</summary>
+internal sealed class UnthemedTextBox : TextBox
+{
+    protected override CreateParams CreateParams
+    {
+        get
+        {
+            SetStyle(ControlStyles.ApplyThemingImplicitly, false);
+            return base.CreateParams;
+        }
+    }
+}
+
 internal sealed class PlainNavigationButton : Button
 {
     private bool _pointerOver;

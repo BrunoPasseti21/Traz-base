@@ -3563,7 +3563,7 @@ internal sealed class MainForm : Form
             ForeColor = TrayMenuTheme.Text,
             BackColor = Color.Transparent
         };
-        var box = new ThemedTextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        var box = new UnthemedTextBox { PlaceholderText = "Nº da SL", Location = new Point(92, 5), Width = 112, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
         _traySlBox = box;
         box.KeyDown += async (_, e) =>
         {
