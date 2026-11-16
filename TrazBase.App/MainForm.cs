@@ -3981,6 +3981,9 @@ internal sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
+        var shortcutsItem = new ToolStripMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text };
+        shortcutsItem.DropDownOpening += (_, _) => PopulateFolderShortcutsMenu(shortcutsItem);
+        menu.Items.Add(shortcutsItem);
         var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
         menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -4063,6 +4066,109 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             _notifyIcon?.ShowBalloonTip(5000, "Copiar senha padrão SIC", "Não foi possível copiar: " + ex.Message, ToolTipIcon.Error);
+        }
+    }
+
+    private void PopulateFolderShortcutsMenu(ToolStripMenuItem parentItem)
+    {
+        var items = parentItem.DropDown.Items;
+        DisposeAllToolStripItems(items);
+        var folders = _settings.FolderShortcuts;
+        if (folders.Count == 0)
+        {
+            items.Add(new ToolStripMenuItem("Nenhum atalho cadastrado") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+        }
+        else
+        {
+            foreach (var folder in folders)
+                items.Add(CreateFolderShortcutMenuItem(folder, PopulateFolderShortcutFilesMenu));
+            items.Add(new ToolStripSeparator());
+        }
+        var manageItem = new ToolStripMenuItem("Gerenciar atalhos...", null, (_, _) => { RestoreFromMinimized(); ShowFolderShortcutsView(); }) { ForeColor = TrayMenuTheme.Text };
+        items.Add(manageItem);
+    }
+
+    private static ToolStripMenuItem CreateFolderShortcutMenuItem(FolderShortcut folder, Action<ToolStripMenuItem, FolderShortcut>? filesMenuPopulator = null)
+    {
+        var item = new ToolStripMenuItem((folder.Name ?? "").Replace("&", "&&")) { ForeColor = TrayMenuTheme.Text };
+        if (filesMenuPopulator is not null)
+            item.DropDownOpening += (_, _) => filesMenuPopulator(item, folder);
+        return item;
+    }
+
+    private void PopulateFolderShortcutFilesMenu(ToolStripMenuItem parentItem, FolderShortcut folder)
+    {
+        var items = parentItem.DropDown.Items;
+        DisposeAllToolStripItems(items);
+        string? error = null;
+        FileSystemInfo[] entries = Array.Empty<FileSystemInfo>();
+        try
+        {
+            if (!Directory.Exists(folder.Path)) throw new DirectoryNotFoundException(folder.Path);
+            entries = new DirectoryInfo(folder.Path).GetFileSystemInfos()
+                .Where(entry => entry is DirectoryInfo ? folder.ShowAllFiles : folder.MatchesFile(entry.Name))
+                .OrderBy(entry => entry is DirectoryInfo ? 0 : 1)
+                .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
+        {
+            error = "Pasta indisponível ou sem permissão";
+        }
+
+        var openExplorer = new ToolStripMenuItem("Abrir esta pasta no Explorer", null, (_, _) => OpenPathInExplorer(folder.Path)) { ForeColor = TrayMenuTheme.Text };
+        items.Add(openExplorer);
+        items.Add(new ToolStripSeparator());
+        if (error is not null)
+        {
+            items.Add(new ToolStripMenuItem(error) { Enabled = false, ForeColor = TrayMenuTheme.Text });
+            return;
+        }
+
+        foreach (var entry in entries)
+        {
+            if (entry is DirectoryInfo subDir)
+            {
+                var subFolderShortcut = new FolderShortcut
+                {
+                    Name = subDir.Name,
+                    Path = subDir.FullName,
+                    ShowAllFiles = folder.ShowAllFiles,
+                    ShowExeFiles = folder.ShowExeFiles,
+                    ShowBatFiles = folder.ShowBatFiles
+                };
+                items.Add(CreateFolderShortcutMenuItem(subFolderShortcut, PopulateFolderShortcutFilesMenu));
+            }
+            else
+            {
+                var fullPath = entry.FullName;
+                var fileItem = new ToolStripMenuItem(entry.Name) { ForeColor = TrayMenuTheme.Text };
+                fileItem.Click += (_, _) => OpenPathInExplorer(fullPath);
+                items.Add(fileItem);
+            }
+        }
+        if (entries.Length == 0)
+            items.Add(new ToolStripMenuItem("Nenhum arquivo para este filtro") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+    }
+
+    private static void DisposeAllToolStripItems(ToolStripItemCollection items)
+    {
+        if (items.Count == 0) return;
+        var stale = new List<ToolStripItem>();
+        foreach (ToolStripItem? item in items)
+            if (item is not null) stale.Add(item);
+        items.Clear();
+        foreach (var item in stale) item.Dispose();
+    }
+
+    private void OpenPathInExplorer(string path)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true }); }
+        catch (Exception ex)
+        {
+            if (_notifyIcon is null) return;
+            EnsureTrayIcon();
+            _notifyIcon?.ShowBalloonTip(4000, "Abrir pasta", $"Não foi possível abrir o item:\n{ex.Message}", ToolTipIcon.Warning);
         }
     }
 

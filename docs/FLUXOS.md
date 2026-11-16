@@ -159,6 +159,7 @@ Nova tela (criada na barra lateral como **Atalhos de pasta**, acima de **Configu
 - Editar: selecione um item na lista para preencher o formulário; os botões **Novo** limpam o formulário para começar outro cadastro e **Remover** exclui o selecionado.
 - O filtro é exibida entre as colunas e controla quais arquivos aparecem nas listagens filtradas (use no submenu que a tela **Atalhos de pasta** expõe para abrir a lista; ou programaticamente via `FolderShortcut.FilterLabel`).
 - Atalhos ficam em `FolderShortcuts` dentro do `settings.json` (persistidos a cada alteração, como as demais configurações).
+- O mesmo submenu também fica disponível na **bandeja** (ícone de segundo plano → menu de contexto → **Atalhos**). O submenu é gerado ao abrir, lê sempre do `settings.json`, e oferece: **Abrir esta pasta no Explorer** (sempre), **abrir arquivos** com o filtro da pasta ativo, **navegar subpastas**, e **Gerenciar atalhos...** para abrir este cadastro.
 
 
 ## Fluxo 7 — Configuração
@@ -189,9 +190,10 @@ O ícone "Traz Base" na bandeja **só fica visível com a janela oculta ou minim
   1. **Transferir** — linha com texto estático "Transferir" + um edit ao lado, para informar o **Nº da SL** (apenas dígitos). Enter no edit inicia a transferência com essa SL, igual ao botão "Iniciar" da tela Transferir (mesma validação/senha/caminhos). **A janela não restaura**: a ação roda inteiramente em segundo plano e o resultado chega por balão ("Pronto!" quando concluída; erro detalhado caso falhe).
   2. Divisória.
   3. **Atualizar executáveis** — atalho: inicia a atualização dos executáveis configurados sem restaurar a janela; a confirmação "Deseja atualizar os executáveis?" é pulada quando iniciada pela bandeja, pois a ação é deliberada. Também dispara balão no início ("Atualização iniciada") e ao final (sucesso ou lista dos que falharam, com dica para ver o log na tela).
-  4. **Copiar senha padrão SIC** — aparece **somente se uma senha padrão do SIC estiver salva** em Configurações; copia a senha (DPAPI) para a área de transferência. O atalho de teclado é **Ctrl+Alt+C** e funciona em qualquer lugar do aplicativo — mesmo com a janela minimizada/na bandeja.
-  5. Divisória.
-  6. **Fechar** — encerra de verdade. Com `MinimizeToTrayOnClose` ligado, **fechar durante um processo em andamento também apenas esconde a janela** — a operação continua em segundo plano e avisa por balão ao terminar; sem a opção ligada, o fechar é bloqueado enquanto houver operação (com o aviso de sempre).
+  4. **Atalhos** — submenu construído ao abrir. Mostra as pastas cadastradas em "Atalhos de pasta" (menu acima de Configuração); cada item abre a listagem da própria pasta (subpastas viram novos submenus navegáveis; arquivos abrem com a associação do Windows; só aparecem os arquivos permitidos pelo filtro da pasta; "Abrir esta pasta no Explorer" sempre presente no topo; "Gerenciar atalhos..." ao final abre a tela de gerenciamento).
+  5. **Copiar senha padrão SIC** — aparece **somente se uma senha padrão do SIC estiver salva** em Configurações; copia a senha (DPAPI) para a área de transferência. O atalho de teclado é **Ctrl+Alt+C** e funciona em qualquer lugar do aplicativo — mesmo com a janela minimizada/na bandeja.
+  6. Divisória.
+  7. **Fechar** — encerra de verdade. Com `MinimizeToTrayOnClose` ligado, **fechar durante um processo em andamento também apenas esconde a janela** — a operação continua em segundo plano e avisa por balão ao terminar; sem a opção ligada, o fechar é bloqueado enquanto houver operação (com o aviso de sempre).
 - **Duplo clique esquerdo** ou clique em um balão restauram a janela (o ícone some da bandeja enquanto a janela estiver aberta).
 - Durante uma ação iniciada pela bandeja, diálogos que exigem decisão do usuário (conflito de pasta de destino, escolha de quais arquivos RAR/ZIP extrair) aparecem como janelas próprias; o restante — validações, progresso, conclusão ou erro — vai apenas para o balão ao final.
 - Balões de perguntas/mensagens de diálogos aparecem apenas com a janela minimizada/oculta (comportamento atual); ao minimizar com a nova opção `MinimizeToTrayOnClose`, um balão informativo explica o menu da bandeja (só na primeira vez por sessão).
