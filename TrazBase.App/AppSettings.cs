@@ -35,6 +35,8 @@ internal sealed class AppSettings
     public string? ProtectedFirebirdPassword { get; set; }
     public string? ProtectedSicPassword { get; set; }
     public string TempPath { get; set; } = "";
+    /// <summary>Quando ligado, o valor EMPRESA gravado no Registro HKCU\SIC\CONEXAO aponta para a pasta de bases de apoio (SupportRoot), em vez da pasta da base/ARQ00.</summary>
+    public bool UseSupportRootAsCompany { get; set; }
     public bool ForceMultiBase { get; set; }
     public bool RenameSlFolderToClientName { get; set; }
     public int BaseCount { get; set; } = 1;

@@ -22,6 +22,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `ScriptArqEmp` | string? | omitida | **Legado.** Caminho de um `.sql` para ARQEMP; migrado para `ArqEmpCommands` na primeira execução. |
 | `ScriptArqSist` | string? | omitida | **Legado.** Caminho de um `.sql` para ARQSIST; migrado para `ArqSistCommands` na primeira execução. |
 
+| `UseSupportRootAsCompany` | bool | `false` | Checkbox **"Apontar a EMPRESA do Regedit para a pasta de bases de apoio"**, abaixo do campo de apoio na Configuração. Ligado: o valor `EMPRESA` gravado em `HKCU\SIC\CONEXAO` aponta para a pasta de apoio (com `\` final), no lugar do caminho padrão (a pasta da base, no modo simples, ou `ARQ00`, no multi-base). Se a pasta de apoio estiver vazia/inacessível, vale o caminho padrão (com aviso no log da operação). |
 | `ArqEmpCommands` | string | `""` | Comandos SQL executados em `ARQEMP.FDB` durante o fluxo de preparação/redefinição (e testáveis na tela ARQEMP). |
 | `ArqSistCommands` | string | `""` | Idem para `ARQSIST.FDB`. |
 | `CommandScriptsMigrated` | bool | `false` | `true` após a migração automática dos scripts legados para os comandos inline. |

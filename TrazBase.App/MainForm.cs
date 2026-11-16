@@ -24,6 +24,7 @@ internal sealed class MainForm : Form
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _useSupportAsCompany = new() { Text = "Apontar a EMPRESA do Regedit para a pasta de bases de apoio", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
@@ -268,6 +269,13 @@ internal sealed class MainForm : Form
             _settings.RenameSlFolderToClientName = _renameSl.Checked;
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de renomeação: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _useSupportAsCompany.Checked = _settings.UseSupportRootAsCompany;
+        _useSupportAsCompany.CheckedChanged += (_, _) =>
+        {
+            _settings.UseSupportRootAsCompany = _useSupportAsCompany.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de EMPRESA: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
         _minimizeToTray.Checked = _settings.MinimizeToTrayOnClose;
         _minimizeToTray.CheckedChanged += (_, _) =>
@@ -2759,7 +2767,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(100, 412),
+            Size = new Size(100, 438),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
@@ -2842,15 +2850,17 @@ internal sealed class MainForm : Form
         host.Controls.Add(_sicPassword);
         host.Controls.Add(_sicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicPassword);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 247) });
-        _baseCount.Location = new Point(200, 240);
+        _useSupportAsCompany.Location = new Point(0, 2 * 40 + 31);
+        host.Controls.Add(_useSupportAsCompany);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 273) });
+        _baseCount.Location = new Point(200, 266);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 287) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 313) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
-        _defaultScreen.Location = new Point(200, 280);
+        _defaultScreen.Location = new Point(200, 306);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2858,11 +2868,11 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 324);
+        _forceMultiBase.Location = new Point(0, 350);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 350);
+        _renameSl.Location = new Point(0, 376);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 376);
+        _minimizeToTray.Location = new Point(0, 402);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
@@ -2870,9 +2880,10 @@ internal sealed class MainForm : Form
             const int fieldLeft = 200;
             const int buttonWidth = 120;
             const int rightInset = 18;
+            const int supportCompanyRowOffset = 26; // espaço do checkbox "EMPRESA" abaixo da linha "Pasta de bases de apoio"
             for (var i = 0; i < labels.Length; i++)
             {
-                var y = i * 40;
+                var y = i * 40 + (i > 2 ? supportCompanyRowOffset : 0);
                 labels[i].Location = new Point(i == 2 ? 24 : 0, y + 8);
                 if (i == 2) supportHelp.Location = new Point(0, y + 7);
                 if (i < pathFields.Length)
@@ -4265,6 +4276,15 @@ internal sealed class MainForm : Form
         return builder.ToString();
     }
 
+    private string GetEmpresaRegistryPath(string fallback, Action<string>? operationLog)
+    {
+        if (!_settings.UseSupportRootAsCompany) return fallback;
+        if (!string.IsNullOrWhiteSpace(_settings.SupportRoot) && Directory.Exists(_settings.SupportRoot))
+            return Path.GetFullPath(_settings.SupportRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        WriteOperationLog(operationLog, "A opção 'Apontar a EMPRESA do Regedit para a pasta de bases de apoio' está ativada, mas a pasta não está configurada ou acessível; usando o caminho padrão.");
+        return fallback;
+    }
+
     private async Task UpdateRegistryForFolderAsync(string folder, Action<string>? operationLog = null)
     {
         // Multi-base é deduzido da própria pasta (pastas ARQ##), independente da opção "Sempre criar estrutura multi-base" (que atua só na transferência).
@@ -4283,7 +4303,10 @@ internal sealed class MainForm : Form
         for (var number = 1; number <= baseCount; number++)
             key.SetValue("BASE" + number, basePath, RegistryValueKind.String);
         WriteOperationLog(operationLog, $"{baseCount} base(s) configurada(s): BASE1…BASE{baseCount} = {basePath}");
-        key.SetValue("EMPRESA", basePath, RegistryValueKind.String);
+        var empresaPath = GetEmpresaRegistryPath(basePath, operationLog);
+        key.SetValue("EMPRESA", empresaPath, RegistryValueKind.String);
+        if (!string.Equals(empresaPath, basePath, StringComparison.OrdinalIgnoreCase))
+            WriteOperationLog(operationLog, $"EMPRESA = {empresaPath} (pasta de bases de apoio)");
         key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
         key.SetValue("TEMP", GetConfiguredTempPath(), RegistryValueKind.String);
         WriteOperationLog(operationLog, "O Registro foi atualizado; o sistema já aponta para esta base.");
@@ -4310,10 +4333,13 @@ internal sealed class MainForm : Form
         }
 
         var companyPath = MultiBaseOperationRules.WithTrailingSeparator(MultiBaseOperationRules.GetCompanyDirectory(root));
-        key.SetValue("EMPRESA", companyPath, RegistryValueKind.String);
+        var empresaPath = GetEmpresaRegistryPath(companyPath, operationLog);
+        key.SetValue("EMPRESA", empresaPath, RegistryValueKind.String);
         key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
         key.SetValue("TEMP", GetConfiguredTempPath(), RegistryValueKind.String);
-        WriteOperationLog(operationLog, $"EMPRESA = {companyPath}");
+        WriteOperationLog(operationLog, string.Equals(empresaPath, companyPath, StringComparison.OrdinalIgnoreCase)
+            ? $"EMPRESA = {empresaPath}"
+            : $"EMPRESA = {empresaPath} (pasta de bases de apoio)");
         WriteOperationLog(operationLog, "SIC apontando para as bases recebidas (Registro atualizado).");
         await Task.CompletedTask;
     }

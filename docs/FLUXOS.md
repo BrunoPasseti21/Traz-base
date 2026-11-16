@@ -61,7 +61,7 @@ Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações
 | Valor    | Conteúdo                                        |
 |----------|-------------------------------------------------|
 | `BASE1`…`BASE<n>` | caminho completo da pasta da base, com `\` final — quantidade definida em **Quantidade de bases** nas Configurações (padrão 1) |
-| `EMPRESA` | idem (mesmo caminho)                           |
+| `EMPRESA` | idem (mesmo caminho) — ou a **pasta de apoio**, quando `UseSupportRootAsCompany` está ligado |
 | `SERVIDOR` | `LOCALHOST`                                   |
 | `TEMP`   | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
 
@@ -72,7 +72,7 @@ Quando a SL traz pastas `ARQ##` (detectado automaticamente, inclusive na troca d
 | Valor | Conteúdo |
 |---|---|
 | `BASE<n>` | caminho completo da pasta `ARQ##`, com `\` final — uma chave por pasta (ex.: `ARQ01`→`BASE1`, `ARQ05`→`BASE5`) |
-| `EMPRESA` | caminho completo da pasta `ARQ00` (onde ficam `ARQEMP.FDB` e `ARQOCOR.FDB`), com `\` final |
+| `EMPRESA` | caminho completo da pasta `ARQ00` (onde ficam `ARQEMP.FDB` e `ARQOCOR.FDB`), com `\` final — ou a **pasta de apoio**, quando `UseSupportRootAsCompany` está ligado |
 | `SERVIDOR` | `LOCALHOST` |
 | `TEMP` | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
 
@@ -169,6 +169,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Origem das solicitações** (`SolicitationRoot`)
 - **Pasta local das bases** (`BasesRoot`)
 - **Pasta de bases de apoio** (`SupportRoot`) — acompanhada de um ícone de ajuda (`Ajuda.svg`). Ao passar o mouse sobre ele, abre um popup próprio (até 500 px de largura, texto quebrado automaticamente) explicando que a pasta deve conter `ARQEMP.FDB` e `ARQOCOR.FDB` e que a aplicação copia automaticamente esses arquivos para a pasta local da base sempre que eles não vierem na solicitação. O popup acompanha o tema (claro/escuro) e se fecha ao mover o mouse para fora do ícone ou quando a janela perde o foco.
+- **Apontar a EMPRESA do Regedit para a pasta de bases de apoio** (`UseSupportRootAsCompany`, padrão `false`) — checkbox logo abaixo do campo de apoio. Ligado: toda troca/preparação de base grava `EMPRESA` = a pasta de apoio (com `\` final), no lugar do caminho padrão (a pasta da base, no modo simples; `ARQ00`, no multi-base). Se a pasta de apoio estiver vazia ou inacessível, a aplicação usa o caminho padrão e registra um aviso no log da operação.
 - **Pasta temporária** (`TempPath` — usada no Registro `TEMP`; vazio = `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows)
 - **Senha Firebird** (campo protegido; caixa **Salvar senha** grava protegida por DPAPI; botão de olho ao lado mostra/oculta o conteúdo)
 - **Senha padrão do SIC** (campo protegido, logo abaixo da senha Firebird; caixa **Salvar senha** grava protegida por DPAPI; botão de olho ao lado mostra/oculta o conteúdo) — com uma senha salva, o menu da bandeja exibe "Copiar senha padrão SIC" e o atalho **Ctrl+Alt+C** copia a senha para a área de transferência em qualquer tela do aplicativo (também quando minimizado para a bandeja).
@@ -180,7 +181,7 @@ Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 - **Renomear pasta da solicitação para o nome fantasia (ou o nome) do cliente** (`RenameSlFolderToClientName`) — no fluxo "Transferir", após os comandos SQL da base, a aplicação executa `SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'` na **ARQSIST** e renomeia a pasta de destino para a **primeira palavra do NFANTASIA** (ou, se o NFANTASIA estiver vazio/nulo, do NOME; se os dois estiverem vazios, a pasta mantém o número da SL) + **`_<SL>`** (ex.: `"JOAO_123456"`). A validação de "pasta já existe" ao iniciar a SL considera a pasta exata `<SL>` ou qualquer pasta que termine em `_<SL>` — ideal para detectar bases renomeadas anteriormente.
 - **Notificações de perguntas/mensagens** — com a aplicação **minimizada**, qualquer pergunta/mensagem pendente dispara sempre um balloon da bandeja ("Traz Base") com o título do diálogo e a primeira linha do texto; clicar no balloon restaura a janela.
 
-Alterações de tema, senha, multi-base forçado e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
+Alterações de tema, senha, multi-base forçado, EMPRESA-apoio e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
 
 ## Fluxo 8 — Bandeja do Windows (tray)
 
