@@ -34,7 +34,7 @@ Recursos: `Imagens/*.svg`, `Imagens/Baixando.gif`, `Imagens/icone/icone_supra.ic
 
 ### Notificações da bandeja
 
-Com a janela minimizada, qualquer diálogo que peça atenção dispara sempre (sem configuração) um balloon da bandeja (`NotifyIcon`, clicável para restaurar a janela). Notificações em primeiro plano não são exibidas. Falhas no mecanismo de notificação nunca interrompem operações (tudo falha silenciosamente para o usuário).
+Com a janela minimizada/oculta, qualquer diálogo que peça atenção dispara sempre (sem configuração) um **toast do Windows** (`ToastNotifier`, via `Windows.UI.Notifications`; marca "Traz Base" pelo AppUserModelID `BrunoPasseti.TrazBase`, com fallback para balão da bandeja se o toast falhar; clique restaura a janela). Notificações em primeiro plano não são exibidas. Falhas no mecanismo de notificação nunca interrompem operações (tudo falha silenciosamente para o usuário).
 
 ### Processos externos
 

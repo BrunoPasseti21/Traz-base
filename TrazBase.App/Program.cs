@@ -21,6 +21,7 @@ internal static class Program
 
         var settings = AppSettings.Load();
         ApplicationConfiguration.Initialize();
+        ToastNotifier.Initialize();
         Application.SetColorMode(settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
         Application.Run(new MainForm());
     }

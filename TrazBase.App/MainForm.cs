@@ -1918,8 +1918,7 @@ internal sealed class MainForm : Form
         _updateSicRunning = true;
         if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
         {
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(4000, "Atualização iniciada", $"Atualizando {plan.Count} executável(is) configurado(s)…", ToolTipIcon.Info);
+            ShowBackgroundNotification("Atualização iniciada", $"Atualizando {plan.Count} executável(is) configurado(s)…");
         }
         _updateSicCancellation = new CancellationTokenSource();
         _updateSicGrid.Enabled = false;
@@ -3366,8 +3365,7 @@ internal sealed class MainForm : Form
         _runCancellation = new CancellationTokenSource();
         if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
         {
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(4000, "Transferência iniciada", $"Preparando a SL {sl}…", ToolTipIcon.Info);
+            ShowBackgroundNotification("Transferência iniciada", $"Preparando a SL {sl}…");
         }
         SetBusy(true);
         try
@@ -3967,13 +3965,26 @@ internal sealed class MainForm : Form
         _notifyIcon.Text = tip.Length > 120 ? tip[..117] + "…" : tip;
     }
 
-    private void ShowBalloon(string caption, string? body)
+    /// <summary>Exibe a notificação de segundo plano como toast do Windows (marca "Traz Base"; clique restaura a janela). Se o toast falhar, cai para o balão da bandeja. Nunca abre diálogo próprio.</summary>
+    private void ShowBackgroundNotification(string caption, string message)
     {
         EnsureTrayIcon();
+        if (ToastNotifier.TryShow(caption, message, RestoreWindowFromBackground)) return;
+        _notifyIcon?.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+    }
+
+    private void RestoreWindowFromBackground()
+    {
+        if (IsDisposed || !IsHandleCreated) return;
+        try { BeginInvoke(new Action(RestoreFromMinimized)); } catch { /* janela já fechou; nada a fazer */ }
+    }
+
+    private void ShowBalloon(string caption, string? body)
+    {
         var message = body is { Length: > 0 }
             ? body + "\nClique aqui para abrir a janela."
             : "O Traz Base precisa da sua atenção.\nClique aqui para abrir a janela.";
-        _notifyIcon!.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+        ShowBackgroundNotification(caption, message);
     }
 
     private void EnsureTrayIcon()
@@ -4051,10 +4062,9 @@ internal sealed class MainForm : Form
 
     private void FlowNotify(string caption, string message, bool error = false)
     {
-        if (_backgroundTrayRun)
+        if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
         {
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(6000, caption, message, error ? ToolTipIcon.Error : ToolTipIcon.Info);
+            ShowBackgroundNotification(caption, message);
             return;
         }
         MessageBox.Show(this, message, caption, MessageBoxButtons.OK, error ? MessageBoxIcon.Error : MessageBoxIcon.Information);
@@ -4064,15 +4074,13 @@ internal sealed class MainForm : Form
     {
         if (_running)
         {
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(4000, "Traz Base", "Aguarde a operação atual terminar antes de iniciar outra transferência.", ToolTipIcon.Info);
+            ShowBackgroundNotification("Traz Base", "Aguarde a operação atual terminar antes de iniciar outra transferência.");
             return;
         }
         var sl = _traySlBox?.Text.Trim() ?? "";
         if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c)))
         {
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(4000, "Transferir", "Digite um número de SL válido (apenas dígitos) para iniciar.", ToolTipIcon.Warning);
+            ShowBackgroundNotification("Transferir", "Digite um número de SL válido (apenas dígitos) para iniciar.");
             return;
         }
         _sl.Text = sl;
@@ -4087,8 +4095,7 @@ internal sealed class MainForm : Form
     {
         if (_updateSicRunning)
         {
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(4000, "Atualizar executáveis", "A atualização dos executáveis já está em andamento.", ToolTipIcon.Info);
+            ShowBackgroundNotification("Atualizar executáveis", "A atualização dos executáveis já está em andamento.");
             return;
         }
         ShowUpdateSicView();
@@ -4100,20 +4107,19 @@ internal sealed class MainForm : Form
     private void TrayCopySicPassword()
     {
         var password = _settings.GetSicPassword();
-        EnsureTrayIcon();
         if (string.IsNullOrEmpty(password))
         {
-            _notifyIcon?.ShowBalloonTip(4000, "Copiar senha padrão SIC", "Nenhuma senha salva. Cadastre a senha padrão em Configurações para usá-la aqui.", ToolTipIcon.Warning);
+            ShowBackgroundNotification("Copiar senha padrão SIC", "Nenhuma senha salva. Cadastre a senha padrão em Configurações para usá-la aqui.");
             return;
         }
         try
         {
             Clipboard.SetText(password);
-            _notifyIcon?.ShowBalloonTip(3000, "Copiar senha padrão SIC", "Senha copiada para a área de transferência.\n(Atalho: Ctrl+Alt+C)", ToolTipIcon.Info);
+            ShowBackgroundNotification("Copiar senha padrão SIC", "Senha copiada para a área de transferência.\n(Atalho: Ctrl+Alt+C)");
         }
         catch (Exception ex)
         {
-            _notifyIcon?.ShowBalloonTip(5000, "Copiar senha padrão SIC", "Não foi possível copiar: " + ex.Message, ToolTipIcon.Error);
+            ShowBackgroundNotification("Copiar senha padrão SIC", "Não foi possível copiar: " + ex.Message);
         }
     }
 
@@ -4252,9 +4258,7 @@ internal sealed class MainForm : Form
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true }); }
         catch (Exception ex)
         {
-            if (_notifyIcon is null) return;
-            EnsureTrayIcon();
-            _notifyIcon?.ShowBalloonTip(4000, "Abrir pasta", $"Não foi possível abrir o item:\n{ex.Message}", ToolTipIcon.Warning);
+            ShowBackgroundNotification("Abrir pasta", $"Não foi possível abrir o item:\n{ex.Message}");
         }
     }
 
@@ -4270,9 +4274,9 @@ internal sealed class MainForm : Form
     {
         if (_trayHintShown || _notifyIcon is null) return;
         _trayHintShown = true;
-        _notifyIcon.ShowBalloonTip(5000, "Traz Base",
-            "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Transferir, Atualizar executáveis ou Fechar.",
-            ToolTipIcon.Info);
+        ShowBackgroundNotification(
+            "Traz Base",
+            "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Transferir, Atualizar executáveis ou Fechar.");
     }
 
     private void RestoreFromMinimized()

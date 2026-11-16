@@ -44,8 +44,8 @@ Source: "Aplicativo\Imagens\*.svg"; DestDir: "{app}\Imagens"; Flags: comparetime
 Source: "Aplicativo\Imagens\icone\*.ico"; DestDir: "{app}\Imagens\icone"; Flags: comparetimestamp nocompression
 
 [Icons]
-Name: "{autoprograms}\Traz Base"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"
-Name: "{autodesktop}\Traz Base"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{autoprograms}\Traz Base"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; AppUserModelID: "BrunoPasseti.TrazBase"
+Name: "{autodesktop}\Traz Base"; Filename: "{app}\{#AppExeName}"; WorkingDir: "{app}"; AppUserModelID: "BrunoPasseti.TrazBase"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\{#AppExeName}"; Flags: nowait runasoriginaluser
