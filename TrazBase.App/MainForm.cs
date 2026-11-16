@@ -3981,8 +3981,9 @@ internal sealed class MainForm : Form
         var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
         menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
-        var shortcutsItem = new ToolStripMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text };
+        var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text };
         shortcutsItem.DropDownOpening += (_, _) => PopulateFolderShortcutsMenu(shortcutsItem);
+        PopulateFolderShortcutsMenu(shortcutsItem); // carrega já de cara: a seta de submenu só é pintada quando o DropDown tem itens
         menu.Items.Add(shortcutsItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
@@ -4088,7 +4089,7 @@ internal sealed class MainForm : Form
 
     private static ToolStripMenuItem CreateFolderShortcutMenuItem(FolderShortcut folder, Action<ToolStripMenuItem, FolderShortcut>? filesMenuPopulator = null)
     {
-        var item = new ToolStripMenuItem((folder.Name ?? "").Replace("&", "&&")) { ForeColor = TrayMenuTheme.Text };
+        var item = new SubmenuMenuItem((folder.Name ?? "").Replace("&", "&&")) { ForeColor = TrayMenuTheme.Text };
         if (filesMenuPopulator is not null)
             item.DropDownOpening += (_, _) => filesMenuPopulator(item, folder);
         return item;

@@ -28,6 +28,16 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
     }
 }
 
+/// <summary>Item de submenu do menu da bandeja: sempre reconhecido como submenu para pintar a seta "›", mesmo antes de o DropDown ser populado (o Windows Forms só pinta a seta quando HasDropDownItems é verdadeiro — ou seja, após a primeira abertura, quando os itens já existem).</summary>
+internal sealed class SubmenuMenuItem : ToolStripMenuItem
+{
+    public SubmenuMenuItem(string text) : base(text)
+    {
+    }
+
+    public override bool HasDropDownItems => true;
+}
+
 /// <summary>Tabela de cores do ProfessionalColorTable limitada à paleta do aplicativo (claro/escuro).</summary>
 internal sealed class TrayMenuColorTable : ProfessionalColorTable
 {
