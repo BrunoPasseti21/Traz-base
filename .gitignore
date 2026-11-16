@@ -18,6 +18,9 @@
 /Instalador/TrazBase-Setup.exe
 /Instalador/tools/
 
+# Projetos de exemplo / utilitarios internos — nao publicar no GitHub.
+/projetos-exemplos/
+
 # Local Firebird databases and source archives may contain company data.
 *.fdb
 *.FDB
