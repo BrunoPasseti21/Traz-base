@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text.Json;
 
@@ -9,6 +10,7 @@ internal static class GitHubReleaseUpdater
 {
     private static readonly HttpClient Client = CreateClient();
     private const string ReleaseApi = "https://api.github.com/repos/BrunoPasseti21/Traz-base/releases/latest";
+    private static string? _lastETag;
 
     private static HttpClient CreateClient()
     {
@@ -20,8 +22,13 @@ internal static class GitHubReleaseUpdater
 
     public static async Task<ReleaseUpdate?> CheckAsync(Version currentVersion)
     {
-        using var response = await Client.GetAsync(ReleaseApi);
+        using var request = new HttpRequestMessage(HttpMethod.Get, ReleaseApi);
+        if (_lastETag is not null)
+            request.Headers.TryAddWithoutValidation("If-None-Match", _lastETag);
+        using var response = await Client.SendAsync(request);
+        if (response.StatusCode == HttpStatusCode.NotModified) return null; // nada mudou desde a última verificação (304 não conta no rate limit)
         response.EnsureSuccessStatusCode();
+        _lastETag = response.Headers.ETag?.ToString();
         var json = await response.Content.ReadAsStringAsync();
         return ParseLatestRelease(json, currentVersion);
     }

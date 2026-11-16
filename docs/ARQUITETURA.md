@@ -75,7 +75,7 @@ Não há processos externos no caminho crítico de negócio. O único processo i
 
 ### GitHub Releases (autoatualização)
 
-`GET https://api.github.com/repos/BrunoPasseti21/Traz-base/releases/latest` → `tag_name` (prefixo `v` ignorado) maior que a versão do assembly → asset cujo nome termina em `Setup.exe` (URL precisa ser HTTPS) → download para `%TEMP%` → execução elevada com `/VERYSILENT ...`. O instalador (`TrazBase.iss`) bloqueia versões mais antigas que as já instaladas e permite reinstalar a mesma versão.
+`GET https://api.github.com/repos/BrunoPasseti21/Traz-base/releases/latest` → `tag_name` (prefixo `v` ignorado) maior que a versão do assembly → asset cujo nome termina em `Setup.exe` (URL precisa ser HTTPS) → download para `%TEMP%` → execução elevada com `/VERYSILENT ...`. O instalador (`TrazBase.iss`) bloqueia versões mais antigas que as já instaladas e permite reinstalar a mesma versão. A verificação roda ao abrir a janela **e a cada 1 minuto** (timer sempre ativo, inclusive com a janela na bandeja), com cache de ETag entre verificações — `304 Not Modified` não consome o rate limit de 60/h por IP do GitHub.
 
 ## Segurança e integridade operacional
 

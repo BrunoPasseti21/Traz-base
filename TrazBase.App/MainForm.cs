@@ -158,6 +158,8 @@ internal sealed class MainForm : Form
     private readonly RichTextBox _arqSistOutput = CreateSqlOutput();
     private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
     private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
+    private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 60_000 };
+    private bool _updateCheckRunning;
     private bool _menuExpanded;
     private Form? _hintPopup;
 
@@ -412,6 +414,14 @@ internal sealed class MainForm : Form
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
         Deactivate += (_, _) => HideHintPopup();
+        _updateCheckTimer.Tick += async (_, _) =>
+        {
+            if (_updateCheckRunning) return;
+            _updateCheckRunning = true;
+            try { await CheckForUpdatesAsync(); }
+            finally { _updateCheckRunning = false; }
+        };
+        _updateCheckTimer.Start();
         FormClosing += (sender, e) =>
         {
             _menuAnimationTimer.Stop();
@@ -457,6 +467,7 @@ internal sealed class MainForm : Form
                 }
                 _commandSaveTimer.Stop();
                 _settingsSaveTimer.Stop();
+                _updateCheckTimer.Stop();
                 UnregisterSicPasswordHotKey();
                 _notifyIcon?.Visible = false;
                 try
@@ -548,6 +559,7 @@ internal sealed class MainForm : Form
         {
             var update = await GitHubReleaseUpdater.CheckAsync(GetCurrentVersion());
             if (update is null || IsDisposed) return;
+            if (_updateButton.Tag is ReleaseUpdate shown && shown.Version == update.Version) return; // já exibida; sem piscar a UI
             _updateButton.Text = $"Atualização disponível · v{update.Version}";
             _updateButton.Tag = update;
             _updateRow.Visible = true;
