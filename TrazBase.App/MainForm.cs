@@ -92,6 +92,7 @@ internal sealed class MainForm : Form
     private Panel _settingsFieldsHost = null!;
     private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private Panel _changeBaseListCard = null!;
+    private Panel _resetBaseListCard = null!;
     private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private readonly UnthemedTextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
     private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
@@ -668,6 +669,7 @@ internal sealed class MainForm : Form
 
         page.Controls.Add(_resetBaseFoldersRootLabel, 0, 2);
         var listCard = Card();
+        _resetBaseListCard = listCard;
         _resetBaseFolders.Font = UiTypography.Body(11f);
         listCard.Controls.Add(_resetBaseFolders);
         page.Controls.Add(listCard, 0, 3);
@@ -2621,13 +2623,19 @@ internal sealed class MainForm : Form
         }
         // Alterar base: a área da lista é o equivalente lógico ao memo do app; usa o mesmo fundo
         if (_changeBaseListCard is not null) _changeBaseListCard.BackColor = memoBack;
+        if (_resetBaseListCard is not null) _resetBaseListCard.BackColor = memoBack;
         _baseFolders.BackColor = memoBack;
         _baseFolders.ForeColor = memoFore;
+        if (_resetBaseFolders is not null)
+        {
+            _resetBaseFolders.BackColor = memoBack;
+            _resetBaseFolders.ForeColor = memoFore;
+        }
         HighlightSql(_arqEmpEditor);
         HighlightSql(_arqSistEditor);
         foreach (var control in EnumerateControls(this))
         {
-            if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _changeBaseListCard)
+            if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _changeBaseListCard || control == _resetBaseListCard)
                 continue; // memos/lista de Alterar base já tematizados acima
             if (control is Panel panel)
             {
@@ -2681,7 +2689,11 @@ internal sealed class MainForm : Form
             }
             else if (control is ListView listView)
             {
-                if (listView != _baseFolders) { listView.BackColor = surface; listView.ForeColor = text; }
+                if (listView != _baseFolders && listView != _resetBaseFolders)
+                {
+                    listView.BackColor = surface;
+                    listView.ForeColor = text;
+                }
             }
             else if (control is TextBox textBox) { textBox.BackColor = input; textBox.ForeColor = text; }
             else if (control is NumericUpDown numeric) { numeric.BackColor = input; numeric.ForeColor = text; }
