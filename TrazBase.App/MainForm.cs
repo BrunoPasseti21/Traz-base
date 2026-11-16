@@ -3065,8 +3065,10 @@ internal sealed class MainForm : Form
         HighlightSql(_arqSistEditor);
         foreach (var control in EnumerateControls(this))
         {
-            if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _changeBaseListCard || control == _resetBaseListCard)
-                continue; // memos/lista de Alterar base já tematizados acima
+            try
+            {
+                if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _changeBaseListCard || control == _resetBaseListCard)
+                    continue; // memos/lista de Alterar base já tematizados acima
             if (control is Panel panel)
             {
                 if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
@@ -3095,6 +3097,17 @@ internal sealed class MainForm : Form
                 gridView.EnableHeadersVisualStyles = false;
                 gridView.RowTemplate.DefaultCellStyle.BackColor = gridBackground;
                 gridView.RowTemplate.DefaultCellStyle.ForeColor = text;
+                // As linhas existentes foram clonadas do RowTemplate com as cores do tema anterior;
+                // atualizá-las também (as futuras copiam as novas do RowTemplate).
+                foreach (DataGridViewRow row in gridView.Rows)
+                {
+                    row.DefaultCellStyle.BackColor = gridBackground;
+                    row.DefaultCellStyle.ForeColor = text;
+                    row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(31, 111, 235);
+                    row.DefaultCellStyle.SelectionForeColor = Color.White;
+                    row.DefaultCellStyle.Font = UiTypography.Body(9f);
+                }
+                gridView.Invalidate();
             }
 
             if (control is ThemedProgressBar progressBar)
@@ -3150,6 +3163,8 @@ internal sealed class MainForm : Form
                     button.FlatAppearance.BorderSize = 1;
                 }
             }
+            }
+            catch { /* um controle mal configurado não derruba o tema do restante */ }
         }
         ApplyNavigationColors();
         HighlightSql(_arqEmpEditor);
