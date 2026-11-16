@@ -68,6 +68,7 @@ internal sealed class TrayDropDownMenu : ContextMenuStrip
         ShowImageMargin = true;
         ShowCheckMargin = false;
         Renderer = new TrayMenuRenderer();
+        ImageScalingSize = new Size(16, 16); // nunca esticar acima de 16x16, mesmo em telas com escala (DPI)
     }
 
     public override Size GetPreferredSize(Size proposedSize)
