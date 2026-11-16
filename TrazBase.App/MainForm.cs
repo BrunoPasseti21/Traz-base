@@ -698,10 +698,10 @@ internal sealed class MainForm : Form
 
     private Control BuildFolderShortcutsView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, AutoScroll = true, Padding = new Padding(26, 20, 26, 20) };
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 230));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 320));
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, AutoScroll = true, Padding = new Padding(26, 10, 26, 10) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 290));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Atalhos de pasta", "Atalhos para as pastas que você usa no dia a dia, com filtro por tipo de arquivo"), 0, 0);
 
