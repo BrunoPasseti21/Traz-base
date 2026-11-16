@@ -698,14 +698,14 @@ internal sealed class MainForm : Form
 
     private Control BuildFolderShortcutsView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, AutoScroll = true, Padding = new Padding(26, 10, 26, 10) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, AutoScroll = true, Padding = new Padding(26, 10, 26, 10) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 190));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 290));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
         page.Controls.Add(BuildHeader("Atalhos de pasta", "Atalhos para as pastas que você usa no dia a dia, com filtro por tipo de arquivo"), 0, 0);
 
         var listCard = Card();
+        listCard.MinimumSize = new Size(0, 200);
         listCard.Controls.Add(new Label { Text = "PASTAS CADASTRADAS", Font = UiTypography.BodySemibold(9f), ForeColor = Muted, AutoSize = true, Location = new Point(18, 14) });
         _folderShortcutList.Columns.Clear();
         _folderShortcutList.Columns.Add("Nome", 220);
@@ -735,6 +735,7 @@ internal sealed class MainForm : Form
         page.Controls.Add(listCard, 0, 1);
 
         var editor = Card();
+        editor.MinimumSize = new Size(0, 300);
         editor.Controls.Add(new Label { Text = "Adicionar / editar atalho", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 13) });
         editor.Controls.Add(new Label { Text = "Nome", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 47) });
         _folderShortcutName.Location = new Point(18, 67);
