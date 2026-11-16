@@ -1,4 +1,4 @@
-﻿using Microsoft.Win32;
+using Microsoft.Win32;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
@@ -15,9 +15,9 @@ internal sealed class MainForm : Form
 {
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly Dictionary<string, TextBox> _fields = new();
-    private readonly TextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly UnthemedTextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
-    private readonly TextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
@@ -36,7 +36,7 @@ internal sealed class MainForm : Form
         (StartScreen.ComandosArqSist, "Comandos ARQSIST"),
     ];
     private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 220, Height = 30 };
-    private readonly TextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
+    private readonly UnthemedTextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
     private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
     private readonly Label _versionLabel = new() { Text = "", AutoSize = true, Visible = false, ForeColor = Color.FromArgb(0, 120, 255), Font = UiTypography.Body(14f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
@@ -91,20 +91,20 @@ internal sealed class MainForm : Form
     private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private Panel _changeBaseListCard = null!;
     private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
-    private readonly TextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
+    private readonly UnthemedTextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
     private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
     private readonly Label _resetBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private bool _syncingResetSlFromList;
     private readonly RoundedButton _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly TextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou SUPRASYS_123456" };
+    private readonly UnthemedTextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou SUPRASYS_123456" };
     private readonly RoundedButton _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(600, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ThemedTextBox _resetLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _resetCancellation;
     private bool _resetRunning;
-    private readonly TextBox _restoreFolder = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+    private readonly UnthemedTextBox _restoreFolder = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
     private readonly RoundedButton _restoreBrowseButton = new() { Text = "Procurar", Size = new Size(110, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly RoundedButton _restoreButton = new() { Text = "Restaurar bases", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
@@ -119,7 +119,7 @@ internal sealed class MainForm : Form
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
     private readonly CheckBox _updateSicSingleDestinationCheck = new() { Text = "Usar o mesmo destino para todos os executáveis", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
-    private readonly TextBox _updateSicSingleDestination = new() { Width = 760, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Enabled = false };
+    private readonly UnthemedTextBox _updateSicSingleDestination = new() { Width = 760, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Enabled = false };
     private readonly RoundedButton _updateSicSingleDestinationBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f), Enabled = false };
     private readonly DataGridView _updateSicGrid = CreateUpdateSicGrid();
     private readonly BindingList<UpdateSicEntry> _updateSicRows = new();
@@ -131,8 +131,8 @@ internal sealed class MainForm : Form
     private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private CancellationTokenSource? _updateSicCancellation;
     private bool _updateSicRunning;
-    private readonly TextBox _arqEmpDatabase = new();
-    private readonly TextBox _arqSistDatabase = new();
+    private readonly UnthemedTextBox _arqEmpDatabase = new();
+    private readonly UnthemedTextBox _arqSistDatabase = new();
     private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
     private readonly RichTextBox _arqSistEditor = CreateSqlEditor();
     private readonly RichTextBox _arqEmpOutput = CreateSqlOutput();
@@ -2399,7 +2399,7 @@ internal sealed class MainForm : Form
         var emptyTempHint = TryGetSicTempPath() is string registryTemp
             ? $"(Vazio = valor do Registro: {registryTemp})"
             : "(Vazio = pasta temporária do Windows)";
-        var pathFields = keys.Select(key => new TextBox
+        var pathFields = keys.Select(key => new UnthemedTextBox
         {
             Text = GetSetting(key),
             BorderStyle = BorderStyle.FixedSingle,
