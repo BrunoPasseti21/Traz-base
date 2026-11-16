@@ -19,6 +19,9 @@ internal sealed class MainForm : Form
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private static readonly Color EyeIconColor = Color.FromArgb(110, 116, 129);
+    private readonly RoundedButton _passwordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly RoundedButton _sicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
@@ -289,6 +292,8 @@ internal sealed class MainForm : Form
         _sicPassword.Leave += (_, _) => { if (_saveSicPassword.Checked) SaveSicPasswordPreference(); };
         var sicPasswordTip = new ToolTip();
         sicPasswordTip.SetToolTip(_saveSicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
+        WirePasswordToggle(_password, _passwordVisibilityToggle);
+        WirePasswordToggle(_sicPassword, _sicPasswordVisibilityToggle);
         AcceptButton = _start;
         var passwordTip = new ToolTip();
         passwordTip.SetToolTip(_savePassword, "A senha será protegida pelo Windows para sua conta de usuário.");
@@ -2366,8 +2371,8 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 412),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left,
+            Size = new Size(100, 412),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
         var labels = new[]
@@ -2443,9 +2448,11 @@ internal sealed class MainForm : Form
         _saveSicPassword.Margin = Padding.Empty;
         host.Controls.Add(labels[4]);
         host.Controls.Add(_password);
+        host.Controls.Add(_passwordVisibilityToggle);
         host.Controls.Add(_savePassword);
         host.Controls.Add(labels[5]);
         host.Controls.Add(_sicPassword);
+        host.Controls.Add(_sicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicPassword);
         host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 247) });
         _baseCount.Location = new Point(200, 240);
@@ -2492,18 +2499,20 @@ internal sealed class MainForm : Form
                 {
                     var isFirebird = i == 4;
                     var pwdField = isFirebird ? _password : _sicPassword;
+                    var pwdToggle = isFirebird ? _passwordVisibilityToggle : _sicPasswordVisibilityToggle;
                     var pwdSave = isFirebird ? _savePassword : _saveSicPassword;
                     pwdField.Location = new Point(fieldLeft, y);
-                    pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
+                    pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
                     pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                     pwdField.Height = 30;
+                    pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y + 1);
+                    pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
                     pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + 6);
                     pwdSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
                 }
             }
         }
 
-        card.Resize += (_, _) => host.Width = Math.Max(100, card.ClientSize.Width - 54);
         host.Resize += (_, _) => LayoutSettingsRows();
         LayoutSettingsRows();
         card.Controls.Add(host);
@@ -2845,6 +2854,22 @@ internal sealed class MainForm : Form
         {
             // A migração será tentada novamente na próxima abertura.
         }
+    }
+
+    private void WirePasswordToggle(TextBox field, RoundedButton toggle)
+    {
+        toggle.Image = SvgIconLoader.Load("Eye.svg", 16, EyeIconColor);
+        toggle.FlatAppearance.BorderSize = 0;
+        toggle.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        toggle.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        _menuToolTip.SetToolTip(toggle, "Mostrar senha");
+        toggle.Click += (_, _) =>
+        {
+            var willShow = field.UseSystemPasswordChar; // oculto no momento => a senha passará a ser exibida
+            field.UseSystemPasswordChar = !willShow;
+            toggle.Image = SvgIconLoader.Load(willShow ? "EyeOff.svg" : "Eye.svg", 16, EyeIconColor);
+            _menuToolTip.SetToolTip(toggle, willShow ? "Ocultar senha" : "Mostrar senha");
+        };
     }
 
     private void SavePasswordPreference()
