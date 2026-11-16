@@ -71,6 +71,7 @@ internal sealed class MainForm : Form
     private readonly Panel _themeToggleRow = new() { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(0, 6, 0, 6) };
     private readonly ThemeToggle _themeToggle = new();
     private TextBox? _traySlBox;
+    private TextBox? _trayChangeBaseBox;
     // true quando o fluxo foi iniciado pela bandeja: a janela não abre e o resultado vai por balão.
     private bool _backgroundTrayRun;
     private bool _exitRequested;
@@ -4034,6 +4035,32 @@ internal sealed class MainForm : Form
         panel.Controls.Add(box);
         var transferItem = new ToolStripControlHost(panel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
         menu.Items.Add(transferItem);
+
+        // Linha "Alterar base" — edit para informar o nome da base; Enter aponta o Registro para ela.
+        var changeBasePanel = new Panel { Width = 232, Height = 32, BackColor = TrayMenuTheme.Background };
+        var changeBaseLabel = new Label
+        {
+            Text = "Alterar base",
+            AutoSize = true,
+            Location = new Point(8, 8),
+            Font = UiTypography.BodySemibold(9f),
+            ForeColor = TrayMenuTheme.Text,
+            BackColor = Color.Transparent
+        };
+        var changeBaseBox = new UnthemedTextBox { PlaceholderText = "Nome da base", Location = new Point(92, 5), Width = 112, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        _trayChangeBaseBox = changeBaseBox;
+        changeBaseBox.KeyDown += async (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                await TrayChangeBaseAsync();
+            }
+        };
+        changeBasePanel.Controls.Add(changeBaseLabel);
+        changeBasePanel.Controls.Add(changeBaseBox);
+        var changeBaseItem = new ToolStripControlHost(changeBasePanel) { AutoSize = false, Width = 232, Height = 32, Padding = Padding.Empty };
+        menu.Items.Add(changeBaseItem);
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
@@ -4089,6 +4116,54 @@ internal sealed class MainForm : Form
         _backgroundTrayRun = true;
         try { await StartFlowAsync(); }
         finally { _backgroundTrayRun = false; }
+    }
+
+    private async Task TrayChangeBaseAsync()
+    {
+        var typed = _trayChangeBaseBox?.Text.Trim() ?? "";
+        if (typed.Length == 0)
+        {
+            ShowBackgroundNotification("Alterar base", "Digite o nome da base para apontar o Registro para ela.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || !Directory.Exists(_settings.BasesRoot))
+        {
+            ShowBackgroundNotification("Alterar base", "A pasta local das bases não está configurada ou não está acessível. Configure em Configurações.");
+            return;
+        }
+
+        string? folder;
+        try { folder = BaseOperationRules.FindLocalBaseDirectoryByName(_settings.BasesRoot, typed); }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Alterar base", $"Não foi possível buscar a base:\n{ex.Message}");
+            return;
+        }
+        if (folder is null)
+        {
+            ShowBackgroundNotification("Alterar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca exata ou por subpastas terminadas em \"_<dígitos>\".");
+            return;
+        }
+
+        if (MultiBaseOperationRules.IsMultiBase(folder) && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(folder)))
+        {
+            ShowBackgroundNotification("Alterar base", $"A base \"{Path.GetFileName(folder)}\" tem a estrutura multi-base (pastas ARQ##), mas não existe a pasta ARQ00:\n{MultiBaseOperationRules.GetCompanyDirectory(folder)}\n\nO Registro não foi alterado.");
+            return;
+        }
+
+        try
+        {
+            await UpdateRegistryForFolderAsync(folder);
+            _trayChangeBaseBox?.Clear();
+            _status.Text = "Base alterada para: " + folder;
+            Log($"Base alterada pela bandeja: {folder}");
+            _ = UpdateChangeBaseVersionAsync(folder);
+            ShowBackgroundNotification("Alterar base", $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}");
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Alterar base", $"Não foi possível alterar a base no Registro:\n{ex.Message}");
+        }
     }
 
     private async Task TrayUpdateSicAsync()
