@@ -425,6 +425,14 @@ internal sealed class MainForm : Form
             }
             else
             {
+                if (!_exitRequested
+                    && e.CloseReason == CloseReason.UserClosing
+                    && !_settings.MinimizeToTrayOnClose
+                    && MessageBox.Show(this, "Deseja realmente fechar a aplicação?", "Fechar aplicação", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                {
+                    e.Cancel = true; // o usuário desistiu de fechar
+                    return;
+                }
                 _commandSaveTimer.Stop();
                 _settingsSaveTimer.Stop();
                 UnregisterSicPasswordHotKey();
