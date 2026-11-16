@@ -39,6 +39,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `DefaultScreen` | string | `"Transferir"` | Tela aberta ao iniciar a aplicação. Valores: `Transferir`, `AlterarBase`, `RedefinirBase`, `RestaurarBase`, `AtualizarSic`, `Configuracao`, `ComandosArqEmp`, `ComandosArqSist`. |
 | `LastChangelogVersion` | string? | `null` | Última versão exibida na tela "Novidades". `null` → mostrar na próxima abertura (atualização/versão nova). |
 | `ProtectedFirebirdPassword` | string? | omitida | Senha Firebird protegida por DPAPI (Base64), gravada somente quando "Salvar senha" está marcado. |
+| `ProtectedSicPassword` | string? | omitida | Senha padrão do SIC, com a mesma proteção DPAPI e a mesma caixa "Salvar senha" do campo Firebird. Habilitada sob demanda no menu da bandeja ("Copiar senha padrão SIC"). |
 
 Campos nulos marcados com `[JsonIgnore(WhenWritingNull)]` (`ScriptArqEmp`, `ScriptArqSist`, `ProtectedFirebirdPassword`) desaparecem do arquivo quando vazios/limpos.
 

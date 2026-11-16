@@ -33,6 +33,7 @@ internal sealed class AppSettings
     public bool DarkMode { get; set; }
     public bool MinimizeToTrayOnClose { get; set; }
     public string? ProtectedFirebirdPassword { get; set; }
+    public string? ProtectedSicPassword { get; set; }
     public string TempPath { get; set; } = "";
     public bool ForceMultiBase { get; set; }
     public bool RenameSlFolderToClientName { get; set; }
@@ -129,6 +130,22 @@ internal sealed class AppSettings
         }
     }
 
+    public string? GetSicPassword()
+    {
+        if (string.IsNullOrWhiteSpace(ProtectedSicPassword)) return null;
+        try
+        {
+            var encrypted = Convert.FromBase64String(ProtectedSicPassword);
+            var clear = ProtectedData.Unprotect(encrypted, optionalEntropy: null, DataProtectionScope.CurrentUser);
+            return Encoding.UTF8.GetString(clear);
+        }
+        catch
+        {
+            ProtectedSicPassword = null;
+            return null;
+        }
+    }
+
     public void SetFirebirdPassword(string? password)
     {
         if (string.IsNullOrEmpty(password))
@@ -142,6 +159,23 @@ internal sealed class AppSettings
         {
             var encrypted = ProtectedData.Protect(clear, optionalEntropy: null, DataProtectionScope.CurrentUser);
             ProtectedFirebirdPassword = Convert.ToBase64String(encrypted);
+        }
+        finally { CryptographicOperations.ZeroMemory(clear); }
+    }
+
+    public void SetSicPassword(string? password)
+    {
+        if (string.IsNullOrEmpty(password))
+        {
+            ProtectedSicPassword = null;
+            return;
+        }
+
+        var clear = Encoding.UTF8.GetBytes(password);
+        try
+        {
+            var encrypted = ProtectedData.Protect(clear, optionalEntropy: null, DataProtectionScope.CurrentUser);
+            ProtectedSicPassword = Convert.ToBase64String(encrypted);
         }
         finally { CryptographicOperations.ZeroMemory(clear); }
     }

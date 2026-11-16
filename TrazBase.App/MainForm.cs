@@ -17,6 +17,8 @@ internal sealed class MainForm : Form
     private readonly Dictionary<string, TextBox> _fields = new();
     private readonly TextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly TextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
@@ -224,6 +226,7 @@ internal sealed class MainForm : Form
             _fields[nameof(AppSettings.TempPath)],
             _password],
             _savePassword);
+        WireEnterNavigation([_sicPassword], _saveSicPassword);
         WireEnterNavigation([_arqEmpDatabase], _arqEmpEditor);
         WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
@@ -278,6 +281,17 @@ internal sealed class MainForm : Form
         _savePassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedFirebirdPassword);
         _savePassword.CheckedChanged += (_, _) => SavePasswordPreference();
         _password.Leave += (_, _) => { if (_savePassword.Checked) SavePasswordPreference(); };
+
+        _sicPassword.Text = _settings.GetSicPassword() ?? "";
+        _sicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicPassword.Margin = Padding.Empty;
+        _saveSicPassword.Margin = Padding.Empty;
+        _saveSicPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
+        _saveSicPassword.CheckedChanged += (_, _) => SaveSicPasswordPreference();
+        _sicPassword.Leave += (_, _) => { if (_saveSicPassword.Checked) SaveSicPasswordPreference(); };
+        var sicPasswordTip = new ToolTip();
+        sicPasswordTip.SetToolTip(_saveSicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
         AcceptButton = _start;
         var passwordTip = new ToolTip();
         passwordTip.SetToolTip(_savePassword, "A senha será protegida pelo Windows para sua conta de usuário.");
@@ -585,7 +599,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 434));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 474));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -2355,7 +2369,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 372),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 54), 412),
             Anchor = AnchorStyles.Top | AnchorStyles.Left,
             Margin = Padding.Empty
         };
@@ -2365,7 +2379,8 @@ internal sealed class MainForm : Form
             new Label { Text = "Pasta local das bases", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Pasta de bases de apoio", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
+            new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
+            new Label { Text = "Senha padrão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
         const string supportHelpText =
             "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
@@ -2428,15 +2443,18 @@ internal sealed class MainForm : Form
         host.Controls.Add(labels[4]);
         host.Controls.Add(_password);
         host.Controls.Add(_savePassword);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 207) });
-        _baseCount.Location = new Point(200, 200);
+        host.Controls.Add(labels[5]);
+        host.Controls.Add(_sicPassword);
+        host.Controls.Add(_saveSicPassword);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 247) });
+        _baseCount.Location = new Point(200, 240);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 247) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 287) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         _defaultScreen.SelectedIndex = initialIndex < 0 ? 0 : initialIndex;
-        _defaultScreen.Location = new Point(200, 240);
+        _defaultScreen.Location = new Point(200, 280);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2444,11 +2462,11 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 284);
+        _forceMultiBase.Location = new Point(0, 324);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 310);
+        _renameSl.Location = new Point(0, 350);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 336);
+        _minimizeToTray.Location = new Point(0, 376);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
@@ -2471,12 +2489,15 @@ internal sealed class MainForm : Form
                 }
                 else
                 {
-                    _password.Location = new Point(fieldLeft, y);
-                    _password.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
-                    _password.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-                    _password.Height = 30;
-                    _savePassword.Location = new Point(host.ClientSize.Width - buttonWidth, y + 6);
-                    _savePassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+                    var isFirebird = i == 4;
+                    var pwdField = isFirebird ? _password : _sicPassword;
+                    var pwdSave = isFirebird ? _savePassword : _saveSicPassword;
+                    pwdField.Location = new Point(fieldLeft, y);
+                    pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
+                    pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                    pwdField.Height = 30;
+                    pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + 6);
+                    pwdSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
                 }
             }
         }
@@ -2776,6 +2797,7 @@ internal sealed class MainForm : Form
     {
         ReadFields();
         _settings.SetFirebirdPassword(_savePassword.Checked ? _password.Text : null);
+        _settings.SetSicPassword(_saveSicPassword.Checked ? _sicPassword.Text : null);
         _settings.Save();
     }
 
@@ -2831,6 +2853,20 @@ internal sealed class MainForm : Form
             MessageBox.Show(this, "Digite a senha Firebird antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
             _savePassword.Checked = false;
             _password.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void SaveSicPasswordPreference()
+    {
+        if (_saveSicPassword.Checked && string.IsNullOrWhiteSpace(_sicPassword.Text))
+        {
+            MessageBox.Show(this, "Digite a senha padrão do SIC antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _saveSicPassword.Checked = false;
+            _sicPassword.Focus();
             return;
         }
 
@@ -3544,7 +3580,10 @@ internal sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
+        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.C };
+        menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
+        menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
         var closeItem = new ToolStripMenuItem("Fechar", null, (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(closeItem);
         return menu;
@@ -3604,6 +3643,26 @@ internal sealed class MainForm : Form
         _backgroundTrayRun = true;
         try { await UpdateSicAsync(); }
         finally { _backgroundTrayRun = false; }
+    }
+
+    private void TrayCopySicPassword()
+    {
+        var password = _settings.GetSicPassword();
+        EnsureTrayIcon();
+        if (string.IsNullOrEmpty(password))
+        {
+            _notifyIcon?.ShowBalloonTip(4000, "Copiar senha padrão SIC", "Nenhuma senha salva. Cadastre a senha padrão em Configurações para usá-la aqui.", ToolTipIcon.Warning);
+            return;
+        }
+        try
+        {
+            Clipboard.SetText(password);
+            _notifyIcon?.ShowBalloonTip(3000, "Copiar senha padrão SIC", "Senha copiada para a área de transferência.", ToolTipIcon.Info);
+        }
+        catch (Exception ex)
+        {
+            _notifyIcon?.ShowBalloonTip(5000, "Copiar senha padrão SIC", "Não foi possível copiar: " + ex.Message, ToolTipIcon.Error);
+        }
     }
 
     private void TrayExit()
