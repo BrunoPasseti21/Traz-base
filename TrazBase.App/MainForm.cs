@@ -704,17 +704,11 @@ internal sealed class MainForm : Form
         editor.Controls.Add(_folderShortcutAddUpdate);
         editor.Controls.Add(_folderShortcutNew);
         editor.Controls.Add(_folderShortcutRemove);
-        var hint = new Label { Text = "Preencha o nome e o caminho; o filtro define quais arquivos aparecem na listagem.", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(8.5f), Location = new Point(18, 270) };
-        editor.Controls.Add(hint);
-        _folderShortcutSummaryLabel.Text = "";
         void Layout()
         {
             var width = editor.ClientSize.Width;
             _folderShortcutPath.Width = Math.Max(120, width - 36 - 130);
             _folderShortcutBrowse.Location = new Point(width - 18 - 110, 124);
-            hint.Location = new Point(18, editor.ClientSize.Height - 24);
-            hint.AutoSize = false;
-            hint.Width = Math.Max(120, width - 36);
             _folderShortcutShowExe.Location = new Point(18, 190);
             _folderShortcutShowBat.Location = new Point(_folderShortcutShowExe.Right + 16, 193);
             _folderShortcutShowAll.Location = new Point(_folderShortcutShowBat.Right + 16, 193);
@@ -3067,7 +3061,7 @@ internal sealed class MainForm : Form
             else if (control is Button button)
             {
                 var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav || button == _folderShortcutsNav;
-                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton || button == _folderShortcutNew || button == _folderShortcutRemove;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
                 {
@@ -3082,6 +3076,7 @@ internal sealed class MainForm : Form
                 {
                     button.BackColor = surface;
                     button.FlatAppearance.BorderColor = dark ? Color.FromArgb(83, 98, 119) : Color.FromArgb(208, 217, 230);
+                    button.FlatAppearance.BorderSize = 1;
                 }
             }
         }
