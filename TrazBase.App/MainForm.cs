@@ -4047,7 +4047,10 @@ internal sealed class MainForm : Form
             ForeColor = TrayMenuTheme.Text,
             BackColor = Color.Transparent
         };
-        var changeBaseBox = new UnthemedTextBox { PlaceholderText = "Nome da base", Location = new Point(92, 5), Width = 112, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        var changeBaseBox = new UnthemedTextBox { PlaceholderText = "Nome da base", BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        var changeBaseBoxX = changeBaseLabel.PreferredSize.Width + 14; // 8 (borda) + 6 (folga)
+        changeBaseBox.Location = new Point(changeBaseBoxX, 5);
+        changeBaseBox.Width = Math.Max(60, changeBasePanel.Width - changeBaseBoxX - 8);
         _trayChangeBaseBox = changeBaseBox;
         changeBaseBox.KeyDown += async (_, e) =>
         {
