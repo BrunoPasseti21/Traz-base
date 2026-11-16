@@ -4066,19 +4066,19 @@ internal sealed class MainForm : Form
         menu.Items.Add(ticketItem);
 
         menu.Items.Add(new ToolStripSeparator());
-        var updateItem = new ToolStripMenuItem("Atualizar executáveis", SvgIconLoader.Load("Atualizar.svg", 16), async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
+        var updateItem = new ToolStripMenuItem("Atualizar executáveis", SvgIconLoader.Load("Atualizar.svg", 16), async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
         menu.Items.Add(updateItem);
-        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
+        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C, ImageScaling = ToolStripItemImageScaling.None };
         menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
-        var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text, Image = SvgIconLoader.Load("Atalho.svg", 16) };
+        var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text, Image = SvgIconLoader.Load("Atalho.svg", 16), ImageScaling = ToolStripItemImageScaling.None };
         shortcutsItem.DropDown = CreateTraySubMenu();
         shortcutsItem.DropDownOpening += (_, _) => PopulateFolderShortcutsMenu(shortcutsItem);
         PopulateFolderShortcutsMenu(shortcutsItem); // carrega já de cara: a seta de submenu só é pintada quando o DropDown tem itens
         menu.Items.Add(shortcutsItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
-        var closeItem = new ToolStripMenuItem("Fechar", SvgIconLoader.Load("Fechar.svg", 16), (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text };
+        var closeItem = new ToolStripMenuItem("Fechar", SvgIconLoader.Load("Fechar.svg", 16), (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
         menu.Items.Add(closeItem);
         return menu;
     }
@@ -4296,13 +4296,13 @@ internal sealed class MainForm : Form
                 items.Add(CreateFolderShortcutMenuItem(folder, PopulateFolderShortcutFilesMenu));
             items.Add(new ToolStripSeparator());
         }
-        var manageItem = new ToolStripMenuItem("Gerenciar atalhos...", GetTrayManageIcon(), (_, _) => { RestoreFromMinimized(); ShowFolderShortcutsView(); }) { ForeColor = TrayMenuTheme.Text };
+        var manageItem = new ToolStripMenuItem("Gerenciar atalhos...", GetTrayManageIcon(), (_, _) => { RestoreFromMinimized(); ShowFolderShortcutsView(); }) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
         items.Add(manageItem);
     }
 
     private static ToolStripMenuItem CreateFolderShortcutMenuItem(FolderShortcut folder, Action<ToolStripMenuItem, FolderShortcut>? filesMenuPopulator = null)
     {
-        var item = new SubmenuMenuItem((folder.Name ?? "").Replace("&", "&&")) { ForeColor = TrayMenuTheme.Text, Image = GetTrayFolderIcon() };
+        var item = new SubmenuMenuItem((folder.Name ?? "").Replace("&", "&&")) { ForeColor = TrayMenuTheme.Text, Image = GetTrayFolderIcon(), ImageScaling = ToolStripItemImageScaling.None };
         item.DropDown = CreateTraySubMenu();
         if (filesMenuPopulator is not null)
             item.DropDownOpening += (_, _) => filesMenuPopulator(item, folder);
@@ -4329,7 +4329,7 @@ internal sealed class MainForm : Form
             error = "Pasta indisponível ou sem permissão";
         }
 
-        var openExplorer = new ToolStripMenuItem("Abrir esta pasta no Explorer", GetTrayFolderIcon(), (_, _) => OpenPathInExplorer(folder.Path)) { ForeColor = TrayMenuTheme.Text };
+        var openExplorer = new ToolStripMenuItem("Abrir esta pasta no Explorer", GetTrayFolderIcon(), (_, _) => OpenPathInExplorer(folder.Path)) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
         items.Add(openExplorer);
         items.Add(new ToolStripSeparator());
         if (error is not null)
@@ -4355,7 +4355,7 @@ internal sealed class MainForm : Form
             else
             {
                 var fullPath = entry.FullName;
-                var fileItem = new ToolStripMenuItem(entry.Name, GetTrayFileIcon(fullPath)) { ForeColor = TrayMenuTheme.Text };
+                var fileItem = new ToolStripMenuItem(entry.Name, GetTrayFileIcon(fullPath)) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
                 fileItem.Click += (_, _) => OpenPathInExplorer(fullPath);
                 items.Add(fileItem);
             }
