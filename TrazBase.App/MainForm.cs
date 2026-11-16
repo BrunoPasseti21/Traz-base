@@ -4035,7 +4035,7 @@ internal sealed class MainForm : Form
                 await TrayTransferAsync();
             }
         };
-        var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty };
+        var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(transferItem);
 
         var changeBaseRow = CreateTrayInputRow("Alterar base", "Trocar-Base.svg", "Nome da base");
@@ -4048,7 +4048,7 @@ internal sealed class MainForm : Form
                 await TrayChangeBaseAsync();
             }
         };
-        var changeBaseItem = new ToolStripControlHost(changeBaseRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty };
+        var changeBaseItem = new ToolStripControlHost(changeBaseRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(changeBaseItem);
         menu.Items.Add(new ToolStripSeparator()); // separador logo abaixo do Alterar base
 
@@ -4062,7 +4062,7 @@ internal sealed class MainForm : Form
                 TrayOpenTicket();
             }
         };
-        var ticketItem = new ToolStripControlHost(ticketRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty };
+        var ticketItem = new ToolStripControlHost(ticketRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(ticketItem);
 
         menu.Items.Add(new ToolStripSeparator());
@@ -4231,13 +4231,13 @@ internal sealed class MainForm : Form
         {
             Text = labelText,
             AutoSize = true,
-            Location = new Point(24, 8),
+            Location = new Point(30, 8),
             Font = UiTypography.BodySemibold(9f),
             ForeColor = TrayMenuTheme.Text,
             BackColor = Color.Transparent
         };
         var box = new UnthemedTextBox { PlaceholderText = placeholder, Height = 24, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
-        var boxX = label.PreferredSize.Width + 24 + 8; // após o rótulo
+        var boxX = label.PreferredSize.Width + 30 + 8; // ícone (x=2, 16px) + rótulo (x=30) + folga
         box.Location = new Point(boxX, 4);
         box.Width = Math.Max(60, panel.Width - boxX - 8);
         panel.Controls.Add(label);

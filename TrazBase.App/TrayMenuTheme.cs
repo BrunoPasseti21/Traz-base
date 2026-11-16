@@ -26,12 +26,13 @@ internal sealed class TrayMenuRenderer : ToolStripProfessionalRenderer
         {
             var previousMode = e.Graphics.InterpolationMode;
             e.Graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-            e.Graphics.DrawImage(item.Image, new Rectangle(2, (item.Height - 16) / 2, 16, 16));
+            // 258 (host item?) vs 250 (itens de texto): grade única em x absoluto 260/288
+            e.Graphics.DrawImage(item.Image, new Rectangle(10, (item.Height - 16) / 2, 16, 16));
             e.Graphics.InterpolationMode = previousMode;
 
             var rect = e.TextRectangle;
             e = new ToolStripItemTextRenderEventArgs(e.Graphics, item, e.Text,
-                new Rectangle(rect.X + 22, rect.Y, Math.Max(0, rect.Width - 22), rect.Height),
+                new Rectangle(rect.X + 30, rect.Y, Math.Max(0, rect.Width - 30), rect.Height),
                 e.TextColor, e.TextFont, e.TextFormat);
         }
         base.OnRenderItemText(e);
