@@ -90,8 +90,8 @@ internal sealed class MainForm : Form
     private readonly Label _updateSicSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) };
     private Control _arqEmpView = null!;
     private readonly ThemedListView _folderShortcutList = new() { View = View.Details, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false, ShowItemToolTips = true, GridLines = false };
-    private readonly UnthemedTextBox _folderShortcutName = new() { PlaceholderText = "Ex.: Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Top, BackColor = Color.FromArgb(249, 251, 254) };
-    private readonly UnthemedTextBox _folderShortcutPath = new() { PlaceholderText = "Ex.: C:\\SupraSys\\SIC\\Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, Dock = DockStyle.Top, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _folderShortcutName = new() { PlaceholderText = "Ex.: Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _folderShortcutPath = new() { PlaceholderText = "Ex.: C:\\SupraSys\\SIC\\Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
     private readonly RoundedButton _folderShortcutBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly ThemedCheckBox _folderShortcutShowExe = new() { Text = "Apenas .exe", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _folderShortcutShowBat = new() { Text = "Apenas .bat", AutoSize = true, Anchor = AnchorStyles.Left };
