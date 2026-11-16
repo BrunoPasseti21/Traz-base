@@ -237,7 +237,7 @@ internal sealed class MainForm : Form
         _themeToggle.DarkMode = _settings.DarkMode;
         _themeToggle.Toggled += (_, _) => ApplyDarkMode(_themeToggle.DarkMode);
         _menuToolTip.SetToolTip(_themeToggle, "Alternar entre tema claro e escuro");
-        HandleCreated += (_, _) => ApplyTitleBarTheme();
+        HandleCreated += (_, _) => { ApplyTitleBarTheme(); RegisterSicPasswordHotKey(); };
         ApplyTheme();
         _forceMultiBase.Checked = _settings.ForceMultiBase;
         _forceMultiBase.CheckedChanged += (_, _) =>
@@ -410,6 +410,7 @@ internal sealed class MainForm : Form
             {
                 _commandSaveTimer.Stop();
                 _settingsSaveTimer.Stop();
+                UnregisterSicPasswordHotKey();
                 _notifyIcon?.Visible = false;
                 try
                 {
@@ -428,6 +429,34 @@ internal sealed class MainForm : Form
         base.OnResize(e);
         RefreshTrayIconVisibility();
     }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == WmHotKey && m.WParam.ToInt32() == HotKeyIdCopySicPassword)
+        {
+            TrayCopySicPassword();
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
+    private void RegisterSicPasswordHotKey()
+    {
+        if (!IsHandleCreated) return;
+        RegisterHotKey(Handle, HotKeyIdCopySicPassword, ModControl | ModAlt | ModNoRepeat, VkC);
+    }
+
+    private void UnregisterSicPasswordHotKey()
+    {
+        if (!IsHandleCreated) return;
+        UnregisterHotKey(Handle, HotKeyIdCopySicPassword);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
     private void CenterThemeToggle() =>
         _themeToggle.Location = new Point(
@@ -2127,6 +2156,13 @@ internal sealed class MainForm : Form
         output.ScrollToCaret();
     }
 
+    private const int HotKeyIdCopySicPassword = 0x5442; // 'TB'
+    private const int WmHotKey = 0x0312;
+    private const uint ModAlt = 0x0001;
+    private const uint ModControl = 0x0002;
+    private const uint ModNoRepeat = 0x4000;
+    private const uint VkC = 0x43;
+
     private const int MenuCollapsedWidth = 68;
     private const int MenuExpandedWidth = 300;
     private const double MenuAnimationDurationMs = 220;
@@ -3620,7 +3656,7 @@ internal sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
-        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.C };
+        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
         menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
@@ -3697,7 +3733,7 @@ internal sealed class MainForm : Form
         try
         {
             Clipboard.SetText(password);
-            _notifyIcon?.ShowBalloonTip(3000, "Copiar senha padrão SIC", "Senha copiada para a área de transferência.", ToolTipIcon.Info);
+            _notifyIcon?.ShowBalloonTip(3000, "Copiar senha padrão SIC", "Senha copiada para a área de transferência.\n(Atalho: Ctrl+Alt+C)", ToolTipIcon.Info);
         }
         catch (Exception ex)
         {
