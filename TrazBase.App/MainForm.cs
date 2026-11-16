@@ -698,18 +698,19 @@ internal sealed class MainForm : Form
 
     private Control BuildFolderShortcutsView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, AutoScroll = true, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
-        page.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 230));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 320));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Atalhos de pasta", "Atalhos para as pastas que você usa no dia a dia, com filtro por tipo de arquivo"), 0, 0);
 
         var listCard = Card();
         listCard.Controls.Add(new Label { Text = "PASTAS CADASTRADAS", Font = UiTypography.BodySemibold(9f), ForeColor = Muted, AutoSize = true, Location = new Point(18, 14) });
         _folderShortcutList.Columns.Clear();
-        _folderShortcutList.Columns.Add("Nome", 230);
-        _folderShortcutList.Columns.Add("Caminho", 640);
-        _folderShortcutList.Columns.Add("Filtro", 160);
+        _folderShortcutList.Columns.Add("Nome", 220);
+        _folderShortcutList.Columns.Add("Caminho", 360);
+        _folderShortcutList.Columns.Add("Filtro", 130);
         _folderShortcutList.Location = new Point(18, 46);
         _folderShortcutList.Size = new Size(900, 140);
         listCard.Controls.Add(_folderShortcutList);
@@ -720,6 +721,14 @@ internal sealed class MainForm : Form
         {
             _folderShortcutList.Location = new Point(18, 46);
             _folderShortcutList.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), Math.Max(72, listCard.ClientSize.Height - 46 - 34));
+            if (_folderShortcutList.Columns.Count == 3)
+            {
+                var nomeWidth = 220;
+                var filtroWidth = 130;
+                _folderShortcutList.Columns[0].Width = nomeWidth;
+                _folderShortcutList.Columns[2].Width = filtroWidth;
+                _folderShortcutList.Columns[1].Width = Math.Max(80, listCard.ClientSize.Width - 36 - nomeWidth - filtroWidth - 4);
+            }
             _folderShortcutSummaryLabel.Location = new Point(18, listCard.ClientSize.Height - 24);
             _folderShortcutSummaryLabel.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), 18);
         };
