@@ -4,6 +4,23 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.0"] =
+        [
+            "Novo menu da bandeja totalmente redesenhado: ícones em todas as opções e grade única de alinhamento (ícone e texto em colunas únicas).",
+            "Nova opção \"Buscar chamado\" na bandeja — informe o número do chamado (até 12 dígitos) e pressione Enter; abre a busca no navegador, igual ao SupraAgil.",
+            "Nova opção \"Alterar base\" na bandeja — digite o nome da base e o Registro aponta para ela (respeita a estrutura multi-base ARQ##/ARQ00).",
+            "Nova tela \"Atalhos de pasta\" (menu acima de Configuração): pastas favoritas com filtro por tipo de arquivo (.exe/.bat/todos) e duplo clique abrindo no Explorer. O mesmo submenu está na bandeja, navegável por subpastas, com os ícones dos executáveis.",
+            "Ícone do Traz Base na bandeja só aparece com a janela oculta/minimizada (segundo plano); tooltip com a etapa atual e a porcentagem; duplo clique restaura a janela.",
+            "Fechar a janela com o segundo plano desligado pergunta antes de sair; o \"Fechar\" da bandeja encerra sem perguntar.",
+            "Instância única: abrir o TrazBase.exe novamente traz a janela existente para frente (sem abrir outra janela).",
+            "Notificações em segundo plano viraram toast do Windows, com fallback para balão quando o toast não está disponível.",
+            "Tela inicial: novas opções \"Configurar caminhos\" e \"Atalhos de pasta\" (opções antigas caem na Transferir); lista em ordem alfabética.",
+            "Alterar base respeita a estrutura multi-base (pastas ARQ##) independente da opção \"Sempre criar estrutura multi-base\" — o Registro aponta BASE<n> para cada ARQ## e EMPRESA para a ARQ00.",
+            "Nova opção \"Apontar a EMPRESA do Regedit para a pasta de bases de apoio\" nas Configurações.",
+            "Submenus da bandeja com altura máxima de ~20 itens e rolagem nativa (setas ou roda do mouse); indicativo de submenu (\"›\") sempre visível.",
+            "Ícones em 16×16 em todos os menus (mesmo em telas com escala); ícone do Copiar senha SIC (Ctrl+Alt+C), Olho nas senhas e Tela de Atalhos renovada.",
+            "Novos ícones/opção: \"Atualização de executáveis\" com submenu maior; fechar a janela sem o segundo plano pergunta antes de sair."
+        ],
         ["0.8.1"] =
         [
             "A atualização disponível agora aparece com o ícone de download no botão azul do rodapé mesmo com o menu lateral recolhido (o botão não desenhava a própria imagem).",
