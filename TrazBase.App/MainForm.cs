@@ -3978,11 +3978,12 @@ internal sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", null, async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text };
         menu.Items.Add(updateItem);
+        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
+        menu.Items.Add(copySicPasswordItem);
+        menu.Items.Add(new ToolStripSeparator());
         var shortcutsItem = new ToolStripMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text };
         shortcutsItem.DropDownOpening += (_, _) => PopulateFolderShortcutsMenu(shortcutsItem);
         menu.Items.Add(shortcutsItem);
-        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", null, (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C };
-        menu.Items.Add(copySicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
         menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
         var closeItem = new ToolStripMenuItem("Fechar", null, (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text };
