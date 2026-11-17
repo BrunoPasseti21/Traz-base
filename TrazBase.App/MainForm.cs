@@ -1,4 +1,5 @@
 using Microsoft.Win32;
+using System.Globalization;
 using System.IO.Compression;
 using FirebirdSql.Data.FirebirdClient;
 using FirebirdSql.Data.Isql;
@@ -18,9 +19,12 @@ internal sealed class MainForm : Form
     private readonly UnthemedTextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly UnthemedTextBox _sicDynamicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _saveSicDynamicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly RoundedButton _passwordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly RoundedButton _sicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly RoundedButton _sicDynamicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
@@ -252,6 +256,7 @@ internal sealed class MainForm : Form
             _password],
             _savePassword);
         WireEnterNavigation([_sicPassword], _saveSicPassword);
+        WireEnterNavigation([_sicDynamicPassword], _saveSicDynamicPassword);
         WireEnterNavigation([_arqEmpDatabase], _arqEmpEditor);
         WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
@@ -332,8 +337,21 @@ internal sealed class MainForm : Form
         _sicPassword.Leave += (_, _) => { if (_saveSicPassword.Checked) SaveSicPasswordPreference(); };
         var sicPasswordTip = new ToolTip();
         sicPasswordTip.SetToolTip(_saveSicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
+        var sicDynamicPasswordTip = new ToolTip();
+        sicDynamicPasswordTip.SetToolTip(_saveSicDynamicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
+
+        _sicDynamicPassword.Text = _settings.GetSicDynamicPassword() ?? "";
+        _sicDynamicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicDynamicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicDynamicPassword.Margin = Padding.Empty;
+        _saveSicDynamicPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedSicDynamicPassword);
+        _saveSicDynamicPassword.CheckedChanged += (_, _) => SaveSicDynamicPasswordPreference();
+        _sicDynamicPassword.Leave += (_, _) => { if (_saveSicDynamicPassword.Checked) SaveSicDynamicPasswordPreference(); };
+        var sicDynamicPasswordTip2 = new ToolTip();
+        sicDynamicPasswordTip2.SetToolTip(_sicDynamicPassword, "Prefixo copiado com Ctrl+Alt+X. Ao copiar: o prefixo informado + (hora × dia × 13). Hora local 0–23.");
         WirePasswordToggle(_password, _passwordVisibilityToggle);
         WirePasswordToggle(_sicPassword, _sicPasswordVisibilityToggle);
+        WirePasswordToggle(_sicDynamicPassword, _sicDynamicPasswordVisibilityToggle);
         AcceptButton = _start;
         var passwordTip = new ToolTip();
         passwordTip.SetToolTip(_savePassword, "A senha será protegida pelo Windows para sua conta de usuário.");
@@ -495,6 +513,11 @@ internal sealed class MainForm : Form
             TrayCopySicPassword();
             return;
         }
+        if (m.Msg == WmHotKey && m.WParam.ToInt32() == HotKeyIdCopySicDynamicPassword)
+        {
+            TrayCopySicDynamicPassword();
+            return;
+        }
         base.WndProc(ref m);
     }
 
@@ -502,12 +525,14 @@ internal sealed class MainForm : Form
     {
         if (!IsHandleCreated) return;
         RegisterHotKey(Handle, HotKeyIdCopySicPassword, ModControl | ModAlt | ModNoRepeat, VkC);
+        RegisterHotKey(Handle, HotKeyIdCopySicDynamicPassword, ModControl | ModAlt | ModNoRepeat, VkX);
     }
 
     private void UnregisterSicPasswordHotKey()
     {
         if (!IsHandleCreated) return;
         UnregisterHotKey(Handle, HotKeyIdCopySicPassword);
+        UnregisterHotKey(Handle, HotKeyIdCopySicDynamicPassword);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
@@ -689,7 +714,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 513));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 553));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -2521,11 +2546,13 @@ internal sealed class MainForm : Form
     }
 
     private const int HotKeyIdCopySicPassword = 0x5442; // 'TB'
+    private const int HotKeyIdCopySicDynamicPassword = 0x5443; // 'TC'
     private const int WmHotKey = 0x0312;
     private const uint ModAlt = 0x0001;
     private const uint ModControl = 0x0002;
     private const uint ModNoRepeat = 0x4000;
     private const uint VkC = 0x43;
+    private const uint VkX = 0x58;
 
     private const int MenuCollapsedWidth = 68;
     private const int MenuExpandedWidth = 300;
@@ -2805,7 +2832,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(100, 452),
+            Size = new Size(100, 492),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
@@ -2816,7 +2843,8 @@ internal sealed class MainForm : Form
             new Label { Text = "Pasta de bases de apoio", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha padrão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
+            new Label { Text = "Senha padrão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
+            new Label { Text = "Senha dinâmica do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
         const string supportHelpText =
             "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
@@ -2880,6 +2908,10 @@ internal sealed class MainForm : Form
         _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
         _sicPassword.Margin = Padding.Empty;
         _saveSicPassword.Margin = Padding.Empty;
+        _sicDynamicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicDynamicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicDynamicPassword.Margin = Padding.Empty;
+        _saveSicDynamicPassword.Margin = Padding.Empty;
         host.Controls.Add(labels[4]);
         host.Controls.Add(_password);
         host.Controls.Add(_passwordVisibilityToggle);
@@ -2888,13 +2920,17 @@ internal sealed class MainForm : Form
         host.Controls.Add(_sicPassword);
         host.Controls.Add(_sicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicPassword);
+        host.Controls.Add(labels[6]);
+        host.Controls.Add(_sicDynamicPassword);
+        host.Controls.Add(_sicDynamicPasswordVisibilityToggle);
+        host.Controls.Add(_saveSicDynamicPassword);
         _useSupportAsCompany.Location = new Point(0, 2 * 40 + 32);
         host.Controls.Add(_useSupportAsCompany);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 287) });
-        _baseCount.Location = new Point(200, 280);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 313) });
+        _baseCount.Location = new Point(200, 306);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 327) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 353) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         if (initialIndex < 0)
@@ -2903,7 +2939,7 @@ internal sealed class MainForm : Form
             initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         }
         _defaultScreen.SelectedIndex = initialIndex;
-        _defaultScreen.Location = new Point(200, 320);
+        _defaultScreen.Location = new Point(200, 346);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2911,11 +2947,11 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 364);
+        _forceMultiBase.Location = new Point(0, 390);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 390);
+        _renameSl.Location = new Point(0, 416);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 416);
+        _minimizeToTray.Location = new Point(0, 442);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
@@ -2940,9 +2976,10 @@ internal sealed class MainForm : Form
                 else
                 {
                     var isFirebird = i == 4;
-                    var pwdField = isFirebird ? _password : _sicPassword;
-                    var pwdToggle = isFirebird ? _passwordVisibilityToggle : _sicPasswordVisibilityToggle;
-                    var pwdSave = isFirebird ? _savePassword : _saveSicPassword;
+                    var isSicDynamic = i == 6;
+                    var pwdField = isFirebird ? _password : isSicDynamic ? _sicDynamicPassword : _sicPassword;
+                    var pwdToggle = isFirebird ? _passwordVisibilityToggle : isSicDynamic ? _sicDynamicPasswordVisibilityToggle : _sicPasswordVisibilityToggle;
+                    var pwdSave = isFirebird ? _savePassword : isSicDynamic ? _saveSicDynamicPassword : _saveSicPassword;
                     pwdField.Location = new Point(fieldLeft, y);
                     pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
                     pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
@@ -3278,6 +3315,7 @@ internal sealed class MainForm : Form
         ReadFields();
         _settings.SetFirebirdPassword(_savePassword.Checked ? _password.Text : null);
         _settings.SetSicPassword(_saveSicPassword.Checked ? _sicPassword.Text : null);
+        _settings.SetSicDynamicPassword(_saveSicDynamicPassword.Checked ? _sicDynamicPassword.Text : null);
         _settings.Save();
     }
 
@@ -3365,6 +3403,20 @@ internal sealed class MainForm : Form
             MessageBox.Show(this, "Digite a senha padrão do SIC antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
             _saveSicPassword.Checked = false;
             _sicPassword.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void SaveSicDynamicPasswordPreference()
+    {
+        if (_saveSicDynamicPassword.Checked && string.IsNullOrWhiteSpace(_sicDynamicPassword.Text))
+        {
+            MessageBox.Show(this, "Digite a senha dinâmica do SIC antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _saveSicDynamicPassword.Checked = false;
+            _sicDynamicPassword.Focus();
             return;
         }
 
@@ -4257,6 +4309,28 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             ShowBackgroundNotification("Copiar senha padrão SIC", "Não foi possível copiar: " + ex.Message);
+        }
+    }
+
+    private void TrayCopySicDynamicPassword()
+    {
+        var prefix = _settings.GetSicDynamicPassword();
+        if (string.IsNullOrEmpty(prefix))
+        {
+            ShowBackgroundNotification("Copiar senha dinâmica do SIC", "Nenhum prefixo salvo. Cadastre a senha dinâmica do SIC em Configurações para usá-la aqui.");
+            return;
+        }
+        try
+        {
+            var now = DateTime.Now;
+            // Conta: dia (1-31) × hora (0-23) × 13 — ignora minutos e segundos, igual ao SupraAgil.
+            var suffix = (now.Day * now.Hour * 13).ToString(CultureInfo.InvariantCulture);
+            Clipboard.SetText(prefix + suffix);
+            ShowBackgroundNotification("Copiar senha dinâmica do SIC", $"{prefix}{suffix} copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Copiar senha dinâmica do SIC", "Não foi possível copiar: " + ex.Message);
         }
     }
 

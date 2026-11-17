@@ -37,6 +37,7 @@ internal sealed class AppSettings
     public bool MinimizeToTrayOnClose { get; set; }
     public string? ProtectedFirebirdPassword { get; set; }
     public string? ProtectedSicPassword { get; set; }
+    public string? ProtectedSicDynamicPassword { get; set; }
     public string TempPath { get; set; } = "";
     /// <summary>Quando ligado, o valor EMPRESA gravado no Registro HKCU\SIC\CONEXAO aponta para a pasta de bases de apoio (SupportRoot), em vez da pasta da base/ARQ00.</summary>
     public bool UseSupportRootAsCompany { get; set; }
@@ -154,6 +155,22 @@ internal sealed class AppSettings
         }
     }
 
+    public string? GetSicDynamicPassword()
+    {
+        if (string.IsNullOrWhiteSpace(ProtectedSicDynamicPassword)) return null;
+        try
+        {
+            var encrypted = Convert.FromBase64String(ProtectedSicDynamicPassword);
+            var clear = ProtectedData.Unprotect(encrypted, optionalEntropy: null, DataProtectionScope.CurrentUser);
+            return Encoding.UTF8.GetString(clear);
+        }
+        catch
+        {
+            ProtectedSicDynamicPassword = null;
+            return null;
+        }
+    }
+
     public void SetFirebirdPassword(string? password)
     {
         if (string.IsNullOrEmpty(password))
@@ -184,6 +201,23 @@ internal sealed class AppSettings
         {
             var encrypted = ProtectedData.Protect(clear, optionalEntropy: null, DataProtectionScope.CurrentUser);
             ProtectedSicPassword = Convert.ToBase64String(encrypted);
+        }
+        finally { CryptographicOperations.ZeroMemory(clear); }
+    }
+
+    public void SetSicDynamicPassword(string? password)
+    {
+        if (string.IsNullOrEmpty(password))
+        {
+            ProtectedSicDynamicPassword = null;
+            return;
+        }
+
+        var clear = Encoding.UTF8.GetBytes(password);
+        try
+        {
+            var encrypted = ProtectedData.Protect(clear, optionalEntropy: null, DataProtectionScope.CurrentUser);
+            ProtectedSicDynamicPassword = Convert.ToBase64String(encrypted);
         }
         finally { CryptographicOperations.ZeroMemory(clear); }
     }
