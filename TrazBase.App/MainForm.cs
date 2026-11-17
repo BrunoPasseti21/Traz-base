@@ -2856,6 +2856,21 @@ internal sealed class MainForm : Form
         };
         supportHelp.MouseEnter += (_, _) => ShowHintPopup(supportHelp, supportHelpText);
         supportHelp.MouseLeave += (_, _) => HideHintPopup();
+        const string sicDynamicPasswordHelpText =
+            "Digite apenas a parte fixa da senha — o aplicativo completa o resto automaticamente na hora de copiar (atalho Ctrl+Alt+X).\n\n" +
+            "Cálculo: senha informada + (Dia × Hora × 13)\n\n" +
+            "Exemplo: digitando TESTE num dia 17 às 16 horas, o aplicativo copia TESTE3536\n(17 × 16 × 13 = 3536).\n\n" +
+            "A conta usa o dia do mês (1–31) e a hora local (0–23); minutos e segundos são ignorados.";
+        var sicDynamicPasswordHelp = new PictureBox
+        {
+            Size = new Size(16, 16),
+            Location = new Point(0, 0),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
+            Cursor = Cursors.Hand
+        };
+        sicDynamicPasswordHelp.MouseEnter += (_, _) => ShowHintPopup(sicDynamicPasswordHelp, sicDynamicPasswordHelpText);
+        sicDynamicPasswordHelp.MouseLeave += (_, _) => HideHintPopup();
         var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot), nameof(AppSettings.TempPath) };
         var emptyTempHint = TryGetSicTempPath() is string registryTemp
             ? $"(Vazio = valor do Registro: {registryTemp})"
@@ -2918,6 +2933,7 @@ internal sealed class MainForm : Form
         host.Controls.Add(_sicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicPassword);
         host.Controls.Add(labels[6]);
+        host.Controls.Add(sicDynamicPasswordHelp);
         host.Controls.Add(_sicDynamicPassword);
         host.Controls.Add(_sicDynamicPasswordVisibilityToggle);
         host.Controls.Add(_saveSicDynamicPassword);
@@ -2960,8 +2976,9 @@ internal sealed class MainForm : Form
             for (var i = 0; i < labels.Length; i++)
             {
                 var y = i * 40 + (i > 2 ? supportCompanyRowOffset : 0);
-                labels[i].Location = new Point(i == 2 ? 24 : 0, y + 8);
+                labels[i].Location = new Point(i == 2 || i == 6 ? 24 : 0, y + 8);
                 if (i == 2) supportHelp.Location = new Point(0, y + 7);
+                if (i == 6) sicDynamicPasswordHelp.Location = new Point(0, y + 7);
                 if (i < pathFields.Length)
                 {
                     pathFields[i].Location = new Point(fieldLeft, y);
