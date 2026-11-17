@@ -4290,6 +4290,30 @@ internal sealed class MainForm : Form
     private static Image? _trayFolderIcon;
     private static Image? _trayManageIcon;
 
+    // Cache da listagem de pastas: evita re-enumerar a pasta a cada abertura do submenu
+    // (ex.: a pasta de desenvolvimento do SIC possui milhares de entradas).
+    private static readonly object _folderListingCacheLock = new();
+    private static readonly Dictionary<string, (FileSystemInfo[] Entries, DateTime CachedAt)> _folderListingCache = new();
+    private static readonly TimeSpan FolderListingCacheTtl = TimeSpan.FromSeconds(15);
+
+    private static FileSystemInfo[] GetTrayFolderListing(string path, FolderShortcut folder)
+    {
+        var key = path + "|" + (folder.ShowAllFiles ? "A" : $"{(folder.ShowExeFiles ? "X" : "")}{(folder.ShowBatFiles ? "B" : "")}");
+        lock (_folderListingCacheLock)
+        {
+            if (_folderListingCache.TryGetValue(key, out var hit) && DateTime.UtcNow - hit.CachedAt < FolderListingCacheTtl)
+                return hit.Entries;
+        }
+        if (!Directory.Exists(path)) throw new DirectoryNotFoundException(path);
+        var entries = new DirectoryInfo(path).GetFileSystemInfos()
+            .Where(entry => entry is DirectoryInfo ? folder.ShowAllFiles : folder.MatchesFile(entry.Name))
+            .OrderBy(entry => entry is DirectoryInfo ? 0 : 1)
+            .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+        lock (_folderListingCacheLock) _folderListingCache[key] = (entries, DateTime.UtcNow);
+        return entries;
+    }
+
     /// <summary>Ícone associado ao arquivo (do próprio executável/.bat, via shell), 16×16, com cache por caminho.</summary>
     private static Image? GetTrayFileIcon(string path)
     {
@@ -4355,14 +4379,9 @@ internal sealed class MainForm : Form
         FileSystemInfo[] entries = Array.Empty<FileSystemInfo>();
         try
         {
-            if (!Directory.Exists(folder.Path)) throw new DirectoryNotFoundException(folder.Path);
-            entries = new DirectoryInfo(folder.Path).GetFileSystemInfos()
-                .Where(entry => entry is DirectoryInfo ? folder.ShowAllFiles : folder.MatchesFile(entry.Name))
-                .OrderBy(entry => entry is DirectoryInfo ? 0 : 1)
-                .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
-                .ToArray();
+            entries = GetTrayFolderListing(folder.Path, folder);
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
+        catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
         {
             error = "Pasta indisponível ou sem permissão";
         }
@@ -4374,6 +4393,14 @@ internal sealed class MainForm : Form
         {
             items.Add(new ToolStripMenuItem(error) { Enabled = false, ForeColor = TrayMenuTheme.Text });
             return;
+        }
+
+        // Extrai os ícones dos arquivos em paralelo — a primeira abertura é a mais lenta
+        var icons = new Dictionary<string, Image?>(StringComparer.OrdinalIgnoreCase);
+        var fileEntries = entries.Where(e => e is FileInfo).ToList();
+        if (fileEntries.Count > 0)
+        {
+            Parallel.ForEach(fileEntries, file => icons[file.FullName] = GetTrayFileIcon(file.FullName));
         }
 
         foreach (var entry in entries)
@@ -4393,7 +4420,8 @@ internal sealed class MainForm : Form
             else
             {
                 var fullPath = entry.FullName;
-                var fileItem = new ToolStripMenuItem(entry.Name, GetTrayFileIcon(fullPath)) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+                icons.TryGetValue(fullPath, out var icon);
+                var fileItem = new ToolStripMenuItem(entry.Name, icon) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
                 fileItem.Click += (_, _) => OpenPathInExplorer(fullPath);
                 items.Add(fileItem);
             }
