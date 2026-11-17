@@ -4,6 +4,10 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.2"] =
+        [
+            "Bandeja — Atalhos abrem mais rápido: a listagem das pastas fica em cache de 15 segundos (navegação repetida abre na hora, mesmo em pastas com milhares de arquivos, como a de desenvolvimento) e a extração dos ícones dos executáveis roda em paralelo — antes cada abertura do submenu re-enumerava toda a pasta e extraía ícone por ícone."
+        ],
         ["0.9.1"] =
         [
             "Tela \"Atalhos de pasta\" ajustada em monitores menores (ex.: 1366×768 em 125% de escala): a página rola verticalmente quando o conteúdo não cabe, as colunas da grade se ajustam à largura (Nome e Filtro fixos, \"Caminho\" ocupa a sobra) e os botões \"Adicionar / atualizar\" e \"Remover\" ficam sempre abaixo das caixas \"Apenas .exe / .bat / Todos os arquivos\", sem sobreposição.",
