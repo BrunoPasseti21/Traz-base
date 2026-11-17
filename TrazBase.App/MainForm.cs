@@ -345,7 +345,7 @@ internal sealed class MainForm : Form
         _saveSicDynamicPassword.CheckedChanged += (_, _) => SaveSicDynamicPasswordPreference();
         _sicDynamicPassword.Leave += (_, _) => { if (_saveSicDynamicPassword.Checked) SaveSicDynamicPasswordPreference(); };
         var sicDynamicPasswordTip2 = new ToolTip();
-        sicDynamicPasswordTip2.SetToolTip(_sicDynamicPassword, "Prefixo copiado com Ctrl+Alt+X. Ao copiar: o prefixo informado + (hora × dia × 13). Hora local 0–23.");
+        sicDynamicPasswordTip2.SetToolTip(_sicDynamicPassword, "Senha do sistema Empresa. Copie com o atalho Ctrl+Alt+X. Ao copiar: o valor informado + (hora × dia × 13). Hora local 0–23.");
         WirePasswordToggle(_password, _passwordVisibilityToggle);
         WirePasswordToggle(_sicPassword, _sicPasswordVisibilityToggle);
         WirePasswordToggle(_sicDynamicPassword, _sicDynamicPasswordVisibilityToggle);
@@ -2841,7 +2841,7 @@ internal sealed class MainForm : Form
             new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha padrão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha dinâmica do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
+            new Label { Text = "Senha do sistema Empresa", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
         const string supportHelpText =
             "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
@@ -3411,7 +3411,7 @@ internal sealed class MainForm : Form
     {
         if (_saveSicDynamicPassword.Checked && string.IsNullOrWhiteSpace(_sicDynamicPassword.Text))
         {
-            MessageBox.Show(this, "Digite a senha dinâmica do SIC antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Digite a senha do sistema Empresa antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
             _saveSicDynamicPassword.Checked = false;
             _sicDynamicPassword.Focus();
             return;
@@ -4314,7 +4314,7 @@ internal sealed class MainForm : Form
         var prefix = _settings.GetSicDynamicPassword();
         if (string.IsNullOrEmpty(prefix))
         {
-            ShowBackgroundNotification("Copiar senha dinâmica do SIC", "Nenhum prefixo salvo. Cadastre a senha dinâmica do SIC em Configurações para usá-la aqui.");
+            ShowBackgroundNotification("Copiar senha do sistema Empresa", "Nenhuma senha salva. Cadastre a senha do sistema Empresa em Configurações para usá-la aqui.");
             return;
         }
         try
@@ -4323,11 +4323,11 @@ internal sealed class MainForm : Form
             // Conta: dia (1-31) × hora (0-23) × 13 — ignora minutos e segundos, igual ao SupraAgil.
             var suffix = (now.Day * now.Hour * 13).ToString(CultureInfo.InvariantCulture);
             Clipboard.SetText(prefix + suffix);
-            ShowBackgroundNotification("Copiar senha dinâmica do SIC", $"{prefix}{suffix} copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
+            ShowBackgroundNotification("Copiar senha do sistema Empresa", $"{prefix}{suffix} copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
         }
         catch (Exception ex)
         {
-            ShowBackgroundNotification("Copiar senha dinâmica do SIC", "Não foi possível copiar: " + ex.Message);
+            ShowBackgroundNotification("Copiar senha do sistema Empresa", "Não foi possível copiar: " + ex.Message);
         }
     }
 

@@ -42,7 +42,7 @@ Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é 
 | `LastChangelogVersion` | string? | `null` | Última versão exibida na tela "Novidades". `null` → mostrar na próxima abertura (atualização/versão nova). |
 | `ProtectedFirebirdPassword` | string? | omitida | Senha Firebird protegida por DPAPI (Base64), gravada somente quando "Salvar senha" está marcado. |
 | `ProtectedSicPassword` | string? | omitida | Senha padrão do SIC, com a mesma proteção DPAPI e a mesma caixa "Salvar senha" do campo Firebird. Habilitada sob demanda no menu da bandeja ("Copiar senha padrão SIC"). |
-| `ProtectedSicDynamicPassword` | string? | omitida | Senha dinâmica do SIC: prefixo usado pelo atalho global **Ctrl+Alt+X** — ao copiar, o app compõe o prefixo salvo + (hora × dia × 13), usando a hora local (0–23) e o dia do mês (1–31), sem minutos nem segundos (ex.: dia 17, 16h → `SUPRA3536`). Mesma proteção DPAPI e a mesma caixa "Salvar senha". |
+| `ProtectedSicDynamicPassword` | string? | omitida | **"Senha do sistema Empresa"**: senha usada pelo atalho global **Ctrl+Alt+X** — ao copiar, o app compõe a senha salva + (hora × dia × 13), usando a hora local (0–23) e o dia do mês (1–31), sem minutos nem segundos (ex.: dia 17, 16h → `SUPRA3536`). Mesma proteção DPAPI e a mesma caixa "Salvar senha". A chave mantém o nome técnico para compatibilidade com settings.json existentes. |
 
 Campos nulos marcados com `[JsonIgnore(WhenWritingNull)]` (`ScriptArqEmp`, `ScriptArqSist`, `ProtectedFirebirdPassword`) desaparecem do arquivo quando vazios/limpos.
 
