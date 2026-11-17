@@ -341,9 +341,6 @@ internal sealed class MainForm : Form
         sicDynamicPasswordTip.SetToolTip(_saveSicDynamicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
 
         _sicDynamicPassword.Text = _settings.GetSicDynamicPassword() ?? "";
-        _sicDynamicPassword.BorderStyle = BorderStyle.FixedSingle;
-        _sicDynamicPassword.BackColor = Color.FromArgb(249, 251, 254);
-        _sicDynamicPassword.Margin = Padding.Empty;
         _saveSicDynamicPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedSicDynamicPassword);
         _saveSicDynamicPassword.CheckedChanged += (_, _) => SaveSicDynamicPasswordPreference();
         _sicDynamicPassword.Leave += (_, _) => { if (_saveSicDynamicPassword.Checked) SaveSicDynamicPasswordPreference(); };
@@ -2926,11 +2923,11 @@ internal sealed class MainForm : Form
         host.Controls.Add(_saveSicDynamicPassword);
         _useSupportAsCompany.Location = new Point(0, 2 * 40 + 32);
         host.Controls.Add(_useSupportAsCompany);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 313) });
-        _baseCount.Location = new Point(200, 306);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 327) });
+        _baseCount.Location = new Point(200, 320);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 353) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 367) });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         if (initialIndex < 0)
@@ -2939,7 +2936,7 @@ internal sealed class MainForm : Form
             initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         }
         _defaultScreen.SelectedIndex = initialIndex;
-        _defaultScreen.Location = new Point(200, 346);
+        _defaultScreen.Location = new Point(200, 360);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2947,11 +2944,11 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 390);
+        _forceMultiBase.Location = new Point(0, 404);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 416);
+        _renameSl.Location = new Point(0, 430);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 442);
+        _minimizeToTray.Location = new Point(0, 456);
         host.Controls.Add(_minimizeToTray);
 
         void LayoutSettingsRows()
