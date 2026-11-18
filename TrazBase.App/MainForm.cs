@@ -4346,8 +4346,11 @@ internal sealed class MainForm : Form
             _trayChangeBaseBox?.Clear();
             _status.Text = "Base alterada para: " + folder;
             Log($"Base alterada pela bandeja: {folder}");
+            var version = await TryGetSicVersionAsync(folder);
             _ = UpdateChangeBaseVersionAsync(folder);
-            ShowBackgroundNotification("Alterar base", $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}");
+            ShowBackgroundNotification("Alterar base", version is null
+                ? $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}"
+                : $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}\nVersão: {version}");
         }
         catch (Exception ex)
         {
@@ -4949,6 +4952,42 @@ internal sealed class MainForm : Form
         var version = await reader.ReadAsync(token) ? Convert.ToString(reader["VERSAO"]) : "sem versão registrada";
         _versionLabel.Text = "Versão atual: " + version;
         _versionLabel.Visible = true;
+    }
+
+    /// <summary>Tenta ler CONTROLE.NRO_SCRIPT da ARQSIST.FDB da pasta de base (raiz, ou ARQ01 no multi-base). Retorna null quando não é possível (base não localizada, senha ausente, banco ilegível).</summary>
+    private async Task<string?> TryGetSicVersionAsync(string? folder)
+    {
+        folder = folder?.Trim();
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return null;
+
+        string? database = Path.Combine(folder, "ARQSIST.FDB");
+        if (!File.Exists(database))
+        {
+            database = null;
+            if (MultiBaseOperationRules.IsMultiBase(folder))
+            {
+                var arq01 = MultiBaseOperationRules.GetArqSistPath(folder);
+                if (File.Exists(arq01)) database = arq01;
+            }
+        }
+        if (database is null || string.IsNullOrWhiteSpace(_password.Text)) return null;
+
+        try
+        {
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
+            await connection.OpenAsync();
+            await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)
+            {
+                CommandTimeout = 10
+            };
+            var version = Convert.ToString(await command.ExecuteScalarAsync());
+            return string.IsNullOrWhiteSpace(version) ? null : version;
+        }
+        catch (Exception ex)
+        {
+            Log($"Não foi possível consultar a versão da base {database}: {ex.Message}");
+            return null;
+        }
     }
 
     /// <summary>
