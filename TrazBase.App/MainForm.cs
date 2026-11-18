@@ -1317,7 +1317,16 @@ internal sealed class MainForm : Form
                 return;
             }
             string? resolved;
-            try { resolved = BaseOperationRules.FindLocalBaseDirectoryByName(_settings.BasesRoot, sl); }
+            try
+            {
+                var (chosen, cancelled) = ResolveBaseChoice(_settings.BasesRoot, sl);
+                if (cancelled)
+                {
+                    MessageBox.Show(this, "Seleção cancelada. A base não foi alterada.", "Seleção cancelada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                resolved = chosen;
+            }
             catch (Exception ex)
             {
                 MessageBox.Show(this, ex.Message, "Nome inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -4269,6 +4278,16 @@ internal sealed class MainForm : Form
         finally { _backgroundTrayRun = false; }
     }
 
+    /// <summary>Resolve uma base pelo nome digitado; em caso de múltiplas correspondências, pergunta ao operador qual deseja usar (tela própria). Retorna (pasta, cancelouSelecao).</summary>
+    private (string? Folder, bool Cancelled) ResolveBaseChoice(string basesRoot, string typed)
+    {
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(basesRoot, typed);
+        if (matches.Count == 1) return (matches[0], false);
+        if (matches.Count == 0) return (null, false);
+        var chosen = AppMessageBox.ShowPickBaseFolder(this, typed, matches);
+        return chosen is null ? ((string?)null, true) : (chosen, false);
+    }
+
     private async Task TrayChangeBaseAsync()
     {
         var typed = _trayChangeBaseBox?.Text.Trim() ?? "";
@@ -4284,7 +4303,16 @@ internal sealed class MainForm : Form
         }
 
         string? folder;
-        try { folder = BaseOperationRules.FindLocalBaseDirectoryByName(_settings.BasesRoot, typed); }
+        try
+        {
+            var (chosen, cancelled) = ResolveBaseChoice(_settings.BasesRoot, typed);
+            if (cancelled)
+            {
+                ShowBackgroundNotification("Alterar base", "Seleção cancelada. A base não foi alterada.");
+                return;
+            }
+            folder = chosen;
+        }
         catch (Exception ex)
         {
             ShowBackgroundNotification("Alterar base", $"Não foi possível buscar a base:\n{ex.Message}");

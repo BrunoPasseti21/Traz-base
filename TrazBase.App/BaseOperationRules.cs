@@ -28,42 +28,53 @@ internal static class BaseOperationRules
     }
 
     /// <summary>
-    /// Localiza uma pasta local pelo nome informado (SL, nome simples ou <c>&lt;nome&gt;_&lt;SL&gt;</c>).
+    /// Localiza as pastas locais que combinam com o nome informado (SL, nome simples ou <c>&lt;nome&gt;_&lt;SL&gt;</c>).
     /// O nome precisa ser um único segmento de pasta válido: sem separadores de path, sem ".." e sem
     /// caracteres inválidos para o sistema de arquivos. Correspondência: exata — no Windows, sem
-    /// diferenciar maiúsculas/minúsculas; se não existir, uma subpasta terminada em
-    /// <c>_&lt;últimos dígitos&gt;</c> do nome (p. ex. digitar "123456" acha "JOAO_123456").
-    /// Retorna null quando nada é encontrado ou o nome é inválido.
+    /// diferenciar maiúsculas/minúsculas (tem precedência); se não existir, as subpastas terminadas em
+    /// <c>_&lt;últimos dígitos&gt;</c> do nome (p. ex. digitar "123456" acha "JOAO_123456" e "MARIA_123456").
+    /// Retorna lista vazia quando nada é encontrado ou o nome é inválido.
     /// </summary>
-    internal static string? FindLocalBaseDirectoryByName(string basesRoot, string folderName)
+    internal static IReadOnlyList<string> FindLocalBaseDirectoriesByName(string basesRoot, string folderName)
     {
         if (string.IsNullOrWhiteSpace(basesRoot))
             throw new ArgumentException("A pasta local das bases não foi configurada.", nameof(basesRoot));
 
         folderName = folderName?.Trim() ?? string.Empty;
-        if (folderName.Length == 0) return null;
-        if (folderName.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, ':']) >= 0) return null;
-        if (folderName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return null;
-        if (folderName.Contains("..", StringComparison.Ordinal)) return null;
+        if (folderName.Length == 0) return [];
+        if (folderName.IndexOfAny([Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, ':']) >= 0) return [];
+        if (folderName.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0) return [];
+        if (folderName.Contains("..", StringComparison.Ordinal)) return [];
 
         var root = Path.GetFullPath(basesRoot)
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        if (!Directory.Exists(root)) return null;
+        if (!Directory.Exists(root)) return [];
 
         var exact = Path.GetFullPath(Path.Combine(root, folderName));
         if (exact.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
             && Directory.Exists(exact))
-            return exact;
+            return [exact];
 
         var parts = folderName.Split('_', StringSplitOptions.RemoveEmptyEntries);
         var tail = parts.Length == 0 ? folderName : parts[^1];
-        if (tail.Length == 0 || !tail.All(char.IsAsciiDigit)) return null;
+        if (tail.Length == 0 || !tail.All(char.IsAsciiDigit)) return [];
 
         var suffix = "_" + tail;
         return Directory.GetDirectories(root)
             .Where(dir => Path.GetFileName(dir).EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
             .OrderBy(dir => Path.GetFileName(dir), StringComparer.CurrentCultureIgnoreCase)
-            .FirstOrDefault();
+            .ToList();
+    }
+
+    /// <summary>
+    /// Localiza uma pasta local pelo nome informado (SL, nome simples ou <c>&lt;nome&gt;_&lt;SL&gt;</c>).
+    /// Retorna a primeira correspondência ordenada (compatibilidade); use FindLocalBaseDirectoriesByName
+    /// para detectar múltiplas correspondências e deixar o operador escolher.
+    /// </summary>
+    internal static string? FindLocalBaseDirectoryByName(string basesRoot, string folderName)
+    {
+        var matches = FindLocalBaseDirectoriesByName(basesRoot, folderName);
+        return matches.Count == 0 ? null : matches[0];
     }
 
     internal static IReadOnlyList<(string Name, string Source, string Destination)> GetSupportFilesToCopy(

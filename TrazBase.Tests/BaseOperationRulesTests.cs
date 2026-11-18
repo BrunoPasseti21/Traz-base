@@ -147,6 +147,44 @@ public sealed class BaseOperationRulesTests
     }
 
     [TestMethod]
+    public void FindLocalBaseDirectoriesByName_ReturnsAllSuffixMatchesOrdered()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "MARIA_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "OUTRA"));
+
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
+
+        Assert.AreEqual(2, matches.Count);
+        Assert.AreEqual("JOAO_123456", Path.GetFileName(matches[0])); // ordenadas por nome
+        Assert.AreEqual("MARIA_123456", Path.GetFileName(matches[1]));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_ExactMatchWinsOverSuffixMatches()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
+
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
+
+        Assert.AreEqual(1, matches.Count);
+        Assert.AreEqual("123456", Path.GetFileName(matches[0]));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_ReturnsEmptyListWhenNothingFound()
+    {
+        using var temp = new TempDirectory();
+
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "654321");
+
+        Assert.AreEqual(0, matches.Count);
+    }
+
+    [TestMethod]
     public void GetSupportFilesToCopy_ReturnsBothWhenDestinationIsMissingAndSourceHasBoth()
     {
         using var temp = new TempDirectory();

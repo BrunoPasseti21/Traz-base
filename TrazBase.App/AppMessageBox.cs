@@ -71,6 +71,16 @@ internal static class AppMessageBox
         using var dialog = new AppMessageDialog(owner, text, caption, buttons, icon, defaultButton);
         return dialog.ShowDialog(owner);
     }
+
+    /// <summary>
+    /// Pergunta para qual base o operador deseja apontar quando mais de uma pasta corresponde ao nome informado.
+    /// Retorna o caminho completo da pasta escolhida, ou null quando o operador cancela a seleÃ§Ã£o.
+    /// </summary>
+    public static string? ShowPickBaseFolder(IWin32Window owner, string typed, IReadOnlyList<string> candidates)
+    {
+        using var dialog = new PickBaseDialog(owner, typed, candidates);
+        return dialog.ShowDialog(owner) == DialogResult.OK ? dialog.SelectedFolder : null;
+    }
 }
 
 internal sealed class AppMessageDialog : Form
@@ -295,4 +305,175 @@ internal sealed class AppMessageDialog : Form
         MessageBoxButtons.AbortRetryIgnore => [("Abortar", DialogResult.Abort, false), ("Tentar novamente", DialogResult.Retry, false), ("Ignorar", DialogResult.Ignore, true)],
         _ => [("OK", DialogResult.OK, true)]
     };
+}
+
+/// <summary>Diálogo próprio para escolher entre várias pastas de base correspondentes ao nome digitado (listagem simples com duplo clique/Enter).</summary>
+internal sealed class PickBaseDialog : Form
+{
+    private readonly ListBox _list;
+
+    public string? SelectedFolder => _list.SelectedItem as string;
+
+    public PickBaseDialog(IWin32Window owner, string typed, IReadOnlyList<string> candidates)
+    {
+        var ownerControl = owner as Control;
+        var dark = ownerControl is not null && ownerControl.BackColor.R < 70;
+        var background = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var headerColor = dark ? Color.FromArgb(28, 35, 47) : Color.FromArgb(31, 111, 235);
+        var foreground = dark ? Color.FromArgb(232, 237, 245) : Color.FromArgb(29, 42, 61);
+        var border = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
+        var inputBackground = dark ? Color.FromArgb(43, 53, 69) : Color.FromArgb(249, 251, 254);
+        var inputForeground = dark ? Color.FromArgb(220, 229, 242) : Color.FromArgb(29, 42, 61);
+        var selectedRow = dark ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
+
+        ClientSize = new Size(560, 400);
+        FormBorderStyle = FormBorderStyle.None;
+        StartPosition = FormStartPosition.Manual;
+        var screen = ownerControl is not null ? Screen.FromControl(ownerControl) : Screen.FromHandle(owner?.Handle ?? IntPtr.Zero);
+        Location = new Point(
+            screen.WorkingArea.Left + Math.Max(0, (screen.WorkingArea.Width - ClientSize.Width) / 2),
+            screen.WorkingArea.Top + Math.Max(0, (screen.WorkingArea.Height - ClientSize.Height) / 2));
+        ShowInTaskbar = false;
+        MinimizeBox = false;
+        MaximizeBox = false;
+        BackColor = border;
+        Padding = new Padding(1);
+        Font = UiTypography.Body();
+        Text = "Várias bases encontradas";
+
+        var surface = new Panel { Dock = DockStyle.Fill, BackColor = background };
+        Controls.Add(surface);
+
+        var header = new Panel { Location = Point.Empty, Size = new Size(ClientSize.Width - 2, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor, Cursor = Cursors.Arrow };
+        surface.Controls.Add(header);
+        var captionLabel = new Label
+        {
+            Text = "Várias bases encontradas",
+            ForeColor = Color.White,
+            BackColor = Color.Transparent,
+            Font = UiTypography.Body(10f),
+            TextAlign = ContentAlignment.MiddleLeft,
+            AutoEllipsis = true,
+            Location = new Point(18, 0),
+            Size = new Size(ClientSize.Width - 70, 44),
+            Cursor = Cursors.Arrow
+        };
+        header.Controls.Add(captionLabel);
+        DraggableWindow.Wire(header, this);
+        DraggableWindow.Wire(captionLabel, this);
+
+        var close = new RoundedButton
+        {
+            Text = "×",
+            CornerRadius = 0,
+            Size = new Size(42, 44),
+            Location = new Point(ClientSize.Width - 45, 0),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.White,
+            BackColor = headerColor,
+            Font = UiTypography.Body(15f),
+            TabStop = false
+        };
+        close.FlatAppearance.BorderSize = 0;
+        close.UseVisualStyleBackColor = false;
+        close.BackColor = headerColor;
+        close.MouseEnter += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.MouseLeave += (_, _) => close.BackColor = headerColor;
+        close.MouseDown += (_, _) => close.BackColor = Color.FromArgb(0xA1, 0x1F, 0x15);
+        close.MouseUp += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.Click += (_, _) => { DialogResult = DialogResult.Cancel; Close(); };
+        header.Controls.Add(close);
+
+        var body = new Label
+        {
+            Text = $"Encontrei mais de uma base para \"{typed}\".\nSelecione qual deseja utilizar:",
+            ForeColor = foreground,
+            BackColor = Color.Transparent,
+            Font = UiTypography.Body(10f),
+            Location = new Point(22, 56),
+            Size = new Size(ClientSize.Width - 44, 48),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        surface.Controls.Add(body);
+
+        _list = new ListBox
+        {
+            Location = new Point(22, 108),
+            Size = new Size(ClientSize.Width - 44, 208),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = inputBackground,
+            ForeColor = inputForeground,
+            Font = UiTypography.BodySemibold(10f),
+            DrawMode = DrawMode.OwnerDrawFixed,
+            ItemHeight = 30,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom
+        };
+        _list.DrawItem += (_, e) =>
+        {
+            if (e.Index < 0) { e.DrawBackground(); return; }
+            var selected = (e.State & DrawItemState.Selected) == DrawItemState.Selected;
+            using var backgroundBrush = new SolidBrush(selected ? selectedRow : inputBackground);
+            e.Graphics.FillRectangle(backgroundBrush, e.Bounds);
+            TextRenderer.DrawText(e.Graphics, Path.GetFileName((string)_list.Items[e.Index]), _list.Font, e.Bounds, selected ? Color.White : inputForeground, TextFormatFlags.VerticalCenter | TextFormatFlags.Left | TextFormatFlags.EndEllipsis | TextFormatFlags.NoPrefix);
+            e.DrawFocusRectangle();
+        };
+        _list.DoubleClick += (_, _) => AcceptSelection();
+        _list.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode != Keys.Enter) return;
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            AcceptSelection();
+        };
+        foreach (var candidate in candidates) _list.Items.Add(candidate);
+        _list.SelectedIndex = 0;
+        surface.Controls.Add(_list);
+
+        var selectButton = new RoundedButton
+        {
+            Text = "Selecionar",
+            Size = new Size(120, 32),
+            Location = new Point(ClientSize.Width - 148, ClientSize.Height - 47),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(31, 111, 235),
+            ForeColor = Color.White,
+            Font = UiTypography.BodySemibold(9f),
+            DialogResult = DialogResult.OK
+        };
+        selectButton.FlatAppearance.BorderSize = 0;
+        selectButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        selectButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        selectButton.Click += (_, _) => AcceptSelection();
+        surface.Controls.Add(selectButton);
+
+        var cancelButton = new RoundedButton
+        {
+            Text = "Cancelar",
+            Size = new Size(96, 32),
+            Location = new Point(ClientSize.Width - 258, ClientSize.Height - 47),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = dark ? Color.FromArgb(43, 53, 69) : Color.White,
+            ForeColor = foreground,
+            Font = UiTypography.BodySemibold(9f),
+            DialogResult = DialogResult.Cancel
+        };
+        cancelButton.FlatAppearance.BorderSize = 1;
+        cancelButton.FlatAppearance.BorderColor = border;
+        cancelButton.FlatAppearance.MouseOverBackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(244, 247, 251);
+        surface.Controls.Add(cancelButton);
+
+        AcceptButton = selectButton;
+        CancelButton = cancelButton;
+        ActiveControl = _list;
+    }
+
+    private void AcceptSelection()
+    {
+        if (_list.SelectedItem is null) return;
+        DialogResult = DialogResult.OK;
+        Close();
+    }
 }
