@@ -4,6 +4,11 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.5"] =
+        [
+            "Correção dos caracteres corrompidos exibidos nos diálogos próprios do aplicativo (ex.: o botão de fechar exibia glifos errados em \"Atualização do Traz Base\") — código-fonte 100% UTF-8.",
+            "Atualização: ao detectar uma nova versão no GitHub, exibe um toast \"Atualização disponível\" (uma vez por versão por sessão) — toque no toast para abrir o Traz Base e instalar.",
+        ],
         ["0.9.4"] =
         [
             "Segurança: o toast ao copiar a senha do sistema Empresa (atalho Ctrl+Alt+X) não exibe mais a senha copiada — mostra apenas a confirmação \"Senha copiada para a área de transferência.\", no mesmo padrão do \"Copiar senha padrão SIC\".",
