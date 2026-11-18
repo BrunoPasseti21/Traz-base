@@ -650,6 +650,10 @@ internal sealed class MainForm : Form
                 Verb = "runas",
                 Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS"
             });
+            // Sair de verdade com a instalação em andamento — com "fechar minimiza na bandeja" ligada,
+            // Close() apenas esconde a janela e o app continua rodando; o Inno Setup então não consegue
+            // substituir os arquivos e aborta a instalação com rollback.
+            _exitRequested = true;
             Close();
         }
         catch (Exception ex)
