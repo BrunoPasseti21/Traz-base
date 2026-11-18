@@ -26,7 +26,7 @@ internal sealed class MainForm : Form
     private readonly RoundedButton _sicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly RoundedButton _sicDynamicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Teste_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _startInBackground = new() { Text = "Iniciar o TrazBase em segundo plano (na bandeja)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _startWithWindows = new() { Text = "Iniciar o TrazBase com o Windows", AutoSize = true, Anchor = AnchorStyles.Left };
@@ -122,7 +122,7 @@ internal sealed class MainForm : Form
     private bool _syncingResetSlFromList;
     private readonly RoundedButton _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
-    private readonly UnthemedTextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou SUPRASYS_123456" };
+    private readonly UnthemedTextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou Teste_123456" };
     private readonly RoundedButton _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly RoundedButton _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
     private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(600, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
@@ -1060,7 +1060,7 @@ internal sealed class MainForm : Form
 
         page.Controls.Add(BuildHelpCard(page, 1,
             "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
-            "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456 ou SUPRASYS_123456).\r\n" +
+            "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456 ou Teste_123456).\r\n" +
             "• Em pastas renomeadas (<nome>_<SL>), a SL é preenchida sozinha.\r\n" +
             "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
             "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
@@ -1313,7 +1313,7 @@ internal sealed class MainForm : Form
             sl = _resetSl.Text.Trim();
             if (sl.Length == 0)
             {
-                MessageBox.Show(this, "Selecione uma base na lista ou digite a SL/nome da pasta (ex.: 123456 ou SUPRASYS_123456).", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                MessageBox.Show(this, "Selecione uma base na lista ou digite a SL/nome da pasta (ex.: 123456 ou Teste_123456).", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 return;
             }
             string? resolved;
@@ -4320,7 +4320,7 @@ internal sealed class MainForm : Form
         }
         if (folder is null)
         {
-            ShowBackgroundNotification("Alterar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca por prefixo (ex.: \"AL\" lista ALLES e ALLES_34742) ou por sufixo \"_<dígitos>\".");
+            ShowBackgroundNotification("Alterar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca por prefixo (ex.: \"TE\" lista TESTE e TESTE_123456) ou por sufixo \"_<dígitos>\".");
             return;
         }
 

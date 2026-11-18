@@ -31,9 +31,9 @@ internal static class BaseOperationRules
     /// Localiza as pastas locais que combinam com o nome informado (SL, nome simples ou <c>&lt;nome&gt;_&lt;SL&gt;</c>).
     /// O nome precisa ser um único segmento de pasta válido: sem separadores de path, sem ".." e sem
     /// caracteres inválidos para o sistema de arquivos. Correspondência: pastas cujo nome COMEÇA com o texto
-    /// digitado (sem diferenciar maiúsculas/minúsculas) — ex.: digitar "AL" lista "ALLES" e "ALLES_34742";
+    /// digitado (sem diferenciar maiúsculas/minúsculas) — ex.: digitar "TE" lista "TESTE" e "TESTE_123456";
     /// e, quando o último segmento do texto for só dígitos, também pastas terminadas em <c>_&lt;dígitos&gt;</c>
-    /// (p. ex. digitar "123456" acha "JOAO_123456"). Retorna lista vazia quando nada é encontrado ou o nome é
+    /// (p. ex. digitar "123456" acha "Teste_123456"). Retorna lista vazia quando nada é encontrado ou o nome é
     /// inválido; a pasta exata não tem precedência — várias correspondências devem ser apresentadas ao operador.
     /// </summary>
     internal static IReadOnlyList<string> FindLocalBaseDirectoriesByName(string basesRoot, string folderName)

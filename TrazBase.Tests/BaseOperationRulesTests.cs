@@ -72,9 +72,9 @@ public sealed class BaseOperationRulesTests
     public void FindLocalBaseDirectoryByName_AcceptsNameOnlyFolder()
     {
         using var temp = new TempDirectory();
-        var exact = Directory.CreateDirectory(Path.Combine(temp.Path, "ALLES")).FullName;
+        var exact = Directory.CreateDirectory(Path.Combine(temp.Path, "Teste")).FullName;
 
-        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "alles");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "teste");
 
         Assert.IsNotNull(result);
         Assert.AreEqual(Path.GetFullPath(exact), result, StringComparer.OrdinalIgnoreCase);
@@ -84,23 +84,23 @@ public sealed class BaseOperationRulesTests
     public void FindLocalBaseDirectoryByName_FallsBackToRenamedFolder()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_123456"));
 
         var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
 
-        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "JOAO_123456")), result);
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "Teste_123456")), result);
     }
 
     [TestMethod]
     public void FindLocalBaseDirectoryByName_AcceptsRenamedFolderTypedFully()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_123456"));
 
-        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "joao_123456");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "teste_123456");
 
         Assert.IsNotNull(result);
-        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "JOAO_123456")), result, StringComparer.OrdinalIgnoreCase);
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "Teste_123456")), result, StringComparer.OrdinalIgnoreCase);
     }
 
     [TestMethod]
@@ -108,7 +108,7 @@ public sealed class BaseOperationRulesTests
     {
         using var temp = new TempDirectory();
 
-        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "654321");
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
 
         Assert.IsNull(result);
     }
@@ -139,7 +139,7 @@ public sealed class BaseOperationRulesTests
     public void FindLocalBaseDirectoryByName_DoesNotMatchPartialSuffix()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_9123456")); // não termina em _123456
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_12345")); // não termina em _123456
 
         var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
 
@@ -150,15 +150,15 @@ public sealed class BaseOperationRulesTests
     public void FindLocalBaseDirectoriesByName_ReturnsAllSuffixMatchesOrdered()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "MARIA_123456"));
-        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
-        Directory.CreateDirectory(Path.Combine(temp.Path, "OUTRA"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TesteB_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TesteA_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Fora"));
 
         var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
 
         Assert.AreEqual(2, matches.Count);
-        Assert.AreEqual("JOAO_123456", Path.GetFileName(matches[0])); // ordenadas por nome
-        Assert.AreEqual("MARIA_123456", Path.GetFileName(matches[1]));
+        Assert.AreEqual("TesteA_123456", Path.GetFileName(matches[0])); // ordenadas por nome
+        Assert.AreEqual("TesteB_123456", Path.GetFileName(matches[1]));
     }
 
     [TestMethod]
@@ -166,41 +166,41 @@ public sealed class BaseOperationRulesTests
     {
         using var temp = new TempDirectory();
         Directory.CreateDirectory(Path.Combine(temp.Path, "123456"));
-        Directory.CreateDirectory(Path.Combine(temp.Path, "JOAO_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_123456"));
 
         var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
 
         Assert.AreEqual(2, matches.Count);
         Assert.AreEqual("123456", Path.GetFileName(matches[0]));
-        Assert.AreEqual("JOAO_123456", Path.GetFileName(matches[1]));
+        Assert.AreEqual("Teste_123456", Path.GetFileName(matches[1]));
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectoriesByName_PrefixOfAlleListsBothAllesBases()
+    public void FindLocalBaseDirectoriesByName_PrefixOfTeListsBothTesteBases()
     {
         using var temp = new TempDirectory();
-        Directory.CreateDirectory(Path.Combine(temp.Path, "ALLES"));
-        Directory.CreateDirectory(Path.Combine(temp.Path, "ALLES_34742"));
-        Directory.CreateDirectory(Path.Combine(temp.Path, "OUTRA_99999"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TESTE"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TESTE_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Fora"));
 
-        // digitar "AL" ou "ALLES" deve listar as duas bases para seleção
-        foreach (var typed in new[] { "AL", "ALL", "ALLE", "ALLES" })
+        // digitar "TE" ou "TESTE" deve listar as duas bases para seleção
+        foreach (var typed in new[] { "TE", "TES", "TEST", "TESTE" })
         {
             var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, typed);
             Assert.AreEqual(2, matches.Count, typed);
-            Assert.AreEqual("ALLES", Path.GetFileName(matches[0]), typed);
-            Assert.AreEqual("ALLES_34742", Path.GetFileName(matches[1]), typed);
+            Assert.AreEqual("TESTE", Path.GetFileName(matches[0]), typed);
+            Assert.AreEqual("TESTE_123456", Path.GetFileName(matches[1]), typed);
         }
 
         // digitar a pasta completa resolve direto
-        var exact = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "ALLES_34742");
+        var exact = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "TESTE_123456");
         Assert.AreEqual(1, exact.Count);
-        Assert.AreEqual("ALLES_34742", Path.GetFileName(exact[0]));
+        Assert.AreEqual("TESTE_123456", Path.GetFileName(exact[0]));
 
-        // "ALLES_" só lista a que tem o sufixo
-        var withSuffix = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "ALLES_");
+        // "TESTE_" só lista a que tem o sufixo
+        var withSuffix = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "TESTE_");
         Assert.AreEqual(1, withSuffix.Count);
-        Assert.AreEqual("ALLES_34742", Path.GetFileName(withSuffix[0]));
+        Assert.AreEqual("TESTE_123456", Path.GetFileName(withSuffix[0]));
     }
 
     [TestMethod]
@@ -208,7 +208,7 @@ public sealed class BaseOperationRulesTests
     {
         using var temp = new TempDirectory();
 
-        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "654321");
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
 
         Assert.AreEqual(0, matches.Count);
     }
