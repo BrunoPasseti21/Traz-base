@@ -2553,6 +2553,7 @@ internal sealed class MainForm : Form
 
     private const int MenuCollapsedWidth = 68;
     private const int MenuExpandedWidth = 300;
+    private const int TrayMenuWidth = 372; // largura do menu da bandeja: comporta o item mais longo ("Copiar senha padrão Empresa" + Ctrl+Alt+X) sem sobreposição
     private const double MenuAnimationDurationMs = 220;
     private readonly System.Windows.Forms.Timer _menuAnimationTimer = new() { Interval = 15 };
     private readonly System.Diagnostics.Stopwatch _menuAnimationClock = new();
@@ -4139,7 +4140,7 @@ internal sealed class MainForm : Form
                 await TrayTransferAsync();
             }
         };
-        var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
+        var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(transferItem);
 
         var changeBaseRow = CreateTrayInputRow("Alterar base", "Trocar-Base.svg", "Nome da base");
@@ -4152,7 +4153,7 @@ internal sealed class MainForm : Form
                 await TrayChangeBaseAsync();
             }
         };
-        var changeBaseItem = new ToolStripControlHost(changeBaseRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
+        var changeBaseItem = new ToolStripControlHost(changeBaseRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(changeBaseItem);
         menu.Items.Add(new ToolStripSeparator()); // separador logo abaixo do Alterar base
 
@@ -4166,7 +4167,7 @@ internal sealed class MainForm : Form
                 TrayOpenTicket();
             }
         };
-        var ticketItem = new ToolStripControlHost(ticketRow.Panel) { AutoSize = false, Width = 300, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
+        var ticketItem = new ToolStripControlHost(ticketRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(ticketItem);
 
         menu.Items.Add(new ToolStripSeparator());
@@ -4353,7 +4354,7 @@ internal sealed class MainForm : Form
     /// <summary>Linha de entrada da bandeja (ícone + texto estático + edit). Devolve o painel e o edit; o Enter no edit é ligado por quem chama.</summary>
     private (Panel Panel, TextBox Box) CreateTrayInputRow(string labelText, string iconFile, string placeholder)
     {
-        var panel = new Panel { Width = 300, Height = 32, BackColor = TrayMenuTheme.Background };
+        var panel = new Panel { Width = TrayMenuWidth, Height = 32, BackColor = TrayMenuTheme.Background };
         panel.Controls.Add(new PictureBox { Size = new Size(16, 16), Location = new Point(2, 8), SizeMode = PictureBoxSizeMode.Zoom, Image = SvgIconLoader.Load(iconFile, 16), BackColor = Color.Transparent });
         var label = new Label
         {
