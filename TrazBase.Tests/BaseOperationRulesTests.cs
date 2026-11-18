@@ -162,7 +162,7 @@ public sealed class BaseOperationRulesTests
     }
 
     [TestMethod]
-    public void FindLocalBaseDirectoriesByName_ExactMatchWinsOverSuffixMatches()
+    public void FindLocalBaseDirectoriesByName_PrefixAndExactBothListed()
     {
         using var temp = new TempDirectory();
         Directory.CreateDirectory(Path.Combine(temp.Path, "123456"));
@@ -170,8 +170,37 @@ public sealed class BaseOperationRulesTests
 
         var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
 
-        Assert.AreEqual(1, matches.Count);
+        Assert.AreEqual(2, matches.Count);
         Assert.AreEqual("123456", Path.GetFileName(matches[0]));
+        Assert.AreEqual("JOAO_123456", Path.GetFileName(matches[1]));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_PrefixOfAlleListsBothAllesBases()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "ALLES"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "ALLES_34742"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "OUTRA_99999"));
+
+        // digitar "AL" ou "ALLES" deve listar as duas bases para seleção
+        foreach (var typed in new[] { "AL", "ALL", "ALLE", "ALLES" })
+        {
+            var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, typed);
+            Assert.AreEqual(2, matches.Count, typed);
+            Assert.AreEqual("ALLES", Path.GetFileName(matches[0]), typed);
+            Assert.AreEqual("ALLES_34742", Path.GetFileName(matches[1]), typed);
+        }
+
+        // digitar a pasta completa resolve direto
+        var exact = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "ALLES_34742");
+        Assert.AreEqual(1, exact.Count);
+        Assert.AreEqual("ALLES_34742", Path.GetFileName(exact[0]));
+
+        // "ALLES_" só lista a que tem o sufixo
+        var withSuffix = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "ALLES_");
+        Assert.AreEqual(1, withSuffix.Count);
+        Assert.AreEqual("ALLES_34742", Path.GetFileName(withSuffix[0]));
     }
 
     [TestMethod]

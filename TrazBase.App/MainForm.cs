@@ -4320,7 +4320,7 @@ internal sealed class MainForm : Form
         }
         if (folder is null)
         {
-            ShowBackgroundNotification("Alterar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca exata ou por subpastas terminadas em \"_<dígitos>\".");
+            ShowBackgroundNotification("Alterar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca por prefixo (ex.: \"AL\" lista ALLES e ALLES_34742) ou por sufixo \"_<dígitos>\".");
             return;
         }
 

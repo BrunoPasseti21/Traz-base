@@ -30,10 +30,11 @@ internal static class BaseOperationRules
     /// <summary>
     /// Localiza as pastas locais que combinam com o nome informado (SL, nome simples ou <c>&lt;nome&gt;_&lt;SL&gt;</c>).
     /// O nome precisa ser um único segmento de pasta válido: sem separadores de path, sem ".." e sem
-    /// caracteres inválidos para o sistema de arquivos. Correspondência: exata — no Windows, sem
-    /// diferenciar maiúsculas/minúsculas (tem precedência); se não existir, as subpastas terminadas em
-    /// <c>_&lt;últimos dígitos&gt;</c> do nome (p. ex. digitar "123456" acha "JOAO_123456" e "MARIA_123456").
-    /// Retorna lista vazia quando nada é encontrado ou o nome é inválido.
+    /// caracteres inválidos para o sistema de arquivos. Correspondência: pastas cujo nome COMEÇA com o texto
+    /// digitado (sem diferenciar maiúsculas/minúsculas) — ex.: digitar "AL" lista "ALLES" e "ALLES_34742";
+    /// e, quando o último segmento do texto for só dígitos, também pastas terminadas em <c>_&lt;dígitos&gt;</c>
+    /// (p. ex. digitar "123456" acha "JOAO_123456"). Retorna lista vazia quando nada é encontrado ou o nome é
+    /// inválido; a pasta exata não tem precedência — várias correspondências devem ser apresentadas ao operador.
     /// </summary>
     internal static IReadOnlyList<string> FindLocalBaseDirectoriesByName(string basesRoot, string folderName)
     {
@@ -50,18 +51,27 @@ internal static class BaseOperationRules
             .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (!Directory.Exists(root)) return [];
 
-        var exact = Path.GetFullPath(Path.Combine(root, folderName));
-        if (exact.StartsWith(root + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
-            && Directory.Exists(exact))
-            return [exact];
+        var matches = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var dir in Directory.GetDirectories(root))
+        {
+            if (Path.GetFileName(dir).StartsWith(folderName, StringComparison.OrdinalIgnoreCase))
+                matches.Add(dir);
+        }
 
         var parts = folderName.Split('_', StringSplitOptions.RemoveEmptyEntries);
         var tail = parts.Length == 0 ? folderName : parts[^1];
-        if (tail.Length == 0 || !tail.All(char.IsAsciiDigit)) return [];
+        if (tail.Length > 0 && tail.All(char.IsAsciiDigit))
+        {
+            var suffix = "_" + tail;
+            foreach (var dir in Directory.GetDirectories(root))
+            {
+                if (Path.GetFileName(dir).EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+                    matches.Add(dir);
+            }
+        }
 
-        var suffix = "_" + tail;
-        return Directory.GetDirectories(root)
-            .Where(dir => Path.GetFileName(dir).EndsWith(suffix, StringComparison.OrdinalIgnoreCase))
+        return matches
             .OrderBy(dir => Path.GetFileName(dir), StringComparer.CurrentCultureIgnoreCase)
             .ToList();
     }
