@@ -216,7 +216,7 @@ Com **"Fechar a janela minimiza para a bandeja do Windows (segundo plano)"** mar
 Ao abrir a janela e, depois, a cada **1 minuto**, em segundo plano (o timer roda mesmo com a janela oculta/minimizada na bandeja):
 
 1. Consulta `https://api.github.com/repos/BrunoPasseti21/Traz-base/releases/latest` (timeout 15 s), com **ETag** armazenado entre verificações (`If-None-Match`) — respostas `304 Not Modified` não contam no rate limit do GitHub (60/h por IP sem autenticação).
-2. Se `tag_name` (sem o `v` opcional) for maior que a versão do assembly e existir asset cujo nome termina em `Setup.exe` com URL `https`, mostra o botão "Atualização disponível · vX.Y.Z" no rodapé do menu (ou uma animação/barra de progresso durante o download). Reexibições da mesma versão não alteram a UI (sem piscar).
+2. Se `tag_name` (sem o `v` opcional) for maior que a versão do assembly e existir asset cujo nome termina em `Setup.exe` com URL `https`, mostra o botão "Atualização disponível · vX.Y.Z" no rodapé do menu (ou uma animação/barra de progresso durante o download). Reexibições da mesma versão não alteram a UI (sem piscar). **Na primeira detecção de cada versão, também exibe um toast "Atualização disponível"** (uma vez por versão por sessão) — tocar no toast restaura/abre a janela. Sempre visível/útil em modo de segundo plano (bandeja), onde o botão não chama atenção.
 3. Ao clicar: confirmação → download para `%TEMP%\TrazBase-Setup-<guid>.exe` com progresso → execução com `Verb=runas` e `/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS` → o app fecha.
 4. Falha na verificação/download é silenciosa (o uso normal não é afetado); o usuário pode tentar de novo.
 5. A atualização em `Program Files` exige UAC; versões antigas são bloqueadas pelo instalador.

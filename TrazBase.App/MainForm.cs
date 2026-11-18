@@ -165,6 +165,7 @@ internal sealed class MainForm : Form
     private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
     private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
     private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 60_000 };
+    private string? _updateNotifiedVersion; // versão já notificada nesta sessão (evita toast repetido a cada minuto)
     private bool _updateCheckRunning;
     private bool _menuExpanded;
     private Form? _hintPopup;
@@ -604,6 +605,11 @@ internal sealed class MainForm : Form
             _updateRow.Visible = true;
             _menuToolTip.SetToolTip(_updateButton, $"Atualização disponível: versão {update.Version}. Clique para instalar.");
             SetMenuExpanded(_menuExpanded);
+            if (!string.Equals(_updateNotifiedVersion, update.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                _updateNotifiedVersion = update.Version;
+                ShowBackgroundNotification("Atualização disponível", $"A versão {update.Version} está pronta para download.\n(Clique aqui para abrir o Traz Base e atualizar).");
+            }
         }
         catch
         {

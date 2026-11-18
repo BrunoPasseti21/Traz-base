@@ -7,6 +7,8 @@ internal static class Changelog
         ["0.9.4"] =
         [
             "Segurança: o toast ao copiar a senha do sistema Empresa (atalho Ctrl+Alt+X) não exibe mais a senha copiada — mostra apenas a confirmação \"Senha copiada para a área de transferência.\", no mesmo padrão do \"Copiar senha padrão SIC\".",
+            "Correção de caracteres corrompidos em diálogos próprios do aplicativo (ex.: títulos e botão de fechar exibiam glifos errados); o código-fonte passou a ser 100% UTF-8 válido.",
+            "Atualização: ao detectar uma nova versão disponível, exibe um toast \"Atualização disponível\" (uma vez por versão, enquanto a aplicação está aberta) — toque no toast para abrir o Traz Base e poder instalar.",
         ],
         ["0.9.3"] =
         [

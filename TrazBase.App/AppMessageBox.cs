@@ -307,7 +307,7 @@ internal sealed class AppMessageDialog : Form
     };
 }
 
-/// <summary>Diálogo próprio para escolher entre várias pastas de base correspondentes ao nome digitado (listagem simples com duplo clique/Enter).</summary>
+/// <summary>DiÃ¡logo prÃ³prio para escolher entre vÃ¡rias pastas de base correspondentes ao nome digitado (listagem simples com duplo clique/Enter).</summary>
 internal sealed class PickBaseDialog : Form
 {
     private readonly ListBox _list;
@@ -339,7 +339,7 @@ internal sealed class PickBaseDialog : Form
         BackColor = border;
         Padding = new Padding(1);
         Font = UiTypography.Body();
-        Text = "Várias bases encontradas";
+        Text = "VÃ¡rias bases encontradas";
 
         var surface = new Panel { Dock = DockStyle.Fill, BackColor = background };
         Controls.Add(surface);
@@ -348,7 +348,7 @@ internal sealed class PickBaseDialog : Form
         surface.Controls.Add(header);
         var captionLabel = new Label
         {
-            Text = "Várias bases encontradas",
+            Text = "VÃ¡rias bases encontradas",
             ForeColor = Color.White,
             BackColor = Color.Transparent,
             Font = UiTypography.Body(10f),
@@ -364,7 +364,7 @@ internal sealed class PickBaseDialog : Form
 
         var close = new RoundedButton
         {
-            Text = "×",
+            Text = "Ã—",
             CornerRadius = 0,
             Size = new Size(42, 44),
             Location = new Point(ClientSize.Width - 45, 0),
