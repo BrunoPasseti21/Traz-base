@@ -4,6 +4,10 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.4"] =
+        [
+            "Segurança: o toast ao copiar a senha do sistema Empresa (atalho Ctrl+Alt+X) não exibe mais a senha copiada — mostra apenas a confirmação \"Senha copiada para a área de transferência.\", no mesmo padrão do \"Copiar senha padrão SIC\".",
+        ],
         ["0.9.3"] =
         [
             "Nova opção \"Senha do sistema Empresa\" na tela Configurações: campo protegido (botão de olho) com \"Salvar senha\" (DPAPI, igual aos outros campos de senha). O atalho global Ctrl+Alt+X copia para a área de transferência a senha informada + (hora × dia × 13) — hora local 0–23 e dia do mês 1–31, sem minutos nem segundos (ex.: dia 17 às 16h → \"TESTE3536\"); ícone de ajuda (?) ao lado do rótulo explica a regra passo a passo.",
