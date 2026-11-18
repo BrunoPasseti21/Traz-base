@@ -35,6 +35,8 @@ internal sealed class AppSettings
     public bool CommandScriptsMigrated { get; set; }
     public bool DarkMode { get; set; }
     public bool MinimizeToTrayOnClose { get; set; }
+    public bool StartInBackground { get; set; }
+    public bool StartWithWindows { get; set; }
     public string? ProtectedFirebirdPassword { get; set; }
     public string? ProtectedSicPassword { get; set; }
     public string? ProtectedSicDynamicPassword { get; set; }

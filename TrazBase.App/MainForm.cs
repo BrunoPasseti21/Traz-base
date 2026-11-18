@@ -28,6 +28,8 @@ internal sealed class MainForm : Form
     private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Suprasys_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _startInBackground = new() { Text = "Iniciar o TrazBase em segundo plano (na bandeja)", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _startWithWindows = new() { Text = "Iniciar o TrazBase com o Windows", AutoSize = true, Anchor = AnchorStyles.Left };
     private readonly ThemedCheckBox _useSupportAsCompany = new() { Text = "Apontar a EMPRESA do Regedit para a pasta de bases de apoio", AutoSize = true, Anchor = AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
@@ -306,6 +308,21 @@ internal sealed class MainForm : Form
             try { PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de bandeja: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
+        _startInBackground.Checked = _settings.StartInBackground;
+        _startInBackground.CheckedChanged += (_, _) =>
+        {
+            _settings.StartInBackground = _startInBackground.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de segundo plano: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _startWithWindows.Checked = _settings.StartWithWindows;
+        _startWithWindows.CheckedChanged += (_, _) =>
+        {
+            _settings.StartWithWindows = _startWithWindows.Checked;
+            try { SetStartWithWindowsRegistry(_startWithWindows.Checked); PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de iniciar com o Windows: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        if (_settings.StartWithWindows) SetStartWithWindowsRegistry(true); // repara a chave (ex.: o executável mudou de pasta)
         AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
         _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
         _baseCount.ValueChanged += (_, _) =>
@@ -711,7 +728,7 @@ internal sealed class MainForm : Form
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 553));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 605));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
         page.Controls.Add(BuildSettingsPanel(), 0, 1);
@@ -2830,7 +2847,7 @@ internal sealed class MainForm : Form
         var host = _settingsFieldsHost = new Panel
         {
             Location = new Point(18, 45),
-            Size = new Size(100, 492),
+            Size = new Size(100, 544),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
@@ -2967,6 +2984,10 @@ internal sealed class MainForm : Form
         host.Controls.Add(_renameSl);
         _minimizeToTray.Location = new Point(0, 456);
         host.Controls.Add(_minimizeToTray);
+        _startInBackground.Location = new Point(0, 482);
+        host.Controls.Add(_startInBackground);
+        _startWithWindows.Location = new Point(0, 508);
+        host.Controls.Add(_startWithWindows);
 
         void LayoutSettingsRows()
         {
@@ -4115,6 +4136,24 @@ internal sealed class MainForm : Form
         _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
         _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
         RefreshTrayIconVisibility();
+    }
+
+    /// <summary>Inicia a aplicação escondida na bandeja (opção "Iniciar o TrazBase em segundo plano"): cria o handle (registra os hotkeys), exibe a bandeja e dispara a verificação silenciosa de atualizações — sem exibir a janela. A janela pode ser restaurada pelo duplo-clique no ícone da bandeja ou pelo menu (Transferir/Fechar etc.).</summary>
+    public void StartInBackground()
+    {
+        _ = Handle; // cria o handle: o registro dos hotkeys acontece no HandleCreated
+        EnsureTrayIcon();            // janela oculta => o ícone da bandeja fica visível
+        RefreshTrayIconVisibility();
+        _ = CheckForUpdatesAsync();  // atualização silenciosa: só ajusta o botão "Atualização disponível", sem diálogos
+    }
+
+    /// <summary>Registra/remove o TrazBase em HKCU\Software\Microsoft\Windows\CurrentVersion\Run ("Iniciar o TrazBase com o Windows").</summary>
+    private void SetStartWithWindowsRegistry(bool enable)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
+        if (key is null) return;
+        if (enable) key.SetValue("TrazBase", $"\"{Application.ExecutablePath}\"");
+        else key.DeleteValue("TrazBase", throwOnMissingValue: false);
     }
 
     private void RefreshTrayMenuTheme()

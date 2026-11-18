@@ -32,7 +32,17 @@ internal static class Program
             ApplicationConfiguration.Initialize();
             ToastNotifier.Initialize();
             Application.SetColorMode(settings.DarkMode ? SystemColorMode.Dark : SystemColorMode.Classic);
-            Application.Run(new MainForm());
+            var form = new MainForm();
+            if (settings.StartInBackground)
+            {
+                // Arranque oculto: a janela nunca é exibida; a aplicação vive na bandeja (option "Iniciar o TrazBase em segundo plano").
+                form.StartInBackground();
+                Application.Run(new ApplicationContext { MainForm = form }); // fecha junto com a janela única (como Application.Run(form))
+            }
+            else
+            {
+                Application.Run(form);
+            }
         }
         finally
         {
