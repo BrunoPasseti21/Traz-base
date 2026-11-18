@@ -4446,8 +4446,68 @@ internal sealed class MainForm : Form
     private static ContextMenuStrip CreateTraySubMenu() => new TrayDropDownMenu();
 
     private static readonly Dictionary<string, Image?> _fileIconCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Image?> _extensionIconCache = new(StringComparer.OrdinalIgnoreCase);
     private static Image? _trayFolderIcon;
     private static Image? _trayManageIcon;
+    private static Image? _filePlaceholderIcon;
+
+    // Cache de ícones em disco: evita re-extrair o ícone de arquivos que nunca mudam (ex.: milhares de
+    // executáveis na pasta de desenvolvimento). Nome do arquivo = hash do caminho + ticks de modificação
+    // + tamanho — o ícone invalida sozinho quando o .exe é alterado (data/tamanho mudam).
+    private static string IconCacheDir => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TrazBase", "icon-cache");
+    private static readonly object IconCacheLock = new();
+
+    private static string IconCacheFileName(string path, long ticks, long length)
+    {
+        var normalized = Path.GetFullPath(path).Trim().ToLowerInvariant();
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var hash = Convert.ToHexString(sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(normalized)));
+        return Path.Combine(IconCacheDir, $"{hash}-{ticks}-{length}.png");
+    }
+
+    private static Image? TryLoadIconFromDisk(string path, long ticks, long length)
+    {
+        try
+        {
+            var file = IconCacheFileName(path, ticks, length);
+            if (!File.Exists(file)) return null;
+            using var bytes = new MemoryStream(File.ReadAllBytes(file));
+            using var bitmap = new Bitmap(bytes);
+            return (Image)bitmap.Clone();
+        }
+        catch { return null; }
+    }
+
+    private static void TrySaveIconToDisk(Image image, string path, long ticks, long length)
+    {
+        try
+        {
+            lock (IconCacheLock)
+            {
+                Directory.CreateDirectory(IconCacheDir);
+                image.Save(IconCacheFileName(path, ticks, length), System.Drawing.Imaging.ImageFormat.Png);
+            }
+        }
+        catch { /* cache é decorativo: falha ao gravar não pode quebrar o menu */ }
+    }
+
+    /// <summary>Página genérica 16×16 usada como placeholder enquanto o ícone real carrega em segundo plano.</summary>
+    private static Image GetFilePlaceholderIcon()
+    {
+        if (_filePlaceholderIcon is not null) return _filePlaceholderIcon;
+        var bitmap = new Bitmap(16, 16);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.Clear(Color.Transparent);
+        using var page = new SolidBrush(Color.FromArgb(200, 210, 224));
+        using var fold = new SolidBrush(Color.FromArgb(150, 163, 184));
+        graphics.FillRectangle(page, 3, 1, 8, 14);
+        var points = new[] { new PointF(11, 1), new PointF(13, 4), new PointF(11, 4) };
+        graphics.FillPolygon(fold, points);
+        _filePlaceholderIcon = bitmap;
+        return bitmap;
+    }
 
     // Cache da listagem de pastas: evita re-enumerar a pasta a cada abertura do submenu
     // (ex.: a pasta de desenvolvimento do SIC possui milhares de entradas).
@@ -4473,28 +4533,45 @@ internal sealed class MainForm : Form
         return entries;
     }
 
-    /// <summary>Ícone associado ao arquivo (do próprio executável/.bat, via shell), 16×16, com cache por caminho.</summary>
+    /// <summary>Ícone associado ao arquivo (do próprio executável/.bat, via shell), 16×16, com cache por caminho. Scripts de shell (.bat/.cmd) compartilham o mesmo ícone — o shell não distingue por conteúdo. O cache é persistido em disco (invalida quando o arquivo muda).</summary>
     private static Image? GetTrayFileIcon(string path)
     {
+        var ext = Path.GetExtension(path);
+        var shared = ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase)
+            ? "@" + ext.ToLowerInvariant()
+            : null;
+
         lock (_fileIconCache)
         {
+            if (shared is not null && _extensionIconCache.TryGetValue(shared, out var sharedIcon)) return sharedIcon;
             if (_fileIconCache.TryGetValue(path, out var cached)) return cached;
-            Image? image = null;
-            try
+
+            long ticks = 0, length = 0;
+            try { var info = new FileInfo(path); ticks = info.LastWriteTimeUtc.Ticks; length = info.Length; }
+            catch { /* sem metadados: segue sem o cache de disco */ }
+
+            var image = ticks > 0 && length >= 0 ? TryLoadIconFromDisk(path, ticks, length) : null;
+            if (image is null)
             {
-                using var icon = Icon.ExtractAssociatedIcon(path);
-                if (icon is not null)
+                try
                 {
-                    var bitmap = new Bitmap(16, 16);
-                    using var graphics = Graphics.FromImage(bitmap);
-                    graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
-                    using var source = icon.ToBitmap();
-                    graphics.DrawImage(source, 0, 0, 16, 16);
-                    image = bitmap;
+                    using var icon = Icon.ExtractAssociatedIcon(path);
+                    if (icon is not null)
+                    {
+                        var bitmap = new Bitmap(16, 16);
+                        using var graphics = Graphics.FromImage(bitmap);
+                        graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        using var source = icon.ToBitmap();
+                        graphics.DrawImage(source, 0, 0, 16, 16);
+                        image = bitmap;
+                        if (ticks > 0 && length >= 0) TrySaveIconToDisk(bitmap, path, ticks, length);
+                    }
                 }
+                catch { image = null; }
             }
-            catch { image = null; }
-            _fileIconCache[path] = image;
+
+            if (shared is not null) _extensionIconCache[shared] = image;
+            else _fileIconCache[path] = image;
             return image;
         }
     }
@@ -4554,13 +4631,9 @@ internal sealed class MainForm : Form
             return;
         }
 
-        // Extrai os ícones dos arquivos em paralelo — a primeira abertura é a mais lenta
-        var icons = new Dictionary<string, Image?>(StringComparer.OrdinalIgnoreCase);
-        var fileEntries = entries.Where(e => e is FileInfo).ToList();
-        if (fileEntries.Count > 0)
-        {
-            Parallel.ForEach(fileEntries, file => icons[file.FullName] = GetTrayFileIcon(file.FullName));
-        }
+        // O menu abre na hora: os itens entram com um placeholder e os ícones reais são preenchidos
+        // em segundo plano (na ordem de exibição — os visíveis no topo aparecem primeiro).
+        var pending = new List<(ToolStripMenuItem Item, string FullPath)>();
 
         foreach (var entry in entries)
         {
@@ -4579,14 +4652,45 @@ internal sealed class MainForm : Form
             else
             {
                 var fullPath = entry.FullName;
-                icons.TryGetValue(fullPath, out var icon);
-                var fileItem = new ToolStripMenuItem(entry.Name, icon) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+                var fileItem = new ToolStripMenuItem(entry.Name, GetFilePlaceholderIcon()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
                 fileItem.Click += (_, _) => OpenPathInExplorer(fullPath);
                 items.Add(fileItem);
+                pending.Add((fileItem, fullPath));
             }
         }
         if (entries.Length == 0)
             items.Add(new ToolStripMenuItem("Nenhum arquivo para este filtro") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+
+        if (pending.Count > 0) QueueFolderShortcutIconsLoad(pending);
+    }
+
+    /// <summary>Preenche os ícones dos itens recém-adicionados em segundo plano; cada ícone é aplicado na thread de UI quando fica pronto (na ordem de exibição, os mais visíveis enfileiram primeiro).</summary>
+    private void QueueFolderShortcutIconsLoad(List<(ToolStripMenuItem Item, string FullPath)> pending)
+    {
+        var form = this;
+        Task.Run(() =>
+        {
+            foreach (var (item, fullPath) in pending)
+            {
+                var icon = GetTrayFileIcon(fullPath);
+                if (icon is null) continue;
+                var capturedItem = item;
+                var capturedIcon = icon;
+                try
+                {
+                    form.BeginInvoke(new Action(() =>
+                    {
+                        try
+                        {
+                            if (capturedItem.Owner is not { IsDisposed: false }) return; // menu recriado/fechado enquanto carregava
+                            capturedItem.Image = capturedIcon;
+                        }
+                        catch { /* item já descartado */ }
+                    }));
+                }
+                catch { /* a janela pode estar se encerrando */ }
+            }
+        });
     }
 
     private static void DisposeAllToolStripItems(ToolStripItemCollection items)
