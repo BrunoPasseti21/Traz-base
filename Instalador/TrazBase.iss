@@ -34,7 +34,7 @@ VersionInfoProductVersion={#AppVersion}
 Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Criar um atalho na Ã¡rea de trabalho"; GroupDescription: "Atalhos adicionais:"; Flags: unchecked
+Name: "desktopicon"; Description: "Criar um atalho na área de trabalho"; GroupDescription: "Atalhos adicionais:"; Flags: unchecked
 
 [Files]
 Source: "Aplicativo\*"; DestDir: "{app}"; Excludes: "*.json,*.pdb,Imagens\*.svg,Imagens\icone\*.ico"; Flags: recursesubdirs createallsubdirs ignoreversion
@@ -70,8 +70,8 @@ begin
        StrToVersion('{#AppVersion}', SetupVersion) and
        (ComparePackedVersion(SetupVersion, InstalledVersion) < 0) then
     begin
-      MsgBox('A versÃ£o ' + InstalledVersionText + ' jÃ¡ estÃ¡ instalada. Este instalador contÃ©m a versÃ£o ' +
-        '{#AppVersion}' + ', que nÃ£o Ã© mais recente.', mbInformation, MB_OK);
+      MsgBox('A versão ' + InstalledVersionText + ' já está instalada. Este instalador contém a versão ' +
+        '{#AppVersion}' + ', que não é mais recente.', mbInformation, MB_OK);
       Result := False;
     end;
   end;
