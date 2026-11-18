@@ -263,6 +263,7 @@ internal sealed class MainForm : Form
         WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
         ShowStartScreen();
+        if (Environment.GetEnvironmentVariable("TRAZBASE_DEBUG_SCREEN") == "config") ShowView(settings: true); // TEMP (medição)
         _themeToggle.DarkMode = _settings.DarkMode;
         _themeToggle.Toggled += (_, _) => ApplyDarkMode(_themeToggle.DarkMode);
         _menuToolTip.SetToolTip(_themeToggle, "Alternar entre tema claro e escuro");
@@ -4411,7 +4412,7 @@ internal sealed class MainForm : Form
             // Conta: dia (1-31) × hora (0-23) × 13 — ignora minutos e segundos, igual ao SupraAgil.
             var suffix = (now.Day * now.Hour * 13).ToString(CultureInfo.InvariantCulture);
             Clipboard.SetText(prefix + suffix);
-            ShowBackgroundNotification("Copiar senha padrão Empresa", $"{prefix}{suffix} copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
+            ShowBackgroundNotification("Copiar senha padrão Empresa", "Senha copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
         }
         catch (Exception ex)
         {
