@@ -4,6 +4,16 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.3"] =
+        [
+            "Nova opção \"Senha do sistema Empresa\" na tela Configurações: campo protegido (botão de olho) com \"Salvar senha\" (DPAPI, igual aos outros campos de senha). O atalho global Ctrl+Alt+X copia para a área de transferência a senha informada + (hora × dia × 13) — hora local 0–23 e dia do mês 1–31, sem minutos nem segundos (ex.: dia 17 às 16h → \"TESTE3536\"); ícone de ajuda (?) ao lado do rótulo explica a regra passo a passo.",
+            "Bandeja: novo item \"Copiar senha padrão Empresa\" (sempre visível; atalho global Ctrl+Alt+X, igual ao \"Copiar senha padrão SIC\"). Menu da bandeja ampliado para caber as opções sem sobreposição com o atalho.",
+            "Alterar base e Redefinir base: a busca por nome agora é por prefixo — digitar \"TE\" lista \"TESTE\" e \"TESTE_123456\"; a pasta exata não tem mais precedência: havendo várias correspondentes, abre a tela \"Várias bases encontradas\" para escolher.",
+            "Nova opção \"Iniciar o TrazBase em segundo plano (na bandeja)\" nas Configurações: ao abrir, a janela não é exibida e o TrazBase inicia escondido na bandeja — atalhos Ctrl+Alt+C/X, menu da bandeja e checagem de atualização continuam funcionando; a janela volta pelo duplo clique no ícone da bandeja.",
+            "Nova opção \"Iniciar o TrazBase com o Windows\" nas Configurações: o TrazBase abre automaticamente no login do Windows (chave Run, no HKCU; reparada a cada abertura com o caminho atual do executável). Combinada com a opção anterior, abre já na bandeja.",
+            "Bandeja → Atalhos: ícones dos executáveis muito mais rápidos — o menu abre na hora (placeholder + ícones preenchidos em segundo plano) e eles ficam em cache de disco; .bat/.cmd usam um único ícone por extensão.",
+            "Correções: o campo \"Senha do sistema Empresa\" não respeitava o tema (ficava claro no modo escuro) e a tela Configurações desalinhava as linhas novas (sobreposição do spinner \"Nº de bases\")."
+        ],
         ["0.9.2"] =
         [
             "Bandeja — Atalhos abrem mais rápido: a listagem das pastas fica em cache de 15 segundos (navegação repetida abre na hora, mesmo em pastas com milhares de arquivos, como a de desenvolvimento) e a extração dos ícones dos executáveis roda em paralelo — antes cada abertura do submenu re-enumerava toda a pasta e extraía ícone por ícone."
