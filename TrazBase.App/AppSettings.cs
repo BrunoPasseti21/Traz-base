@@ -64,19 +64,8 @@ internal sealed class AppSettings
     // Atalhos de pasta (tela Atalhos de pasta).
     public List<FolderShortcut> FolderShortcuts { get; set; } = new();
 
-    private static string FilePath
-    {
-        get
-        {
-#if DEBUG
-            // TEMP: diagnóstico local sem tocar no settings real do usuário.
-            var overridePath = Environment.GetEnvironmentVariable("TRAZBASE_SETTINGS_PATH");
-            if (!string.IsNullOrWhiteSpace(overridePath)) return overridePath;
-#endif
-            return Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");
-        }
-    }
+    private static string FilePath => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "TrazBase", "settings.json");
 
     public static AppSettings Load()
     {

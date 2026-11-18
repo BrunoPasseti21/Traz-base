@@ -263,7 +263,6 @@ internal sealed class MainForm : Form
         WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
         SetMenuExpanded(false);
         ShowStartScreen();
-        if (Environment.GetEnvironmentVariable("TRAZBASE_DEBUG_SCREEN") == "config") ShowView(settings: true); // TEMP (medição)
         _themeToggle.DarkMode = _settings.DarkMode;
         _themeToggle.Toggled += (_, _) => ApplyDarkMode(_themeToggle.DarkMode);
         _menuToolTip.SetToolTip(_themeToggle, "Alternar entre tema claro e escuro");
