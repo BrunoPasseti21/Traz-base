@@ -4585,6 +4585,7 @@ internal sealed class MainForm : Form
         if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
             RestoreFromMinimized(); // permite que o aviso de operação em andamento fique visível
         Close();
+        Application.Exit(); // encerra o loop de mensagens também no modo de arranque oculto (sem janela); no modo normal é redundante e inofensivo
     }
 
     private void NotifyTrayHiddenOnce()

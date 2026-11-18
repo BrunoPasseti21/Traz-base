@@ -35,9 +35,10 @@ internal static class Program
             var form = new MainForm();
             if (settings.StartInBackground)
             {
-                // Arranque oculto: a janela nunca é exibida; a aplicação vive na bandeja (option "Iniciar o TrazBase em segundo plano").
+                // Arranque oculto: a janela nunca é exibida; a aplicação vive na bandeja (opção "Iniciar o TrazBase em segundo plano").
+                // Loop de mensagens vazio: os hotkeys, o ícone da bandeja e o watcher de instância única mantêm o app vivo.
                 form.StartInBackground();
-                Application.Run(new ApplicationContext { MainForm = form }); // fecha junto com a janela única (como Application.Run(form))
+                Application.Run();
             }
             else
             {
