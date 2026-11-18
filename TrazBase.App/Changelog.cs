@@ -50,7 +50,7 @@ internal static class Changelog
         ["0.7.0"] =
         [
             "Nova seleção de base ao trocar (Alterar base): versão do SIC exibida no canto superior direito, igual ao fluxo de Transferência.",
-            "Redefinir base agora lista as pastas de bases como a Alterar base (com pré-seleção pelo Registro) e aceita pastas sem número de SL no nome (ex.: 'Alles', 'DISCOM').",
+            "Redefinir base agora lista as pastas de bases como a Alterar base (com pré-seleção pelo Registro) e aceita pastas sem número de SL no nome (ex.: 'Teste', 'Teste_123456').",
             "O campo SL da redefinição aceita texto livre (SL ou nome da pasta, ex.: 123456, Teste, Teste_123456).",
             "Tema claro: checkboxes e áreas de texto (SQL, logs) agora acompanham o tema, com cores no padrão VS Code Light+.",
             "Tema claro/escuro: botões desenhados com cantos arredondados de verdade (sem sangramento visual).",
