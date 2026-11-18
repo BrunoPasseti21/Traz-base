@@ -345,7 +345,7 @@ internal sealed class MainForm : Form
         _saveSicDynamicPassword.CheckedChanged += (_, _) => SaveSicDynamicPasswordPreference();
         _sicDynamicPassword.Leave += (_, _) => { if (_saveSicDynamicPassword.Checked) SaveSicDynamicPasswordPreference(); };
         var sicDynamicPasswordTip2 = new ToolTip();
-        sicDynamicPasswordTip2.SetToolTip(_sicDynamicPassword, "Senha do sistema Empresa. Copie com o atalho Ctrl+Alt+X. Ao copiar: o valor informado + (hora × dia × 13). Hora local 0–23.");
+        sicDynamicPasswordTip2.SetToolTip(_sicDynamicPassword, "Senha do sistema Empresa. Copie com o atalho Ctrl+Alt+X. Ao copiar: o valor informado + (hora × dia × 13).");
         WirePasswordToggle(_password, _passwordVisibilityToggle);
         WirePasswordToggle(_sicPassword, _sicPasswordVisibilityToggle);
         WirePasswordToggle(_sicDynamicPassword, _sicDynamicPasswordVisibilityToggle);
@@ -2841,7 +2841,7 @@ internal sealed class MainForm : Form
             new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
             new Label { Text = "Senha padrão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha do sistema Empresa", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
+            new Label { Text = "Senha padrão Empresa", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
         };
         const string supportHelpText =
             "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
@@ -4174,6 +4174,8 @@ internal sealed class MainForm : Form
         menu.Items.Add(updateItem);
         var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C, ImageScaling = ToolStripItemImageScaling.None };
         menu.Items.Add(copySicPasswordItem);
+        var copySicDynamicPasswordItem = new ToolStripMenuItem("Copiar senha padrão Empresa", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicDynamicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.X, ImageScaling = ToolStripItemImageScaling.None };
+        menu.Items.Add(copySicDynamicPasswordItem);
         menu.Items.Add(new ToolStripSeparator());
         var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text, Image = SvgIconLoader.Load("Atalho.svg", 16), ImageScaling = ToolStripItemImageScaling.None };
         shortcutsItem.DropDown = CreateTraySubMenu();
@@ -4331,7 +4333,7 @@ internal sealed class MainForm : Form
         var prefix = _settings.GetSicDynamicPassword();
         if (string.IsNullOrEmpty(prefix))
         {
-            ShowBackgroundNotification("Copiar senha do sistema Empresa", "Nenhuma senha salva. Cadastre a senha do sistema Empresa em Configurações para usá-la aqui.");
+            ShowBackgroundNotification("Copiar senha padrão Empresa", "Nenhuma senha salva. Cadastre a senha do sistema Empresa em Configurações para usá-la aqui.");
             return;
         }
         try
@@ -4340,11 +4342,11 @@ internal sealed class MainForm : Form
             // Conta: dia (1-31) × hora (0-23) × 13 — ignora minutos e segundos, igual ao SupraAgil.
             var suffix = (now.Day * now.Hour * 13).ToString(CultureInfo.InvariantCulture);
             Clipboard.SetText(prefix + suffix);
-            ShowBackgroundNotification("Copiar senha do sistema Empresa", $"{prefix}{suffix} copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
+            ShowBackgroundNotification("Copiar senha padrão Empresa", $"{prefix}{suffix} copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
         }
         catch (Exception ex)
         {
-            ShowBackgroundNotification("Copiar senha do sistema Empresa", "Não foi possível copiar: " + ex.Message);
+            ShowBackgroundNotification("Copiar senha padrão Empresa", "Não foi possível copiar: " + ex.Message);
         }
     }
 
