@@ -322,7 +322,7 @@ internal sealed class MainForm : Form
             try { SetStartWithWindowsRegistry(_startWithWindows.Checked); PersistSettings(); }
             catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de iniciar com o Windows: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
         };
-        if (_settings.StartWithWindows) SetStartWithWindowsRegistry(true); // repara a chave (ex.: o executável mudou de pasta)
+        SetStartWithWindowsRegistry(_settings.StartWithWindows); // settings.json é a fonte da verdade: com a opção ligada, cria/repara a chave com o caminho atual; desligada, garante a remoção
         AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
         _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
         _baseCount.ValueChanged += (_, _) =>
@@ -4152,8 +4152,9 @@ internal sealed class MainForm : Form
     {
         using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
         if (key is null) return;
-        if (enable) key.SetValue("TrazBase", $"\"{Application.ExecutablePath}\"");
-        else key.DeleteValue("TrazBase", throwOnMissingValue: false);
+        const string valueName = "TrazBase";
+        if (enable) key.SetValue(valueName, $"\"{Application.ExecutablePath}\"");
+        else key.DeleteValue(valueName, throwOnMissingValue: false);
     }
 
     private void RefreshTrayMenuTheme()
