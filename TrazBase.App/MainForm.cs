@@ -874,12 +874,33 @@ internal sealed partial class MainForm : Form
         return panel;
     }
 
-    private Control BuildHeader(string title, string subtitle)
+    private Control BuildHeader(string title, string subtitle) => BuildHeader(title, subtitle, null);
+
+    private Control BuildHeader(string title, string subtitle, string? helpText)
     {
         var panel = new Panel { Dock = DockStyle.Fill };
-        panel.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(0, 2) });
-        panel.Controls.Add(new Label { Text = title, Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 28) });
-        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 72) });
+        var left = 0;
+
+        if (!string.IsNullOrWhiteSpace(helpText))
+        {
+            var help = new PictureBox
+            {
+                Size = new Size(16, 16),
+                Location = new Point(0, 32),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = SvgIconLoader.Load("Ajuda.svg", 16),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand
+            };
+            help.MouseEnter += (_, _) => ShowHintPopup(help, helpText!);
+            help.MouseLeave += (_, _) => HideHintPopup();
+            panel.Controls.Add(help);
+            left = 22;
+        }
+
+        panel.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(left, 2) });
+        panel.Controls.Add(new Label { Text = title, Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(left, 28) });
+        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(left + 1, 72) });
         return panel;
     }
 
@@ -1527,30 +1548,27 @@ internal sealed partial class MainForm : Form
 
     private Control BuildResetView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 6, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 126));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
-        page.Controls.Add(BuildHeader("Redefinir base", "Valide e prepare uma base local existente para a SL informada"), 0, 0);
-
-        page.Controls.Add(BuildHelpCard(page, 1,
+        page.Controls.Add(BuildHeader("Redefinir base", "Valide e prepare uma base local existente para a SL informada",
             "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
             "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456 ou Teste_123456).\r\n" +
             "• Em pastas renomeadas (<nome>_<SL>), a SL é preenchida sozinha.\r\n" +
             "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
             "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
             "• Atualiza o Registro.\r\n" +
-            "• A redefinição não copia nem substitui a pasta inteira da base."), 0, 1);
+            "• A redefinição não copia nem substitui a pasta inteira da base."), 0, 0);
 
-        page.Controls.Add(_resetBaseFoldersRootLabel, 0, 2);
+        page.Controls.Add(_resetBaseFoldersRootLabel, 0, 1);
         var listCard = Card();
         _resetBaseListCard = listCard;
         _resetBaseFolders.Font = UiTypography.Body(11f);
         listCard.Controls.Add(_resetBaseFolders);
-        page.Controls.Add(listCard, 0, 3);
+        page.Controls.Add(listCard, 0, 2);
 
         var action = Card();
         action.Controls.Add(new Label { Text = "SL ou nome da pasta", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
@@ -1570,7 +1588,7 @@ internal sealed partial class MainForm : Form
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
         action.Controls.Add(_resetRootLabel);
         action.Resize += (_, _) => _resetRootLabel.MaximumSize = new Size(Math.Max(100, action.ClientSize.Width - _resetRootLabel.Left - 18), 0);
-        page.Controls.Add(action, 0, 4);
+        page.Controls.Add(action, 0, 3);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -1582,7 +1600,7 @@ internal sealed partial class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_resetLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 5);
+        page.Controls.Add(logCard, 0, 4);
         return page;
     }
 
@@ -1591,19 +1609,16 @@ internal sealed partial class MainForm : Form
 
     private Control BuildRestoreView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 128));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(BuildHeader("Restaurar base", "Restaure os .FBK da pasta selecionada (ou da subpasta BKP, se existir) para .FDB ao lado deles"), 0, 0);
-
-        page.Controls.Add(BuildHelpCard(page, 1,
+        page.Controls.Add(BuildHeader("Restaurar base", "Restaure os .FBK da pasta selecionada (ou da subpasta BKP, se existir) para .FDB ao lado deles",
             "• Selecione a pasta; os arquivos .FBK são procurados na subpasta BKP — se ela não existir, na própria pasta selecionada.\r\n" +
             "• Arquivos com ARQEMP, ARQOCOR ou ARQSIST no nome viram ARQEMP.FDB, ARQOCOR.FDB ou ARQSIST.FDB na mesma pasta do .FBK.\r\n" +
             "• Arquivos .FBK sem nome conhecido pedem a escolha do destino; \"Pular\" ignora o arquivo.\r\n" +
             "• As três restaurações rodam em paralelo e um .FDB existente é substituído somente após confirmação.\r\n" +
-            "• Ao final, você escolhe se deseja apontar o Registro para a pasta restaurada."), 0, 1);
+            "• Ao final, você escolhe se deseja apontar o Registro para a pasta restaurada."), 0, 0);
 
         var action = Card();
         action.Controls.Add(new Label { Text = "Pasta da base", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
@@ -1625,7 +1640,7 @@ internal sealed partial class MainForm : Form
         _restoreCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_restoreCancelButton);
         _restoreFolder.Width = 600;
-        page.Controls.Add(action, 0, 2);
+        page.Controls.Add(action, 0, 1);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -1637,7 +1652,7 @@ internal sealed partial class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_restoreLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 3);
+        page.Controls.Add(logCard, 0, 2);
         return page;
     }
 
@@ -2144,18 +2159,15 @@ internal sealed partial class MainForm : Form
 
     private Control BuildUpdateSicView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 152));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        page.Controls.Add(BuildHeader("Atualização de executáveis", "Baixe, extraia e aplique os executáveis configurados"), 0, 0);
-
-        page.Controls.Add(BuildHelpCard(page, 1,
+        page.Controls.Add(BuildHeader("Atualização de executáveis", "Baixe, extraia e aplique os executáveis configurados",
             "• Cada executável configurado na tela de caminhos é baixado e extraído na origem informada.\r\n" +
             "• Clique em Atualizar executáveis para rodar todas as linhas da configuração.\r\n" +
-            "• Para gerenciar a lista, abra Atualização > Configurar caminhos."), 0, 1);
+            "• Para gerenciar a lista, abra Atualização > Configurar caminhos."), 0, 0);
 
         var summaryCard = Card();
         _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s)";
@@ -2169,7 +2181,7 @@ internal sealed partial class MainForm : Form
         _updateSicButton.FlatAppearance.BorderSize = 0;
         _updateSicButton.Font = UiTypography.BodySemibold(9f);
         summaryCard.Controls.Add(_updateSicButton);
-        page.Controls.Add(summaryCard, 0, 2);
+        page.Controls.Add(summaryCard, 0, 1);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -2181,7 +2193,7 @@ internal sealed partial class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_updateSicLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 3);
+        page.Controls.Add(logCard, 0, 2);
 
         _updateSicProgressStatus.Location = new Point(2, 0);
         _updateSicProgress.Location = new Point(2, 24);
@@ -2190,7 +2202,7 @@ internal sealed partial class MainForm : Form
         _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
         _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
         _updateSicProgressRow.Controls.Add(_updateSicProgress);
-        page.Controls.Add(_updateSicProgressRow, 0, 4);
+        page.Controls.Add(_updateSicProgressRow, 0, 3);
 
         return page;
     }
@@ -2222,19 +2234,16 @@ internal sealed partial class MainForm : Form
 
     private Control BuildConfigureSicView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 132));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 85));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(BuildHeader("Configurar caminhos", "Gerencie os executáveis baixados e extraídos pela tela de atualização"), 0, 0);
-
-        page.Controls.Add(BuildHelpCard(page, 1,
+        page.Controls.Add(BuildHeader("Configurar caminhos", "Gerencie os executáveis baixados e extraídos pela tela de atualização",
             "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualização de executáveis.\r\n" +
             "• Use os botões com três pontos (…) ao lado de Origem/Destino para escolher a pasta, ou o botão ao lado de nome arquivo para escolher qualquer arquivo.\r\n" +
             "• Ao escolher o arquivo, apenas o nome do arquivo fica na coluna, sem a extensão (ex.: SIC.exe → SIC).\r\n" +
             "• Clique com o botão direito na grade para marcar/desmarcar Renomeia com a versão em lote.\r\n" +
-            "• Marque a checkbox no topo para usar um destino único; quando isso acontece, a coluna Destino some."), 0, 1);
+            "• Marque a checkbox no topo para usar um destino único; quando isso acontece, a coluna Destino some."), 0, 0);
 
         var singleDestCard = Card();
         _updateSicSingleDestinationCheck.Text = "Usar um único destino para todos os executáveis";
@@ -2256,7 +2265,7 @@ internal sealed partial class MainForm : Form
         }
         singleDestCard.Resize += (_, _) => LayoutSingleDest();
         LayoutSingleDest();
-        page.Controls.Add(singleDestCard, 0, 2);
+        page.Controls.Add(singleDestCard, 0, 1);
 
         var tableCard = Card();
         var topPanel = new Panel { Dock = DockStyle.Top, Height = 46 };
@@ -2341,7 +2350,7 @@ internal sealed partial class MainForm : Form
         if (_updateSicGrid.Columns["RenameWithVersion"] is { } renameCol)
             renameCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
 
-        page.Controls.Add(tableCard, 0, 3);
+        page.Controls.Add(tableCard, 0, 2);
         return page;
     }
 
@@ -2777,7 +2786,7 @@ internal sealed partial class MainForm : Form
         _updateSicProgressStatus.Visible = show;
         _updateSicProgress.Visible = show;
         page.SuspendLayout();
-        page.RowStyles[4].Height = show ? 56 : 0;
+        page.RowStyles[3].Height = show ? 56 : 0;
         page.ResumeLayout(true);
     }
 
@@ -3847,36 +3856,6 @@ internal sealed partial class MainForm : Form
     }
 
     private static Panel Card() => new() { Dock = DockStyle.Fill, BackColor = Surface, Padding = new Padding(16), BorderStyle = BorderStyle.FixedSingle };
-
-    private static Control BuildHelpCard(TableLayoutPanel page, int rowIndex, string text)
-    {
-        var padding = new Padding(16, 10, 16, 10);
-        var card = Card();
-        card.Padding = padding;
-        var label = new Label
-        {
-            Text = text,
-            Dock = DockStyle.Fill,
-            ForeColor = Muted,
-            Font = UiTypography.Body(9f),
-            TextAlign = ContentAlignment.MiddleLeft
-        };
-        card.Controls.Add(label);
-
-        void Fit()
-        {
-            var width = page.ClientSize.Width - page.Padding.Left - page.Padding.Right - padding.Left - padding.Right - 2;
-            if (width < 50) width = 50;
-            var measured = TextRenderer.MeasureText(text, label.Font, new Size(width, int.MaxValue),
-                TextFormatFlags.WordBreak | TextFormatFlags.NoPadding);
-            // Margem extra de 8 px além da medição para não cortar a última linha.
-            page.RowStyles[rowIndex].Height = measured.Height + padding.Top + padding.Bottom + 10;
-        }
-
-        page.Resize += (_, _) => Fit();
-        Fit();
-        return card;
-    }
 
     private void ApplyTheme()
     {
