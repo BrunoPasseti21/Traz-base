@@ -31,7 +31,7 @@ internal enum StartScreen
 internal sealed class AppSettings
 {
     /// <summary>Versão que introduziu o tutorial guiado.</summary>
-    public const string TutorialIntroVersion = "0.10.0";
+    public const string TutorialIntroVersion = "0.9.6";
 
     public string SolicitationRoot { get; set; } = "";
     public string BasesRoot { get; set; } = "";

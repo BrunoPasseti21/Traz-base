@@ -4,7 +4,7 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
-        ["0.10.0"] =
+        ["0.9.6"] =
         [
             "Novo tutorial guiado para novos usuários (25 passos): recepção na tela Início, Configurações detalhadas, tema, comandos ARQEMP/ARQSIST, Transferir e Alterar base, com opção de pular. Roda na primeira instalação e uma vez nesta atualização; pode ser reaberto em Configurações → Geral.",
             "Nova tela Início (tela aberta por padrão e botão no menu lateral): logo SupraSys em destaque e card \"Buscar chamado\" com o mesmo fluxo da bandeja — digite até 12 dígitos e clique em Buscar ou pressione Enter para abrir a busca no navegador.",
