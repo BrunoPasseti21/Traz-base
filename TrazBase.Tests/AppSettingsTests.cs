@@ -26,7 +26,7 @@ public sealed class AppSettingsTests
             StartInBackground = true
         };
 
-        Assert.IsTrue(settings.ShouldShowTutorial(new Version(0, 9, 6)));
+        Assert.IsTrue(settings.ShouldShowTutorial(new Version(0, 10, 0)));
     }
 
     [TestMethod]
@@ -38,12 +38,13 @@ public sealed class AppSettingsTests
             TutorialCompleted = true,
             StartInBackground = true
         };
+        var intro = Version.Parse(AppSettings.TutorialIntroVersion);
 
-        Assert.IsTrue(settings.ShouldShowTutorial(new Version(0, 9, 6)));
+        Assert.IsTrue(settings.ShouldShowTutorial(intro));
 
         settings.TutorialVersionShown = AppSettings.TutorialIntroVersion;
-        Assert.IsFalse(settings.ShouldShowTutorial(new Version(0, 9, 6)));
-        Assert.IsFalse(settings.ShouldShowTutorial(new Version(0, 9, 7)));
+        Assert.IsFalse(settings.ShouldShowTutorial(intro));
+        Assert.IsFalse(settings.ShouldShowTutorial(new Version(intro.Major, intro.Minor, intro.Build + 1)));
     }
 
     [TestMethod]
@@ -52,14 +53,14 @@ public sealed class AppSettingsTests
         var settings = new AppSettings
         {
             TutorialCompleted = true,
-            TutorialVersionShown = "0.9.6"
+            TutorialVersionShown = AppSettings.TutorialIntroVersion
         };
 
         var json = JsonSerializer.Serialize(settings);
         var restored = JsonSerializer.Deserialize<AppSettings>(json)!;
 
         Assert.IsTrue(restored.TutorialCompleted);
-        Assert.AreEqual("0.9.6", restored.TutorialVersionShown);
+        Assert.AreEqual(AppSettings.TutorialIntroVersion, restored.TutorialVersionShown);
         Assert.IsFalse(json.Contains("IsFreshInstall", StringComparison.Ordinal));
     }
 

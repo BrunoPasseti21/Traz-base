@@ -4,7 +4,7 @@
 
 - C# com .NET **10** (`net10.0-windows`), WinForms, DPI `PerMonitorV2`.
 - Aplicação desktop para Windows 10+, distribuída como executável **self-contained win-x64** dentro de um instalador Inno Setup (`TrazBase-Setup.exe`), com autoatualização via GitHub Releases.
-- `AssemblyName` = `TrazBase`; versão atual **0.9.5** (`TrazBase.App.csproj`), espelhada em `Instalador/TrazBase.iss`.
+- `AssemblyName` = `TrazBase`; versão atual **0.10.0** (`TrazBase.App.csproj`), espelhada em `Instalador/TrazBase.iss`.
 
 ## Organização do código
 
