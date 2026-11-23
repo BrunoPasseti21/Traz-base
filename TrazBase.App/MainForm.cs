@@ -95,6 +95,7 @@ internal sealed partial class MainForm : Form
     private readonly RoundedButton _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
     private readonly ToolTip _menuToolTip = new();
     private bool _downloadingUpdate;
+    private bool _updateInstallInProgress;
     private TableLayoutPanel _transferView = null!;
     private Control _settingsView = null!;
     private ThemedTabControl? _settingsTabs;
@@ -602,6 +603,16 @@ internal sealed partial class MainForm : Form
             _menuAnimationTimer.Stop();
             _menuAnimationClock.Stop();
             HideHintPopup();
+
+            // O Inno Setup está fechando o app para substituir os arquivos: encerra sem
+            // confirmação e sem minimizar para a bandeja, e deixa ele reabrir ao final.
+            if (_updateInstallInProgress)
+            {
+                _exitRequested = true;
+                e.Cancel = false;
+                return;
+            }
+
             if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
             {
                 e.Cancel = true;
@@ -768,7 +779,7 @@ internal sealed partial class MainForm : Form
             return;
         }
         var answer = MessageBox.Show(this,
-            $"A versão {update.Version} está disponível. Deseja baixar e iniciar a atualização agora? A aplicação será fechada para instalar a nova versão.",
+            $"A versão {update.Version} está disponível. Deseja baixar e iniciar a atualização agora? A aplicação será fechada para instalar a nova versão e reaberta automaticamente ao final.",
             "Atualização do Traz Base", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
         if (answer != DialogResult.Yes) return;
 
@@ -786,21 +797,22 @@ internal sealed partial class MainForm : Form
                 _updateProgress.SetValue(value);
             });
             var installer = await GitHubReleaseUpdater.DownloadInstallerAsync(update.InstallerUri, progress);
+
+            // Não fechamos o app aqui: /CLOSEAPPLICATIONS fecha no momento certo da instalação e
+            // /RESTARTAPPLICATIONS o reabre com a nova versão ao terminar.
+            _updateInstallInProgress = true;
             System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installer)
             {
                 UseShellExecute = true,
                 Verb = "runas",
-                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS"
+                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
             });
-            // Sair de verdade com a instalação em andamento — com "fechar minimiza na bandeja" ligada,
-            // Close() apenas esconde a janela e o app continua rodando; o Inno Setup então não consegue
-            // substituir os arquivos e aborta a instalação com rollback.
-            _exitRequested = true;
-            Close();
+            _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
         }
         catch (Exception ex)
         {
             _downloadingUpdate = false;
+            _updateInstallInProgress = false;
             _updateButton.Enabled = true;
             UpdateDownloadButtonText();
             SetUpdateAnimation(null);
