@@ -216,7 +216,9 @@ internal sealed partial class MainForm : Form
     private readonly RichTextBox _arqSistOutput = CreateSqlOutput();
     private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
     private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
-    private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 60_000 };
+    // GitHub API sem autenticação permite 60 requisições/hora. Verificar a cada 15 min (4/hora)
+    // evita esgotar o limite — antes era 1/min e o app parava de avisar atualizações após ~1h.
+    private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 900_000 };
     private string? _updateNotifiedVersion; // versão já notificada nesta sessão (evita toast repetido a cada minuto)
     private bool _updateCheckRunning;
     private bool _menuExpanded;
