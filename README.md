@@ -41,7 +41,7 @@ O script usa `Instalador/TrazBase.iss` e gera `Instalador/TrazBase-Setup.exe`. O
 
 As atualizações iniciadas pela aplicação executam o instalador em modo silencioso, sem telas de instalação. O Windows ainda solicita autorização do UAC para atualizar arquivos em `Program Files`.
 
-Para lançar uma atualização, incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/TrazBase.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões antigas, mas permite reinstalar a versão atual para aplicar correções sem mudar o número da versão. Os arquivos da aplicação são substituídos; arquivos sem versão (JSON, PDB, SVG e ícones) são atualizados quando o horário de modificação muda.
+Para lançar uma atualização, incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/TrazBase.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões antigas, mas permite reinstalar a versão atual para aplicar correções sem mudar o número da versão. Os arquivos da aplicação são substituídos; arquivos sem versão (JSON, PDB, SVG, PNG e ícones) são atualizados quando o horário de modificação muda.
 
 ## Configuração e privacidade
 

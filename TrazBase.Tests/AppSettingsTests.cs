@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TrazBase.App;
 
 namespace TrazBase.Tests;
@@ -5,6 +6,63 @@ namespace TrazBase.Tests;
 [TestClass]
 public sealed class AppSettingsTests
 {
+    [TestMethod]
+    public void TutorialFlags_DefaultToNotCompleted()
+    {
+        var settings = new AppSettings();
+
+        Assert.IsFalse(settings.TutorialCompleted);
+        Assert.IsNull(settings.TutorialVersionShown);
+        Assert.IsFalse(settings.IsFreshInstall);
+    }
+
+    [TestMethod]
+    public void ShouldShowTutorial_FirstInstallIgnoresBackgroundPreference()
+    {
+        var settings = new AppSettings
+        {
+            IsFreshInstall = true,
+            TutorialCompleted = false,
+            StartInBackground = true
+        };
+
+        Assert.IsTrue(settings.ShouldShowTutorial(new Version(0, 9, 6)));
+    }
+
+    [TestMethod]
+    public void ShouldShowTutorial_UpdateToIntroVersionOnce()
+    {
+        var settings = new AppSettings
+        {
+            IsFreshInstall = false,
+            TutorialCompleted = true,
+            StartInBackground = true
+        };
+
+        Assert.IsTrue(settings.ShouldShowTutorial(new Version(0, 9, 6)));
+
+        settings.TutorialVersionShown = AppSettings.TutorialIntroVersion;
+        Assert.IsFalse(settings.ShouldShowTutorial(new Version(0, 9, 6)));
+        Assert.IsFalse(settings.ShouldShowTutorial(new Version(0, 9, 7)));
+    }
+
+    [TestMethod]
+    public void TutorialFlags_RoundtripThroughJson()
+    {
+        var settings = new AppSettings
+        {
+            TutorialCompleted = true,
+            TutorialVersionShown = "0.9.6"
+        };
+
+        var json = JsonSerializer.Serialize(settings);
+        var restored = JsonSerializer.Deserialize<AppSettings>(json)!;
+
+        Assert.IsTrue(restored.TutorialCompleted);
+        Assert.AreEqual("0.9.6", restored.TutorialVersionShown);
+        Assert.IsFalse(json.Contains("IsFreshInstall", StringComparison.Ordinal));
+    }
+
     [TestMethod]
     public void GetFirebirdPassword_ReturnsNullWhenNoPasswordWasSaved()
     {

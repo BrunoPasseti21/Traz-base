@@ -1,8 +1,8 @@
 #define AppName "Traz Base"
 #define AppPublisher "Traz Base"
 #define AppExeName "TrazBase.exe"
-#define AppVersion "0.9.5"
-#define AppFileVersion "0.9.5.0"
+#define AppVersion "0.9.6"
+#define AppFileVersion "0.9.6.0"
 
 [Setup]
 AppId={{6BB4D28C-AE7D-4627-8F01-CCEA7B3311B5}
@@ -37,10 +37,11 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 Name: "desktopicon"; Description: "Criar um atalho na área de trabalho"; GroupDescription: "Atalhos adicionais:"; Flags: unchecked
 
 [Files]
-Source: "Aplicativo\*"; DestDir: "{app}"; Excludes: "*.json,*.pdb,Imagens\*.svg,Imagens\icone\*.ico"; Flags: recursesubdirs createallsubdirs ignoreversion
+Source: "Aplicativo\*"; DestDir: "{app}"; Excludes: "*.json,*.pdb,Imagens\*.svg,Imagens\*.png,Imagens\icone\*.ico"; Flags: recursesubdirs createallsubdirs ignoreversion
 Source: "Aplicativo\*.json"; DestDir: "{app}"; Flags: comparetimestamp nocompression
 Source: "Aplicativo\*.pdb"; DestDir: "{app}"; Flags: comparetimestamp nocompression
 Source: "Aplicativo\Imagens\*.svg"; DestDir: "{app}\Imagens"; Flags: comparetimestamp nocompression
+Source: "Aplicativo\Imagens\*.png"; DestDir: "{app}\Imagens"; Flags: comparetimestamp nocompression
 Source: "Aplicativo\Imagens\icone\*.ico"; DestDir: "{app}\Imagens\icone"; Flags: comparetimestamp nocompression
 
 [Icons]

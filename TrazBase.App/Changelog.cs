@@ -4,8 +4,25 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.6"] =
+        [
+            "Nova tela Início (tela aberta por padrão e botão no menu lateral): logo SupraSys em destaque e card \"Buscar chamado\" com o mesmo fluxo da bandeja — digite até 12 dígitos e clique em Buscar ou pressione Enter para abrir a busca no navegador.",
+            "Novo tutorial guiado para novos usuários: apresenta Configurações, tema, Transferir e Alterar base, com opção de pular. Roda na primeira instalação e uma vez na atualização que o introduziu; pode ser reaberto em Configurações → Geral.",
+        ],
         ["0.9.5"] =
         [
+            "Nova aba \"Copiar SQL\" (ícone Copiar-SQL.svg, abaixo de Atalhos de pasta): monte, salve, filtre e copie comandos SQL usando o mesmo editor com realce das telas ARQEMP/ARQSIST. Os SQLs salvos aparecem em um submenu novo na bandeja, abaixo de \"Atualizar executáveis\" (com separador acima); cada clique copia o comando.",
+            "Configurar caminhos executáveis agora fica no menu lateral imediatamente abaixo de \"Copiar SQL\" e usa o ícone Configuração de atalhos.svg; \"Atalhos de pasta\" voltou a usar Atalho.svg.",
+            "Nova opção \"Executar script ao conectar a VPN\" na Configuração: grava um conteúdo .bat/.cmd executado assim que a VPN conecta — útil para mapear unidades de rede. Se o script falhar, a transferência é abortada com o erro (a VPN é desconectada de volta).",
+            "Log de erros em arquivo: todas as falhas de operação são gravadas em %APPDATA%\\TrazBase\\logs\\TrazBase.log (com rotação automática); a caixa de erro mostra o caminho do arquivo para o operador poder analisar ou abrir o suporte.",
+            "Registro: a pasta temporária gravada na chave TEMP do Registro (`HKCU\\SIC\\CONEXAO`) agora sempre termina com `\\`, igual a BASE e EMPRESA.",
+            "Nova opção de VPN na Configuração: com a opção ligada, o Traz Base conecta a conexão VPN escolhida antes de acessar a pasta de origem da solicitação e desconecta ao final somente se ela não estava conectada antes (se já estava, mantém a conexão).",
+            "Se a conexão cair durante a cópia, a transferência reconecta automaticamente e refaz a cópia, substituindo o que já tinha sido baixado.",
+            "As verificações iniciais de acesso (pasta de origem e pasta da SL) também reconectam a VPN se ela tiver caído — em vez de acusar falha de rede sem tentar reconectar.",
+            "Credenciais da VPN podem ser informadas no app (usuário/senha, salvos protegidos por DPAPI) ou, com a opção desmarcada, o aplicativo usa as credenciais salvas no perfil do Windows (recomendado).",
+            "Tela de Configuração reorganizada em 3 abas: Geral (pastas e comportamento), Senhas (Firebird, SIC e Empresa) e VPN.",
+            "Nova opção \"Máx. tentativas de reconexão\" na aba VPN (padrão 3) — quantas vezes a transferência tenta reconectar quando a VPN cai durante a cópia.",
+            "Botão \"Atualizar lista\" na aba VPN preenche as conexões VPN configuradas no Windows; o nome também pode ser digitado livremente.",
             "Correção dos caracteres corrompidos exibidos nos diálogos próprios do aplicativo (ex.: o botão de fechar exibia glifos errados em \"Atualização do Traz Base\") — código-fonte 100% UTF-8.",
             "Atualização: ao detectar uma nova versão no GitHub, exibe um toast \"Atualização disponível\" (uma vez por versão por sessão) — toque no toast para abrir o Traz Base e instalar.",
         ],

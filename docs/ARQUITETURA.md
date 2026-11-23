@@ -4,7 +4,7 @@
 
 - C# com .NET **10** (`net10.0-windows`), WinForms, DPI `PerMonitorV2`.
 - Aplicação desktop para Windows 10+, distribuída como executável **self-contained win-x64** dentro de um instalador Inno Setup (`TrazBase-Setup.exe`), com autoatualização via GitHub Releases.
-- `AssemblyName` = `TrazBase`; versão atual **0.3.0** (`TrazBase.App.csproj`), espelhada em `Instalador/TrazBase.iss`.
+- `AssemblyName` = `TrazBase`; versão atual **0.9.5** (`TrazBase.App.csproj`), espelhada em `Instalador/TrazBase.iss`.
 
 ## Organização do código
 
@@ -15,6 +15,8 @@ Solução única, projeto único (`TrazBase.App`); não há separação em assem
 | `Program.cs` | Ponto de entrada: impõe **instância única** (mutex `Local\TrazBase.SingleInstance`; uma segunda execução sinaliza o evento `Local\TrazBase.ShowWindow` e encerra), carrega `AppSettings`, aplica o modo de cor (claro/escuro) antes de `ApplicationConfiguration.Initialize()` e abre `MainForm`. |
 | `SingleInstance.cs` | Nomes e regras da instância única: mutex que concede a primazia à primeira execução e evento para pedir a ela que venha para frente. |
 | `MainForm.cs` | Janela principal: layout, menu lateral, tema claro/escuro, orquestração dos fluxos (Transferir, Alterar base, Redefinir base, Comandos SQL), cópia/extração, Registro, SQL, versão, atualização. É um arquivo grande (~1 700 linhas) e concentra a UI e o fluxo. |
+| `VpnConnection.cs` | Conexão com a **VPN do Windows** (aba VPN da Configuração), usada pelo fluxo de transferência: enumera conexões existentes (`rasapi32!RasEnumEntries`, mesclando phonebooks por usuário e do sistema), verifica as ativas (`RasEnumConnections`) e conecta/desconecta com `rasdial.exe` (credenciais do perfil do Windows ou informadas manualmente, protegidas por DPAPI).
+| `ThemedTabControl.cs` | `TabControl` com desenho próprio (abas fixas, paleta claro/escuro), usado na tela Configuração (abas Geral/Senhas/VPN). |
 | `AppSettings.cs` | Configuração persistida em JSON (`%APPDATA%\TrazBase\settings.json`), proteção da senha com DPAPI (`CurrentUser`), migração de scripts legados. |
 | `BaseOperationRules.cs` | Regras puras de operação: resolução do destino local com proteção de path traversal, lista de bases de apoio a copiar (`ARQEMP.FDB`, `ARQOCOR.FDB`), interpretação do diálogo de conflito de destino (`ExistingDestinationAction`). |
 | `ArchivePathSafety` (em `BaseOperationRules.cs`) | Normalização e validação do caminho de saída de entradas de arquivos compactados (rejeita caminhos absolutos e `..`). |
@@ -39,14 +41,14 @@ Com a janela minimizada/oculta, qualquer diálogo que peça atenção dispara se
 
 ### Processos externos
 
-Não há processos externos no caminho crítico de negócio. O único processo iniciado é o instalador durante a atualização (`Verb=runas`, argumentos silenciosos do Inno Setup). Toda leitura/escrita de banco é via provider ADO.NET; toda extração é via bibliotecas gerenciadas.
+O único processo iniciado no caminho de negócio é o instalador durante a atualização (`Verb=runas`, argumentos silenciosos do Inno Setup) e o utilitário do Windows **`rasdial.exe`** quando a opção de VPN está ligada (conectar/desconectar a VPN configurada). Toda leitura/escrita de banco é via provider ADO.NET; toda extração é via bibliotecas gerenciadas.
 
 ### Arquivos e rede
 
-- Cópia recursiva própria (`FileStream`, buffer de 1 MB, `FileOptions.Asynchronous | SequentialScan`), com progresso por bytes e cancelamento por `CancellationToken`. Não usa `robocopy`.
+- Cópia recursiva própria (`FileStream`, buffer de 1 MB, `FileOptions.Asynchronous | SequentialScan`), com progresso por bytes e cancelamento por `CancellationToken`. Não usa `robocopy`. Quando a VPN está ligada e a cópia falha por erro de rede, o fluxo reconecta e refaz a cópia substituindo os arquivos já copiados (até `VpnReconnectAttempts` vezes). As verificações iniciais de acesso à origem (`Directory.Exists` em `SolicitationRoot` e na pasta da SL) reconectam a VPN se ela tiver caído, em vez de acusar "origem indisponível" / "SL não encontrada" sem tentar.
 - Extração ZIP: `System.IO.Compression.ZipArchive`. Extração RAR: SharpCompress (`ReaderFactory.OpenAsyncReader`). Entradas são validadas contra path traversal antes de gravar.
 - Timestamps (`SetLastWriteTimeUtc`) e atributos (`SetAttributes`) dos arquivos copiados são preservados.
-- Pastas temporárias e de download usam `Path.GetTempPath()` por padrão; o `TEMP` gravado no Registro pode ser customizado (`TempPath`, vazio = Registro `HKCU\SIC\CONEXAO\TEMP` se existir, senão padrão do Windows); nada é gravado no diretório corrente.
+- Pastas temporárias e de download usam `Path.GetTempPath()` por padrão; o `TEMP` gravado no Registro pode ser customizado (`TempPath`, vazio = Registro `HKCU\SIC\CONEXAO\TEMP` se existir, senão padrão do Windows); sempre gravado com `\` final; nada é gravado no diretório corrente.
 
 ### Firebird
 
@@ -60,7 +62,7 @@ Não há processos externos no caminho crítico de negócio. O único processo i
 ### Registro do Windows
 
 - Escopo: `HKCU\SIC\CONEXAO` apenas (`Registry.CurrentUser.CreateSubKey(..., writable: true)`).
-- Modo simples: grava `BASE1`…`BASE<n>` (quantidade configurável em `BaseCount`, padrão 4, limite 99) e `EMPRESA` com o caminho completo da base + barra final; `SERVIDOR=LOCALHOST`; `TEMP=` pasta temporária configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir (quando o campo está vazio), senão `Path.GetTempPath()`.
+- Modo simples: grava `BASE1`…`BASE<n>` (quantidade configurável em `BaseCount`, padrão 1, limite 99) e `EMPRESA` com o caminho completo da base + barra final; `SERVIDOR=LOCALHOST`; `TEMP=` pasta temporária configurada com `\` final, ou `HKCU\SIC\CONEXAO\TEMP` se existir (quando o campo está vazio), senão `Path.GetTempPath()` — sempre com barra final.
 - Modo multi-base (pastas `ARQ##` na raiz da SL **ou** opção **Sempre criar estrutura multi-base** ligada na Transferir; nas telas **Alterar base** e no apontamento do Registro ao fim da **Restaurar base**, o modo é deduzido só da própria pasta, sem depender da opção): grava `BASE<n>` (com `\` final) por pasta existente (exceto `ARQ00`), `EMPRESA` com a pasta `ARQ00`; `SERVIDOR` e `TEMP` como acima; **remove** as chaves `BASE1`–`BASE99` sem pasta correspondente. A etapa de "mover `.FDB` para a raiz" não é executada para que as pastas `ARQ##` sejam preservadas. No multi-base, os `*.fdb` são procurados na raiz e em subpastas (excluindo as pastas `ARQ##` (incluindo `ARQ00`/`ARQ01`)) e movidos para `ARQ00\` (EMP/OCOR) ou `ARQ01\` (ARQSIST); mais de uma candidata interrompe com aviso.
 - Em ambos os modos, `EMPRESA` aponta para a **pasta de apoio** quando a opção **Apontar a EMPRESA do Regedit para a pasta de bases de apoio** (`UseSupportRootAsCompany`) está ligada na Configuração (a pasta de apoio precisa existir; senão vale o caminho padrão e o log registra um aviso).
 - Os valores anteriores **não** são lidos/salvos antes da gravação (sem backup do Registro).
@@ -68,7 +70,7 @@ Não há processos externos no caminho crítico de negócio. O único processo i
 
 ### Configuração e segredos
 
-- JSON indentado em `%APPDATA%\TrazBase\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), pasta temporária configurável (`TempPath`), preferência de estrutura (`ForceMultiBase`), quantidade de bases do Registro no modo simples (`BaseCount`), tela inicial (`DefaultScreen`), última novidade exibida (`LastChangelogVersion`), renomeação de diretório com o cliente ARQSIST (`RenameSlFolderToClientName`), configuração própria da ação " (`UpdateSicSingleDestinationEnabled`, `UpdateSicSingleDestinationRoot`, `UpdateSicEntries` — lista de linhas com origem/versão/destino/nome do arquivo/renomeia), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`). A base `.FDB` escolhida para testar comandos **não é persistida** (vale só para a sessão).
+- JSON indentado em `%APPDATA%\TrazBase\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), pasta temporária configurável (`TempPath`), preferência de estrutura (`ForceMultiBase`), quantidade de bases do Registro no modo simples (`BaseCount`), tela inicial (`DefaultScreen`), última novidade exibida (`LastChangelogVersion`), renomeação de diretório com o cliente ARQSIST (`RenameSlFolderToClientName`), configuração própria da ação " (`UpdateSicSingleDestinationEnabled`, `UpdateSicSingleDestinationRoot`, `UpdateSicEntries` — lista de linhas com origem/versão/destino/nome do arquivo/renomeia), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), SQLs salvos para copiar (`SqlShortcuts`, modelo `SqlShortcut.cs`, exibidos também no submenu da bandeja), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`). A base `.FDB` escolhida para testar comandos **não é persistida** (vale só para a sessão).
 - Senha opcional ("Salvar senha"): protegida com `ProtectedData` (DPAPI, `DataProtectionScope.CurrentUser`), armazenada em Base64; nunca em texto puro; nunca registrada em log. Se `Unprotect` falhar, o valor é descartado e a opção volta a desmarcada.
 - Migração: chaves antigas `ScriptArqEmp`/`ScriptArqSist` (arquivos `.sql` externos) são incorporadas aos comandos inline na primeira execução após a atualização.
 - Comandos SQL são editados e salvos dentro do aplicativo; nenhum arquivo `.sql` externo é exigido.
@@ -85,7 +87,7 @@ Não há processos externos no caminho crítico de negócio. O único processo i
 - Movimentação de `.fdb` para a raiz falha explicitamente em caso de colisão de nomes.
 - Senhas não aparecem em logs, diálogos ou Registro.
 - A aplicação falha fechada: erros de conexão Firebird, Registro ou cópia interrompem o fluxo com mensagem; a etapa seguinte não é executada.
-- Limitações conhecidas: sem log em arquivo; sem verificação de espaço em disco; valores anteriores do Registro não são preservados; senha mantida em memória durante a execução.
+- Limitações conhecidas: sem verificação de espaço em disco; valores anteriores do Registro não são preservados; senha mantida em memória durante a execução. Erros de operação são registrados em %APPDATA%\TrazBase\logs\TrazBase.log (rotação automática a cada 2 MB); falhas inesperadas também.
 
 ## Compilação e distribuição (resumo)
 

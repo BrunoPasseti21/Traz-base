@@ -1,3 +1,4 @@
+﻿using System.Diagnostics;
 using Microsoft.Win32;
 using System.Globalization;
 using System.IO.Compression;
@@ -12,10 +13,11 @@ using System.ComponentModel;
 
 namespace TrazBase.App;
 
-internal sealed class MainForm : Form
+internal sealed partial class MainForm : Form
 {
     private readonly AppSettings _settings = AppSettings.Load();
     private readonly Dictionary<string, TextBox> _fields = new();
+    private readonly Dictionary<string, RoundedButton> _browseButtons = new();
     private readonly UnthemedTextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
     private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
@@ -39,11 +41,13 @@ internal sealed class MainForm : Form
         (StartScreen.Atalhos, "Atalhos de pasta"),
         (StartScreen.AtualizarSic, "Atualização de executáveis"),
         (StartScreen.ConfigurarSic, "Configurar caminhos"),
+        (StartScreen.CopiarSql, "Copiar SQL"),
+        (StartScreen.Inicio, "Início"),
         (StartScreen.RedefinirBase, "Redefinir base"),
         (StartScreen.RestaurarBase, "Restaurar base"),
         (StartScreen.Transferir, "Transferir")
     ];
-    private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 220, Height = 30 };
+    private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 280, Height = 30 };
     private readonly UnthemedTextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
     private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
@@ -65,11 +69,12 @@ internal sealed class MainForm : Form
     private readonly PlainNavigationButton _resetNav = new() { Text = "", Image = SvgIconLoader.Load("Redefinir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _restoreNav = new() { Text = "", Image = SvgIconLoader.Load("Restaurar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _updateSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
-    private readonly PlainNavigationButton _configureSicNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _configureSicNav = new() { Text = "", Image = SvgIconLoader.Load("Configuração de atalhos.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _folderShortcutsNav = new() { Text = "", Image = SvgIconLoader.Load("Atalho.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _copySqlNav = new() { Text = "", Image = SvgIconLoader.Load("Copiar-SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly Panel _menuFooter = new() { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(6, 4, 6, 6) };
     private readonly Label _appVersionLabel = new() { Dock = DockStyle.Top, Height = 30, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.FromArgb(38, 50, 68), ForeColor = Color.FromArgb(190, 208, 230), Font = UiTypography.BodySemibold(9f) };
     private readonly Label _creatorLabel = new() { Dock = DockStyle.Top, Height = 24, AutoEllipsis = true, Text = "Criado por Bruno Passeti", TextAlign = ContentAlignment.MiddleCenter, Font = UiTypography.Body(8.5f) };
@@ -92,6 +97,8 @@ internal sealed class MainForm : Form
     private bool _downloadingUpdate;
     private TableLayoutPanel _transferView = null!;
     private Control _settingsView = null!;
+    private ThemedTabControl? _settingsTabs;
+    private RoundedButton? _tutorialButton;
     private Control _changeBaseView = null!;
     private Control _resetView = null!;
     private Control _restoreView = null!;
@@ -109,10 +116,54 @@ internal sealed class MainForm : Form
     private readonly RoundedButton _folderShortcutAddUpdate = new() { Text = "Adicionar / atualizar", Width = 172, Height = 32, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
     private readonly RoundedButton _folderShortcutRemove = new() { Text = "Remover", Width = 112, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
     private readonly Label _folderShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
+
+    // Tela "Início": logo em destaque e busca de chamado (mesmo fluxo da linha da bandeja).
+    private Control _homeView = null!;
+    private readonly PlainNavigationButton _homeNav = new() { Text = "", Image = SvgIconLoader.Load("Inicio.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PictureBox _homeLogo = new() { Size = new Size(600, 400), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent, Anchor = AnchorStyles.None };
+    private const string HomeTicketHintText = "Digite o número do chamado para buscar.";
+    private readonly Label _homeTicketTitle = new() { Text = "Buscar chamado", AutoSize = true, Font = UiTypography.BodySemibold(12), ForeColor = Ink, Location = new Point(18, 15) };
+    private readonly UnthemedTextBox _homeTicketBox = new() { PlaceholderText = "Nº do chamado (até 12 dígitos)", Height = 38, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly RoundedButton _homeTicketButton = new() { Text = "Buscar", Width = 200, Height = 34, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    // Uma única linha de texto serve como dica e, quando há erro, como mensagem vermelha.
+    private readonly Label _homeTicketError = new() { Text = HomeTicketHintText, AutoSize = false, Size = new Size(408, 30), ForeColor = Muted, Font = UiTypography.Body(9f), TextAlign = ContentAlignment.MiddleLeft };
+    private bool _homeTicketErrorShown;
+
+    // Tela "Copiar SQL": lista filtrável + editor SQL (o mesmo componente das telas ARQEMP/ARQSIST).
+    private Control _copySqlView = null!;
+    private readonly ThemedListView _sqlShortcutList = new() { View = View.Details, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false, ShowItemToolTips = true, GridLines = false };
+    private readonly UnthemedTextBox _sqlShortcutSearch = new() { PlaceholderText = "Filtrar comandos...", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _sqlShortcutTitle = new() { PlaceholderText = "Ex.: Clientes ativos", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly RichTextBox _sqlShortcutEditor = CreateSqlEditor();
+    private readonly RoundedButton _sqlShortcutSave = new() { Text = "Salvar", Width = 120, Height = 34, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutCopy = new() { Text = "Copiar", Width = 100, Height = 34, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutDelete = new() { Text = "Excluir", Width = 100, Height = 34, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly Label _sqlShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
+    private bool _loadingSqlShortcuts;
+    private string? _editingSqlShortcutId;
+
     private Control _arqSistView = null!;
     private Control _folderShortcutsView = null!;
-    private Panel _settingsFieldsHost = null!;
+    private Panel _generalSettingsHost = null!;
+    private Panel _passwordsSettingsHost = null!;
+    private Panel _vpnSettingsHost = null!;
+    // VPN: opção de conectar a uma VPN do Windows antes de transferir as bases.
+    private readonly ThemedCheckBox _useVpn = new() { Text = "Usar VPN para transferir bases", AutoSize = false, Height = 26, Width = 260, Anchor = AnchorStyles.Left };
+    private readonly ComboBox _vpnConnectionName = new() { DropDownStyle = ComboBoxStyle.DropDown, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 300, Height = 30 };
+    private readonly ThemedCheckBox _vpnUseManualCredentials = new() { Text = "Informar usuário e senha manualmente", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly UnthemedTextBox _vpnUsername = new() { Width = 260, Height = 30, PlaceholderText = "Usuário", BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _vpnPassword = new() { UseSystemPasswordChar = true, Width = 260, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), PlaceholderText = "Senha" };
+    private readonly ThemedCheckBox _saveVpnPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly RoundedButton _vpnPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly RoundedButton _vpnRefreshList = new() { Text = "Atualizar lista", Size = new Size(132, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly NumericUpDown _vpnReconnectAttempts = new() { Minimum = 1, Maximum = 10, Value = 3, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _vpnRunConnectScript = new() { Text = "Executar script ao conectar a VPN", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedRichTextBox _vpnConnectScript = new() { Size = new Size(760, 130), Multiline = true, WordWrap = false, ScrollBars = RichTextBoxScrollBars.Both, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private bool _vpnConnectedByApp;
+    private readonly Label _vpnHint = new() { AutoSize = false, Size = new Size(620, 54), ForeColor = Color.FromArgb(97, 113, 134), Font = UiTypography.Body(9f), TextAlign = ContentAlignment.TopLeft };
     private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly ComboBox _baseSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Font = UiTypography.Body(9f), Width = 196, Height = 30 };
+    private string? _lastSelectedBaseFolder;
     private Panel _changeBaseListCard = null!;
     private Panel _resetBaseListCard = null!;
     private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
@@ -178,6 +229,7 @@ internal sealed class MainForm : Form
 
     public MainForm()
     {
+        _lastSelectedBaseFolder = _settings.LastSelectedBaseFolder;
         MigrateLegacySqlScripts();
         Text = "Traz Base | Solicitações";
         Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "Imagens", "icone", "icone_supra.ico"));
@@ -205,16 +257,19 @@ internal sealed class MainForm : Form
         _sidebar.Controls.Add(_arqEmpNav);
         _sidebar.Controls.Add(_settingsNav);
         _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
-        _sidebar.Controls.Add(_folderShortcutsNav); // acima de Configuração, com uma divisória extra
-        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos de pasta"
-        _sidebar.Controls.Add(_configureSicNav);
+        _sidebar.Controls.Add(_configureSicNav); // abaixo de "Copiar SQL"
+        _sidebar.Controls.Add(_copySqlNav); // abaixo de "Atalhos de pasta"
+        _sidebar.Controls.Add(_folderShortcutsNav);
+        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos"/"Configurar caminhos"
         _sidebar.Controls.Add(_updateSicNav);
         _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
         _sidebar.Controls.Add(_restoreNav);
         _sidebar.Controls.Add(_resetNav);
         _sidebar.Controls.Add(_changeBaseNav);
         _sidebar.Controls.Add(_transferNav);
+        _sidebar.Controls.Add(_homeNav); // adicionado depois do Transferir para ficar acima dele (Dock.Top)
         _sidebar.Controls.Add(_menuToggle);
+        _homeView = BuildHomeView();
         _transferView = BuildTransferView();
         _settingsView = BuildSettingsView();
         _changeBaseView = BuildChangeBaseView();
@@ -226,15 +281,18 @@ internal sealed class MainForm : Form
         _updateSicSingleDestination.Text = _settings.UpdateSicSingleDestinationRoot;
         LoadUpdateSicRowsFromSettings();
         RefreshUpdateSicSummary();
+        UpdateUpdateSicSingleDestinationUI(focus: false); // aplica o estado inicial das colunas de destino
         _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
         _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
         _folderShortcutsView = BuildFolderShortcutsView();
+        _copySqlView = BuildCopySqlView();
         ThemeState.IsDark = _settings.DarkMode;
         // A base selecionada (.FDB) NÃO é persistida: fica apenas na sessão atual.
         _arqEmpEditor.Text = _settings.ArqEmpCommands;
         _arqSistEditor.Text = _settings.ArqSistCommands;
         HighlightSql(_arqEmpEditor);
         HighlightSql(_arqSistEditor);
+        HighlightSql(_sqlShortcutEditor);
         _contentHost.Controls.Add(_settingsView);
         _contentHost.Controls.Add(_changeBaseView);
         _contentHost.Controls.Add(_resetView);
@@ -244,7 +302,9 @@ internal sealed class MainForm : Form
         _contentHost.Controls.Add(_arqEmpView);
         _contentHost.Controls.Add(_arqSistView);
         _contentHost.Controls.Add(_folderShortcutsView);
+        _contentHost.Controls.Add(_copySqlView);
         _contentHost.Controls.Add(_transferView);
+        _contentHost.Controls.Add(_homeView);
         Controls.Add(_shell);
         WireEnterNavigation([_sl], _start);
         WireEnterNavigation([_selectedBasePath], _changeBaseButton);
@@ -255,9 +315,10 @@ internal sealed class MainForm : Form
             _fields[nameof(AppSettings.SolicitationRoot)],
             _fields[nameof(AppSettings.BasesRoot)],
             _fields[nameof(AppSettings.SupportRoot)],
-            _fields[nameof(AppSettings.TempPath)],
-            _password],
-            _savePassword);
+            _fields[nameof(AppSettings.TempPath)]],
+            _baseCount);
+        WireEnterNavigation([_password, _sicPassword, _sicDynamicPassword], _savePassword);
+        WireEnterNavigation([_vpnUsername, _vpnPassword], _vpnReconnectAttempts);
         WireEnterNavigation([_sicPassword], _saveSicPassword);
         WireEnterNavigation([_sicDynamicPassword], _saveSicDynamicPassword);
         WireEnterNavigation([_arqEmpDatabase], _arqEmpEditor);
@@ -340,7 +401,29 @@ internal sealed class MainForm : Form
         {
             EnsureTrayIcon();
             _sl.Focus(); // ao abrir o sistema, o cursor já fica no campo da SL
-            MaybeShowChangelogOnStartup();
+
+            var currentVersion = GetCurrentVersion().ToString(3);
+            var shouldShowTutorial = _settings.ShouldShowTutorial(GetCurrentVersion());
+
+            if (shouldShowTutorial)
+            {
+                // Evita o popup de "Novidades" junto com o tutorial na mesma abertura.
+                // Não gravamos aqui: se o app fechar antes de concluir, a próxima abertura ainda é "primeira instalação".
+                _settings.LastChangelogVersion = currentVersion;
+
+                // 1) garante a tela Início; 2) notificação de boas-vindas; 3) inicia o tour.
+                ShowHomeView();
+                ToastNotifier.TryShow(
+                    "Bem-vindo ao Traz Base",
+                    "Vamos fazer um tour rápido pelas telas principais. Você pode pular quando quiser.",
+                    onActivated: null);
+                _ = ShowTutorialAfterWelcomeAsync();
+            }
+            else
+            {
+                MaybeShowChangelogOnStartup();
+            }
+
             await CheckForUpdatesAsync();
         };
         _password.Text = _settings.GetFirebirdPassword() ?? "";
@@ -367,7 +450,56 @@ internal sealed class MainForm : Form
         WirePasswordToggle(_password, _passwordVisibilityToggle);
         WirePasswordToggle(_sicPassword, _sicPasswordVisibilityToggle);
         WirePasswordToggle(_sicDynamicPassword, _sicDynamicPasswordVisibilityToggle);
-        AcceptButton = _start;
+        WirePasswordToggle(_vpnPassword, _vpnPasswordVisibilityToggle);
+        _vpnConnectionName.Text = _settings.VpnConnectionName;
+        _useVpn.Checked = _settings.UseVpn;
+        _vpnUseManualCredentials.Checked = _settings.VpnUseManualCredentials;
+        _vpnUsername.Text = _settings.VpnUsername;
+        _vpnPassword.Text = _settings.GetVpnPassword() ?? "";
+        _saveVpnPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedVpnPassword);
+        _saveVpnPassword.CheckedChanged += (_, _) => SaveVpnPasswordPreference();
+        _vpnPassword.Leave += (_, _) => { if (_saveVpnPassword.Checked) SaveVpnPasswordPreference(); };
+        _vpnReconnectAttempts.Value = Math.Clamp(_settings.VpnReconnectAttempts, 1, 10);
+        _vpnReconnectAttempts.ValueChanged += (_, _) =>
+        {
+            _settings.VpnReconnectAttempts = Math.Clamp((int)_vpnReconnectAttempts.Value, 1, 10);
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a quantidade de tentativas: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnConnectionName.TextChanged += (_, _) => QueueSettingsSave();
+        _vpnUsername.TextChanged += (_, _) => QueueSettingsSave();
+        _useVpn.CheckedChanged += (_, _) =>
+        {
+            _settings.UseVpn = _useVpn.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de VPN: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnUseManualCredentials.CheckedChanged += (_, _) =>
+        {
+            _settings.VpnUseManualCredentials = _vpnUseManualCredentials.Checked;
+            UpdateVpnCredentialsEnabled();
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de credenciais: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnRefreshList.FlatAppearance.BorderSize = 0;
+        _vpnRefreshList.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        _vpnRefreshList.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        _vpnRefreshList.Click += async (_, _) => await LoadVpnConnectionListAsync();
+        _vpnRunConnectScript.Checked = _settings.VpnConnectScriptEnabled;
+        _vpnConnectScript.Text = _settings.VpnConnectScript;
+        _vpnRunConnectScript.Enabled = true;
+        UpdateVpnConnectScriptEnabled();
+        _vpnRunConnectScript.CheckedChanged += (_, _) =>
+        {
+            _settings.VpnConnectScriptEnabled = _vpnRunConnectScript.Checked;
+            UpdateVpnConnectScriptEnabled();
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência do script: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnConnectScript.TextChanged += (_, _) => QueueSettingsSave();
+        UpdateVpnCredentialsEnabled();
+        _ = LoadVpnConnectionListAsync();
+        if (!_homeView.Visible) AcceptButton = _start; // na tela Início, Enter deve chamar "Buscar"
         var passwordTip = new ToolTip();
         passwordTip.SetToolTip(_savePassword, "A senha será protegida pelo Windows para sua conta de usuário.");
         _start.Click += async (_, _) => await StartFlowAsync();
@@ -376,6 +508,9 @@ internal sealed class MainForm : Form
         _menuAnimationTimer.Tick += OnMenuAnimationTick;
         _updateButton.Click += async (_, _) => await InstallUpdateAsync();
         _menuToolTip.SetToolTip(_updateButton, "Baixar e instalar a atualização disponível");
+        _homeNav.Click += (_, _) => ShowHomeView();
+        _homeTicketButton.Click += (_, _) => OpenTicketFromHome();
+        _homeTicketBox.TextChanged += (_, _) => ResetHomeTicketHint();
         _transferNav.Click += (_, _) => ShowView(settings: false);
         _settingsNav.Click += (_, _) => ShowView(settings: true);
         _changeBaseNav.Click += (_, _) => ShowChangeBaseView();
@@ -384,6 +519,7 @@ internal sealed class MainForm : Form
         _updateSicNav.Click += (_, _) => ShowUpdateSicView();
         _configureSicNav.Click += (_, _) => ShowConfigureSicView();
         _folderShortcutsNav.Click += (_, _) => ShowFolderShortcutsView();
+        _copySqlNav.Click += (_, _) => ShowCopySqlView();
         _updateSicButton.Click += async (_, _) => await UpdateSicAsync();
         _updateSicCancelButton.Click += (_, _) => _updateSicCancellation?.Cancel();
         _updateSicSingleDestinationBrowse.Click += (_, _) => BrowseUpdateSicFolder("singleDestination");
@@ -406,6 +542,12 @@ internal sealed class MainForm : Form
         _baseFolders.SelectedIndexChanged += (_, _) =>
         {
             _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+            if (_baseFolders.SelectedItems.Count > 0)
+            {
+                _lastSelectedBaseFolder = _baseFolders.SelectedItems[0].Tag as string;
+                _settings.LastSelectedBaseFolder = _lastSelectedBaseFolder;
+                QueueSettingsSave();
+            }
             _ = UpdateChangeBaseVersionAsync(_selectedBasePath.Text);
         };
         _resetBaseFolders.SelectedIndexChanged += (_, _) =>
@@ -720,6 +862,48 @@ internal sealed class MainForm : Form
         return panel;
     }
 
+    private Control BuildHomeView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 420)); // logo no topo
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 116)); // card de busca
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // espaço livre abaixo
+
+        _homeLogo.Image = LoadHomeLogo();
+        page.Controls.Add(_homeLogo, 0, 0);
+
+        var card = Card();
+        card.Dock = DockStyle.None;
+        card.Size = new Size(440, 116);
+        card.Anchor = AnchorStyles.None; // centraliza o card na célula
+        _homeTicketTitle.Location = new Point(16, 12);
+        card.Controls.Add(_homeTicketTitle);
+        _homeTicketError.Location = new Point(16, 32);
+        card.Controls.Add(_homeTicketError);
+
+        // Campo e botão com exatamente o mesmo tamanho (200 × 36), centralizados como um único grupo.
+        // Margem inferior (12 px) igual à superior. Sem painel intermediário escuro atrás deles.
+        const int controlWidth = 200;
+        const int gap = 10;
+        const int rowX = (440 - controlWidth * 2 - gap) / 2;
+        _homeTicketBox.Location = new Point(rowX, 68);
+        _homeTicketBox.Width = controlWidth;
+        _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 68);
+        card.Controls.Add(_homeTicketBox);
+        card.Controls.Add(_homeTicketButton);
+
+        page.Controls.Add(card, 0, 1);
+        return page;
+    }
+
+    /// <summary>Carrega o logo em tamanho grande. O bitmap é uma cópia: o arquivo é liberado antes do uso.</summary>
+    private static Image LoadHomeLogo()
+    {
+        using var source = Image.FromFile(Path.Combine(AppContext.BaseDirectory, "Imagens", "Logo.png"));
+        return new Bitmap(source, new Size(600, 400));
+    }
+
     private TableLayoutPanel BuildTransferView()
     {
         var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
@@ -736,13 +920,27 @@ internal sealed class MainForm : Form
 
     private Control BuildSettingsView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
-        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 605));
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
-        page.Controls.Add(BuildHeader("Configurações", "Pastas e conexão usadas na preparação das bases"), 0, 0);
-        page.Controls.Add(BuildSettingsPanel(), 0, 1);
+        page.Controls.Add(BuildHeader("Configurações", "Pastas, senhas, VPN e comportamento do aplicativo"), 0, 0);
+        page.Controls.Add(BuildSettingsTabs(), 0, 1);
         return page;
+    }
+
+    private Control BuildSettingsTabs()
+    {
+        var tabs = _settingsTabs = new ThemedTabControl { Dock = DockStyle.Fill };
+        var generalPage = new TabPage("Geral") { BackColor = Surface, Padding = new Padding(0) };
+        var passwordsPage = new TabPage("Senhas") { BackColor = Surface, Padding = new Padding(0) };
+        var vpnPage = new TabPage("VPN") { BackColor = Surface, Padding = new Padding(0) };
+        generalPage.Controls.Add(BuildGeneralSettingsPanel());
+        passwordsPage.Controls.Add(BuildPasswordsSettingsPanel());
+        vpnPage.Controls.Add(BuildVpnSettingsPanel());
+        tabs.TabPages.Add(generalPage);
+        tabs.TabPages.Add(passwordsPage);
+        tabs.TabPages.Add(vpnPage);
+        return tabs;
     }
 
     private Control BuildFolderShortcutsView()
@@ -999,7 +1197,7 @@ internal sealed class MainForm : Form
         var index = GetSelectedFolderShortcutIndex();
         if (index < 0 || index >= _settings.FolderShortcuts.Count) return;
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _settings.FolderShortcuts[index].Path, UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { AppLogger.Error("Abrir pasta", ex.Message, ex); MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
 
     private bool PersistFolderShortcuts()
@@ -1016,7 +1214,231 @@ internal sealed class MainForm : Form
     private bool _loadingFolderShortcuts;
     private bool _folderShortcutSettingFilters;
 
+    private Control BuildCopySqlView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, AutoScroll = true, Padding = new Padding(26, 10, 26, 10) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        page.Controls.Add(BuildHeader("Copiar SQL", "Monte, salve e copie os comandos SQL que você usa no dia a dia"), 0, 0);
 
+        var listCard = Card();
+        listCard.MinimumSize = new Size(0, 200);
+        listCard.Controls.Add(new Label { Text = "SQLS SALVOS", Font = UiTypography.BodySemibold(9f), ForeColor = Muted, AutoSize = true, Location = new Point(18, 14) });
+        _sqlShortcutSearch.Location = new Point(18, 40);
+        _sqlShortcutSearch.Width = 320;
+        _sqlShortcutSearch.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        listCard.Controls.Add(_sqlShortcutSearch);
+        _sqlShortcutList.Columns.Clear();
+        _sqlShortcutList.Columns.Add("Nome", 220);
+        _sqlShortcutList.Columns.Add("Comando", 360);
+        _sqlShortcutList.Location = new Point(18, 78);
+        _sqlShortcutList.Size = new Size(900, 140);
+        listCard.Controls.Add(_sqlShortcutList);
+        _sqlShortcutSummaryLabel.AutoSize = false;
+        _sqlShortcutSummaryLabel.Size = new Size(700, 20);
+        listCard.Controls.Add(_sqlShortcutSummaryLabel);
+        listCard.Resize += (_, _) =>
+        {
+            _sqlShortcutList.Location = new Point(18, 78);
+            _sqlShortcutList.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), Math.Max(72, listCard.ClientSize.Height - 78 - 34));
+            if (_sqlShortcutList.Columns.Count == 2)
+                _sqlShortcutList.Columns[1].Width = Math.Max(80, listCard.ClientSize.Width - 36 - _sqlShortcutList.Columns[0].Width - 4);
+            _sqlShortcutSummaryLabel.Location = new Point(18, listCard.ClientSize.Height - 24);
+            _sqlShortcutSummaryLabel.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), 18);
+        };
+        page.Controls.Add(listCard, 0, 1);
+
+        var editorHost = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+        editorHost.RowStyles.Add(new RowStyle(SizeType.Absolute, 84));
+        editorHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var formCard = Card();
+        formCard.Controls.Add(new Label { Text = "Nome do comando", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 10) });
+        _sqlShortcutTitle.Location = new Point(18, 32);
+        _sqlShortcutTitle.Width = 360;
+        formCard.Controls.Add(_sqlShortcutTitle);
+        foreach (var button in new[] { _sqlShortcutSave, _sqlShortcutCopy, _sqlShortcutDelete })
+        {
+            button.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            formCard.Controls.Add(button);
+        }
+        void LayoutButtons()
+        {
+            var right = Math.Max(520, formCard.ClientSize.Width - 18);
+            _sqlShortcutDelete.Location = new Point(right - _sqlShortcutDelete.Width, 32);
+            _sqlShortcutCopy.Location = new Point(_sqlShortcutDelete.Left - 12 - _sqlShortcutCopy.Width, 32);
+            _sqlShortcutSave.Location = new Point(_sqlShortcutCopy.Left - 12 - _sqlShortcutSave.Width, 32);
+            _sqlShortcutTitle.Width = Math.Max(140, Math.Min(360, _sqlShortcutSave.Left - 18 - 16));
+        }
+        formCard.Resize += (_, _) => LayoutButtons();
+        LayoutButtons();
+        editorHost.Controls.Add(formCard, 0, 0);
+        editorHost.Controls.Add(BuildEditorCard("Comando SQL", _sqlShortcutEditor), 0, 1);
+        page.Controls.Add(editorHost, 0, 2);
+
+        _sqlShortcutSearch.TextChanged += (_, _) => RefreshSqlShortcutList();
+        _sqlShortcutList.SelectedIndexChanged += (_, _) => OnSqlShortcutSelectionChanged();
+        _sqlShortcutList.DoubleClick += (_, _) => CopySqlToClipboard(GetSelectedSqlShortcut(), fromTray: false);
+        _sqlShortcutEditor.TextChanged += (_, _) => HighlightSql(_sqlShortcutEditor);
+        _sqlShortcutSave.Click += (_, _) => SaveSqlShortcut();
+        _sqlShortcutCopy.Click += (_, _) => CopySqlToClipboard(GetSelectedSqlShortcut(), fromTray: false);
+        _sqlShortcutDelete.Click += (_, _) => DeleteSelectedSqlShortcut();
+        RefreshSqlShortcutList();
+        ClearSqlShortcutEditor();
+        return page;
+    }
+
+    private void RefreshSqlShortcutList()
+    {
+        _loadingSqlShortcuts = true;
+        try
+        {
+            var query = _sqlShortcutSearch.Text.Trim();
+            _sqlShortcutList.BeginUpdate();
+            _sqlShortcutList.Items.Clear();
+            foreach (var sql in _settings.SqlShortcuts)
+            {
+                if (query.Length > 0 &&
+                    !sql.Title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !sql.Content.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                var item = new ListViewItem(new[] { SafeListColumn(sql.Title), SafeListColumn(SqlPreview(sql.Content)) }) { Tag = sql.Id };
+                _sqlShortcutList.Items.Add(item);
+            }
+            _sqlShortcutList.EndUpdate();
+        }
+        finally { _loadingSqlShortcuts = false; }
+        UpdateSqlShortcutSummary();
+    }
+
+    private static string SqlPreview(string content)
+    {
+        var preview = content.Replace("\r", "").Replace("\n", "  ↵  ").Replace('\t', ' ');
+        return preview.Length > 200 ? preview[..200] + "…" : preview;
+    }
+
+    private void UpdateSqlShortcutSummary()
+    {
+        var total = _settings.SqlShortcuts.Count;
+        var filtered = _sqlShortcutList.Items.Count != total ? $", {_sqlShortcutList.Items.Count} exibido(s) pelo filtro" : "";
+        _sqlShortcutSummaryLabel.Text = total == 0
+            ? "Nenhum SQL salvo. Monte o comando abaixo e clique em Salvar."
+            : $"{total} SQL(s) salvo(s){filtered}. Duplo clique copia o SQL.";
+    }
+
+    private SqlShortcut? GetSelectedSqlShortcut()
+    {
+        if (_sqlShortcutList.SelectedItems.Count == 0) return null;
+        return _sqlShortcutList.SelectedItems[0].Tag is string id
+            ? _settings.SqlShortcuts.FirstOrDefault(sql => sql.Id == id)
+            : null;
+    }
+
+    private void OnSqlShortcutSelectionChanged()
+    {
+        if (_loadingSqlShortcuts) return;
+        var sql = GetSelectedSqlShortcut();
+        if (sql is null) { _editingSqlShortcutId = null; return; }
+        _editingSqlShortcutId = sql.Id;
+        _sqlShortcutTitle.Text = sql.Title;
+        _sqlShortcutEditor.Text = sql.Content;
+        HighlightSql(_sqlShortcutEditor);
+    }
+
+    private void ClearSqlShortcutEditor()
+    {
+        _editingSqlShortcutId = null;
+        _sqlShortcutTitle.Clear();
+        _sqlShortcutEditor.Clear();
+        _loadingSqlShortcuts = true;
+        try
+        {
+            foreach (ListViewItem item in _sqlShortcutList.Items) item.Selected = false;
+        }
+        finally { _loadingSqlShortcuts = false; }
+        UpdateSqlShortcutSummary();
+        _sqlShortcutTitle.Focus();
+    }
+
+    private void SaveSqlShortcut()
+    {
+        var title = _sqlShortcutTitle.Text.Trim();
+        var content = _sqlShortcutEditor.Text;
+        if (title.Length == 0)
+        {
+            MessageBox.Show(this, "Dê um nome ao seu comando SQL.", "Copiar SQL", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _sqlShortcutTitle.Focus();
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            MessageBox.Show(this, "Informe o comando SQL que será copiado.", "Copiar SQL", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _sqlShortcutEditor.Focus();
+            return;
+        }
+
+        var sql = _settings.SqlShortcuts.FirstOrDefault(item => item.Id == _editingSqlShortcutId);
+        if (sql is null)
+        {
+            sql = new SqlShortcut();
+            _settings.SqlShortcuts.Add(sql);
+        }
+        sql.Title = title;
+        sql.Content = content;
+        try { PersistSettings(); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Salvar SQL", ex.Message, ex);
+            MessageBox.Show(this, $"Não foi possível salvar o comando SQL:\n\n{ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        RefreshSqlShortcutList();
+        ClearSqlShortcutEditor(); // equivalente ao antigo botão "Novo": limpa o formulário para o próximo SQL
+    }
+
+    private void DeleteSelectedSqlShortcut()
+    {
+        var sql = GetSelectedSqlShortcut();
+        if (sql is null)
+        {
+            MessageBox.Show(this, "Selecione o comando SQL que deseja excluir.", "Excluir SQL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        if (MessageBox.Show(this, $"Excluir o comando SQL \"{sql.Title}\"?", "Excluir SQL", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+        _settings.SqlShortcuts.Remove(sql);
+        try { PersistSettings(); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Excluir SQL", ex.Message, ex);
+            MessageBox.Show(this, $"Não foi possível excluir o comando SQL:\n\n{ex.Message}", "Erro ao excluir", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        ClearSqlShortcutEditor();
+        RefreshSqlShortcutList();
+    }
+
+    private void CopySqlToClipboard(SqlShortcut? sql, bool fromTray)
+    {
+        if (sql is null)
+        {
+            if (fromTray) ShowBackgroundNotification("Copiar SQL", "Nenhum SQL cadastrado. Cadastre um em \"Copiar SQL\" na janela do aplicativo.");
+            else MessageBox.Show(this, "Selecione um comando SQL da lista para copiar.", "Copiar SQL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        try
+        {
+            Clipboard.SetText(sql.Content);
+            if (fromTray)
+                ShowBackgroundNotification("Copiar SQL", $"\"{sql.Title}\" copiado para a área de transferência.");
+            else
+                _sqlShortcutSummaryLabel.Text = $"Comando \"{sql.Title}\" copiado para a área de transferência.";
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Copiar SQL", ex.Message, ex);
+            if (fromTray) ShowBackgroundNotification("Copiar SQL", "Não foi possível copiar: " + ex.Message);
+            else MessageBox.Show(this, $"Não foi possível copiar o comando SQL:\n{ex.Message}", "Erro ao copiar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
 
     private Control BuildChangeBaseView()
     {
@@ -1034,11 +1456,36 @@ internal sealed class MainForm : Form
         header.Resize += (_, _) => _changeBaseVersionLabel.Left = header.ClientSize.Width - _changeBaseVersionLabel.Width - 18;
         page.Controls.Add(header, 0, 0);
 
-        page.Controls.Add(_baseFoldersRootLabel, 0, 1);
+        var rootRow = new Panel { Dock = DockStyle.Fill };
+        _baseSort.Items.Add("Ordem alfabética");
+        _baseSort.Items.Add("Data de modificação");
+        _baseSort.SelectedIndex = (int)_settings.ChangeBaseSortOrder;
+        _baseSort.Dock = DockStyle.Right;
+        _baseSort.SelectionChangeCommitted += (_, _) =>
+        {
+            _settings.ChangeBaseSortOrder = (BaseFolderSortOrder)_baseSort.SelectedIndex;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a ordenação: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            RefreshBaseFolders();
+        };
+        _baseFoldersRootLabel.Dock = DockStyle.Fill;
+        rootRow.Controls.Add(_baseFoldersRootLabel);
+        rootRow.Controls.Add(_baseSort);
+        page.Controls.Add(rootRow, 0, 1);
+
         var listCard = Card();
         _changeBaseListCard = listCard;
         _baseFolders.Font = UiTypography.Body(11f);
-        _baseFolders.ItemSelectionChanged += (_, _) => _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+        _baseFolders.ItemSelectionChanged += (_, _) =>
+        {
+            _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+            if (_baseFolders.SelectedItems.Count > 0)
+            {
+                _lastSelectedBaseFolder = _baseFolders.SelectedItems[0].Tag as string;
+                _settings.LastSelectedBaseFolder = _lastSelectedBaseFolder;
+                QueueSettingsSave();
+            }
+        };
         listCard.Controls.Add(_baseFolders);
         page.Controls.Add(listCard, 0, 2);
 
@@ -1190,12 +1637,37 @@ internal sealed class MainForm : Form
         _baseFoldersRootLabel.Text = rootText;
         _resetBaseFoldersRootLabel.Text = rootText;
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
-        foreach (var folder in Directory.GetDirectories(root).OrderBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase))
+
+        var directories = Directory.GetDirectories(root);
+        IEnumerable<string> ordered = _settings.ChangeBaseSortOrder == BaseFolderSortOrder.DataModificacao
+            ? directories.OrderByDescending(GetFolderLastWriteTimeSafe)
+                         .ThenBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase)
+            : directories.OrderBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase);
+
+        foreach (var folder in ordered)
         {
             var name = Path.GetFileName(folder);
             _baseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
             _resetBaseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
         }
+
+        // Mantém selecionada a última pasta escolhida pelo usuário, mesmo após reordenar/recarregar.
+        if (!string.IsNullOrWhiteSpace(_lastSelectedBaseFolder))
+        {
+            foreach (ListViewItem item in _baseFolders.Items)
+            {
+                if (!string.Equals(item.Tag as string, _lastSelectedBaseFolder, StringComparison.OrdinalIgnoreCase)) continue;
+                item.Selected = true;
+                item.EnsureVisible();
+                break;
+            }
+        }
+    }
+
+    private static DateTime GetFolderLastWriteTimeSafe(string folder)
+    {
+        try { return Directory.GetLastWriteTime(folder); }
+        catch { return DateTime.MinValue; }
     }
 
     private static string? FindRegistryBasePath()
@@ -1279,6 +1751,7 @@ internal sealed class MainForm : Form
         }
         catch (Exception ex)
         {
+            AppLogger.Error("Registro - Alterar base", ex.Message, ex);
             MessageBox.Show(this, $"Não foi possível alterar a base no Registro:\n{ex.Message}", "Falha ao alterar base", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally { _changeBaseButton.Enabled = true; }
@@ -1339,6 +1812,7 @@ internal sealed class MainForm : Form
             }
             catch (Exception ex)
             {
+                AppLogger.Error("Nome inválido", ex.Message, ex);
                 MessageBox.Show(this, ex.Message, "Nome inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -1367,7 +1841,7 @@ internal sealed class MainForm : Form
         _resetSl.Enabled = false;
         _resetButton.Enabled = false;
         _resetCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = false;
         _resetLog.Clear();
         var token = _resetCancellation.Token;
         try
@@ -1397,6 +1871,7 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             AppendResetLog("ERRO: " + ex.Message);
+            AppLogger.Error("Redefinir base", ex.Message, ex);
             MessageBox.Show(this, ex.Message, "Falha ao redefinir a base", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
@@ -1408,7 +1883,7 @@ internal sealed class MainForm : Form
             _resetSl.Enabled = true;
             _resetButton.Enabled = true;
             _resetCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = true;
         }
     }
 
@@ -1491,7 +1966,7 @@ internal sealed class MainForm : Form
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = false;
         _restoreLog.Clear();
         var token = _restoreCancellation.Token;
         try
@@ -1558,6 +2033,7 @@ internal sealed class MainForm : Form
         catch (Exception ex)
         {
             AppendRestoreLog("ERRO: " + ex.Message);
+            AppLogger.Error("Restauração", ex.Message, ex);
             MessageBox.Show(this, ex.Message, "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
@@ -1570,7 +2046,7 @@ internal sealed class MainForm : Form
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
             _restoreCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = true;
         }
     }
 
@@ -1859,6 +2335,7 @@ internal sealed class MainForm : Form
 
     private void ShowUpdateSicView()
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
@@ -1869,6 +2346,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -1879,6 +2357,7 @@ internal sealed class MainForm : Form
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
         AcceptButton = _updateSicRunning ? null : _updateSicButton;
         ApplyNavigationColors();
         _updateSicButton.Focus();
@@ -1886,6 +2365,7 @@ internal sealed class MainForm : Form
 
     private void ShowConfigureSicView()
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
@@ -1896,6 +2376,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -1906,6 +2387,7 @@ internal sealed class MainForm : Form
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
         AcceptButton = null;
         ApplyNavigationColors();
         _updateSicGrid.Focus();
@@ -2025,7 +2507,7 @@ internal sealed class MainForm : Form
         _updateSicSingleDestinationBrowse.Enabled = false;
         _updateSicButton.Enabled = false;
         _updateSicCancelButton.Visible = true;
-        foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = false;
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = false;
         _updateSicLog.Clear();
         var token = _updateSicCancellation.Token;
         var failures = new List<(string File, string Reason)>();
@@ -2140,7 +2622,7 @@ internal sealed class MainForm : Form
             _updateSicSingleDestinationBrowse.Enabled = _updateSicSingleDestinationCheck.Checked;
             _updateSicButton.Enabled = true;
             _updateSicCancelButton.Visible = false;
-            foreach (var navigation in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
+            foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = true;
         }
     }
 
@@ -2209,19 +2691,22 @@ internal sealed class MainForm : Form
         QueueSettingsSave();
     }
 
-    private void UpdateUpdateSicSingleDestinationUI()
+    private void UpdateUpdateSicSingleDestinationUI(bool focus = true)
     {
         var enabled = _updateSicSingleDestinationCheck.Checked;
         _updateSicSingleDestination.Enabled = enabled;
         _updateSicSingleDestinationBrowse.Enabled = enabled;
         if (_updateSicGrid.Columns["Destination"] is { } destinationCol)
             destinationCol.Visible = !enabled;
+        // A coluna de botão "…" do destino acompanha a coluna de destino.
+        if (_updateSicGrid.Columns["BrowseDestination"] is { } browseDestinationCol)
+            browseDestinationCol.Visible = !enabled;
         foreach (DataGridViewRow row in _updateSicGrid.Rows)
         {
             var cell = row.Cells["Destination"];
             if (cell is not null) cell.ReadOnly = enabled;
         }
-        _updateSicSingleDestination.Focus();
+        if (focus) _updateSicSingleDestination.Focus();
     }
 
     private static void WireEnterNavigation(Control[] chain, Control? terminal)
@@ -2284,11 +2769,12 @@ internal sealed class MainForm : Form
             return;
         }
         try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = folder, UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { AppLogger.Error("Abrir pasta", ex.Message, ex); MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
 
     private void ShowChangeBaseView()
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = true;
@@ -2299,6 +2785,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.FromArgb(231, 240, 255);
         _resetNav.BackColor = Color.White;
@@ -2309,16 +2796,19 @@ internal sealed class MainForm : Form
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
         AcceptButton = _changeBaseButton;
         RefreshBaseFolders();
         ApplyNavigationColors();
-        SelectBaseMatchingRegistry();
+        // Só usa o Registro como fallback quando o usuário ainda não escolheu uma pasta nesta sessão.
+        if (_baseFolders.SelectedItems.Count == 0) SelectBaseMatchingRegistry();
         _ = UpdateChangeBaseVersionAsync(_selectedBasePath.Text);
         _baseFolders.Focus();
     }
 
     private void ShowResetView()
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
@@ -2329,6 +2819,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
@@ -2340,6 +2831,7 @@ internal sealed class MainForm : Form
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
         AcceptButton = _resetButton;
         ApplyNavigationColors();
         RefreshBaseFolders();
@@ -2349,6 +2841,7 @@ internal sealed class MainForm : Form
 
     private void ShowRestoreView()
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
@@ -2357,6 +2850,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -2365,6 +2859,7 @@ internal sealed class MainForm : Form
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
         AcceptButton = _restoreRunning ? null : _restoreButton;
         ApplyNavigationColors();
         if (!_restoreRunning) _restoreFolder.Focus();
@@ -2658,6 +3153,7 @@ internal sealed class MainForm : Form
     private void ApplyMenuExpansionText(bool expanded)
     {
         _menuToggle.Text = expanded ? "Menu" : "";
+        _homeNav.Text = expanded ? "Início" : "";
         _transferNav.Text = expanded ? "Transferir" : "";
         _changeBaseNav.Text = expanded ? "Alterar base" : "";
         _resetNav.Text = expanded ? "Redefinir base" : "";
@@ -2666,6 +3162,7 @@ internal sealed class MainForm : Form
         _configureSicNav.Text = expanded ? "Configurar caminhos" : "";
         _settingsNav.Text = expanded ? "Configuração" : "";
         _folderShortcutsNav.Text = expanded ? "Atalhos de pasta" : "";
+        _copySqlNav.Text = expanded ? "Copiar SQL" : "";
         _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
         _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
         _menuToggle.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -2673,7 +3170,7 @@ internal sealed class MainForm : Form
         _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
         _menuToggle.FlatAppearance.BorderSize = 0;
         _menuToggle.Font = UiTypography.Body(12f);
-        foreach (var button in new[] { _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav })
+        foreach (var button in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav })
         {
             button.Font = UiTypography.Body(12f);
             button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
@@ -2687,12 +3184,14 @@ internal sealed class MainForm : Form
     {
         switch (_settings.DefaultScreen)
         {
+            case StartScreen.Inicio: ShowHomeView(); break;
             case StartScreen.AlterarBase: ShowChangeBaseView(); break;
             case StartScreen.RedefinirBase: ShowResetView(); break;
             case StartScreen.RestaurarBase: ShowRestoreView(); break;
             case StartScreen.AtualizarSic: ShowUpdateSicView(); break;
             case StartScreen.ConfigurarSic: ShowConfigureSicView(); break;
             case StartScreen.Atalhos: ShowFolderShortcutsView(); break;
+            case StartScreen.CopiarSql: ShowCopySqlView(); break;
             case StartScreen.Transferir:
             case StartScreen.Configuracao:     // removido das opções — abre na Transferir
             case StartScreen.ComandosArqEmp:   // removido das opções — abre na Transferir
@@ -2777,8 +3276,29 @@ internal sealed class MainForm : Form
         }
     }
 
+    private void ShowHomeView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _homeView.Visible = true;
+        ResetHomeTicketHint();
+        AcceptButton = _homeTicketButton; // Enter no campo dispara o botão Buscar
+        ApplyNavigationColors();
+        _homeTicketBox.Focus();
+    }
+
     private void ShowView(bool settings)
     {
+        _homeView.Visible = false;
         _transferView.Visible = !settings;
         _settingsView.Visible = settings;
         _changeBaseView.Visible = false;
@@ -2789,6 +3309,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -2799,6 +3320,7 @@ internal sealed class MainForm : Form
         _arqEmpNav.BackColor = Color.White;
         _arqSistNav.BackColor = Color.White;
         _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
         AcceptButton = settings ? null : _start;
         ApplyNavigationColors();
         if (settings) _fields[nameof(AppSettings.SolicitationRoot)].Focus();
@@ -2807,6 +3329,7 @@ internal sealed class MainForm : Form
 
     private void ShowCommandView(bool arqEmp)
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
@@ -2817,6 +3340,7 @@ internal sealed class MainForm : Form
         _arqEmpView.Visible = arqEmp;
         _arqSistView.Visible = !arqEmp;
         _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
         _resetNav.BackColor = Color.White;
@@ -2833,6 +3357,7 @@ internal sealed class MainForm : Form
 
     private void ShowFolderShortcutsView()
     {
+        _homeView.Visible = false;
         _transferView.Visible = false;
         _settingsView.Visible = false;
         _changeBaseView.Visible = false;
@@ -2858,41 +3383,57 @@ internal sealed class MainForm : Form
         _folderShortcutName.Focus();
     }
 
-    private Control BuildSettingsPanel()
+    private void ShowCopySqlView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = true;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.FromArgb(231, 240, 255);
+        AcceptButton = null;
+        ApplyNavigationColors();
+        _sqlShortcutTitle.Focus();
+    }
+
+    /// <summary>Rótulo de seção pequeno usado para agrupar blocos nas abas de configuração.</summary>
+    private static Label SectionLabel(string text, int y) =>
+        new() { Text = text, AutoSize = true, ForeColor = Muted, Font = UiTypography.BodySemibold(9.5f), Location = new Point(0, y) };
+
+    private Control BuildPasswordsSettingsPanel()
     {
         var card = Card();
-        var title = new Label { Text = "Configuração", Font = UiTypography.BodySemibold(12), ForeColor = Ink, AutoSize = true, Location = new Point(18, 13) };
-        card.Controls.Add(title);
-        var host = _settingsFieldsHost = new Panel
+        var host = _passwordsSettingsHost = new Panel
         {
-            Location = new Point(18, 45),
-            Size = new Size(100, 544),
+            Location = new Point(18, 20),
+            Size = new Size(100, 300),
             Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
+        host.Controls.Add(new Label { Text = "As senhas são protegidas pelo Windows (DPAPI) para a sua conta de usuário.", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 2) });
         var labels = new[]
         {
-            new Label { Text = "Origem das solicitações", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Pasta local das bases", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Pasta de bases de apoio", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Pasta da base temporária", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha Firebird", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha padrão do SIC", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) },
-            new Label { Text = "Senha padrão Empresa", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f) }
+            new Label { Text = "Senha Firebird", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Senha padrão do SIC", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Senha padrão Empresa", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft }
         };
-        const string supportHelpText =
-            "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
-            "Se a base de uma solicitação não trouxer esses arquivos (compactada sem eles ou sem ARQSIST.FDB, por exemplo), a aplicação copia automaticamente dessa pasta para a pasta local da base, sem intervenção do operador.";
-        var supportHelp = new PictureBox
-        {
-            Size = new Size(16, 16),
-            Location = new Point(0, 0),
-            SizeMode = PictureBoxSizeMode.Zoom,
-            Image = SvgIconLoader.Load("Ajuda.svg", 16),
-            Cursor = Cursors.Hand
-        };
-        supportHelp.MouseEnter += (_, _) => ShowHintPopup(supportHelp, supportHelpText);
-        supportHelp.MouseLeave += (_, _) => HideHintPopup();
         const string sicDynamicPasswordHelpText =
             "Digite apenas a parte fixa da senha — o aplicativo completa o resto automaticamente na hora de copiar (atalho Ctrl+Alt+X).\n\n" +
             "Cálculo: senha informada + (Dia × Hora × 13)\n\n" +
@@ -2908,6 +3449,95 @@ internal sealed class MainForm : Form
         };
         sicDynamicPasswordHelp.MouseEnter += (_, _) => ShowHintPopup(sicDynamicPasswordHelp, sicDynamicPasswordHelpText);
         sicDynamicPasswordHelp.MouseLeave += (_, _) => HideHintPopup();
+
+        _password.BorderStyle = BorderStyle.FixedSingle;
+        _password.BackColor = Color.FromArgb(249, 251, 254);
+        _password.Margin = Padding.Empty;
+        _savePassword.Margin = Padding.Empty;
+        _sicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicPassword.Margin = Padding.Empty;
+        _saveSicPassword.Margin = Padding.Empty;
+        _sicDynamicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicDynamicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicDynamicPassword.Margin = Padding.Empty;
+        _saveSicDynamicPassword.Margin = Padding.Empty;
+
+        host.Controls.Add(sicDynamicPasswordHelp);
+        host.Controls.Add(labels[0]);
+        host.Controls.Add(_password);
+        host.Controls.Add(_passwordVisibilityToggle);
+        host.Controls.Add(_savePassword);
+        host.Controls.Add(labels[1]);
+        host.Controls.Add(_sicPassword);
+        host.Controls.Add(_sicPasswordVisibilityToggle);
+        host.Controls.Add(_saveSicPassword);
+        host.Controls.Add(labels[2]);
+        host.Controls.Add(_sicDynamicPassword);
+        host.Controls.Add(_sicDynamicPasswordVisibilityToggle);
+        host.Controls.Add(_saveSicDynamicPassword);
+
+        void LayoutPasswordRows()
+        {
+            const int fieldLeft = 200;
+            const int buttonWidth = 120;
+            const int rightInset = 18;
+            for (var i = 0; i < labels.Length; i++)
+            {
+                var y = 44 + i * 72;
+                labels[i].Location = new Point(i == 2 ? 24 : 0, y);
+                if (i == 2) sicDynamicPasswordHelp.Location = new Point(0, y + 7);
+                var pwdField = i == 0 ? _password : i == 2 ? _sicDynamicPassword : _sicPassword;
+                var pwdToggle = i == 0 ? _passwordVisibilityToggle : i == 2 ? _sicDynamicPasswordVisibilityToggle : _sicPasswordVisibilityToggle;
+                var pwdSave = i == 0 ? _savePassword : i == 2 ? _saveSicDynamicPassword : _saveSicPassword;
+                pwdField.Location = new Point(fieldLeft, y);
+                pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
+                pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                pwdField.Height = 30;
+                pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y + 1);
+                pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                var saveHeight = pwdSave.PreferredSize.Height;
+                pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
+                pwdSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            }
+        }
+
+        host.Resize += (_, _) => LayoutPasswordRows();
+        LayoutPasswordRows();
+        card.Controls.Add(host);
+        return card;
+    }
+
+    private Control BuildGeneralSettingsPanel()
+    {
+        var card = Card();
+        var host = _generalSettingsHost = new Panel
+        {
+            Location = new Point(18, 20),
+            Size = new Size(100, 544),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            Margin = Padding.Empty
+        };
+        var labels = new[]
+        {
+            new Label { Text = "Origem das solicitações", AutoSize = false, Width = 190, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Pasta local das bases", AutoSize = false, Width = 190, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Pasta de bases de apoio", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Pasta da base temporária", AutoSize = false, Width = 190, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft }
+        };
+        const string supportHelpText =
+            "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
+            "Se a base de uma solicitação não trouxer esses arquivos (compactada sem eles ou sem ARQSIST.FDB, por exemplo), a aplicação copia automaticamente dessa pasta para a pasta local da base, sem intervenção do operador.";
+        var supportHelp = new PictureBox
+        {
+            Size = new Size(16, 16),
+            Location = new Point(0, 0),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
+            Cursor = Cursors.Hand
+        };
+        supportHelp.MouseEnter += (_, _) => ShowHintPopup(supportHelp, supportHelpText);
+        supportHelp.MouseLeave += (_, _) => HideHintPopup();
         var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot), nameof(AppSettings.TempPath) };
         var emptyTempHint = TryGetSicTempPath() is string registryTemp
             ? $"(Vazio = valor do Registro: {registryTemp})"
@@ -2939,48 +3569,25 @@ internal sealed class MainForm : Form
             return button;
         }).ToArray();
 
+        host.Controls.Add(SectionLabel("Pastas", 0));
         foreach (var keyIndex in Enumerable.Range(0, keys.Length))
         {
             _fields[keys[keyIndex]] = pathFields[keyIndex];
+            _browseButtons[keys[keyIndex]] = browseButtons[keyIndex];
             if (keyIndex == 2) host.Controls.Add(supportHelp);
             host.Controls.Add(labels[keyIndex]);
             host.Controls.Add(pathFields[keyIndex]);
             host.Controls.Add(browseButtons[keyIndex]);
         }
         foreach (var field in pathFields) field.TextChanged += (_, _) => QueueSettingsSave();
-        // usuário que digita vê as mudanças gravadas na hora; Procurar também grava ao confirmar
-        _password.BorderStyle = BorderStyle.FixedSingle;
-        _password.BackColor = Color.FromArgb(249, 251, 254);
-        _password.Margin = Padding.Empty;
-        _savePassword.Margin = Padding.Empty;
-        _sicPassword.BorderStyle = BorderStyle.FixedSingle;
-        _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
-        _sicPassword.Margin = Padding.Empty;
-        _saveSicPassword.Margin = Padding.Empty;
-        _sicDynamicPassword.BorderStyle = BorderStyle.FixedSingle;
-        _sicDynamicPassword.BackColor = Color.FromArgb(249, 251, 254);
-        _sicDynamicPassword.Margin = Padding.Empty;
-        _saveSicDynamicPassword.Margin = Padding.Empty;
-        host.Controls.Add(labels[4]);
-        host.Controls.Add(_password);
-        host.Controls.Add(_passwordVisibilityToggle);
-        host.Controls.Add(_savePassword);
-        host.Controls.Add(labels[5]);
-        host.Controls.Add(_sicPassword);
-        host.Controls.Add(_sicPasswordVisibilityToggle);
-        host.Controls.Add(_saveSicPassword);
-        host.Controls.Add(labels[6]);
-        host.Controls.Add(sicDynamicPasswordHelp);
-        host.Controls.Add(_sicDynamicPassword);
-        host.Controls.Add(_sicDynamicPasswordVisibilityToggle);
-        host.Controls.Add(_saveSicDynamicPassword);
-        _useSupportAsCompany.Location = new Point(0, 2 * 40 + 32);
+
+        _useSupportAsCompany.Location = new Point(0, 154);
         host.Controls.Add(_useSupportAsCompany);
-        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 327) });
-        _baseCount.Location = new Point(200, 320);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 248), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        _baseCount.Location = new Point(200, 241);
         host.Controls.Add(_baseCount);
 
-        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 367) });
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 296), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
         foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
         var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         if (initialIndex < 0)
@@ -2989,7 +3596,7 @@ internal sealed class MainForm : Form
             initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
         }
         _defaultScreen.SelectedIndex = initialIndex;
-        _defaultScreen.Location = new Point(200, 360);
+        _defaultScreen.Location = new Point(200, 289);
         _defaultScreen.SelectionChangeCommitted += (_, _) =>
         {
             _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
@@ -2997,59 +3604,158 @@ internal sealed class MainForm : Form
         };
         host.Controls.Add(_defaultScreen);
 
-        _forceMultiBase.Location = new Point(0, 404);
+        host.Controls.Add(SectionLabel("Comportamento", 326));
+        _forceMultiBase.Location = new Point(0, 352);
         host.Controls.Add(_forceMultiBase);
-        _renameSl.Location = new Point(0, 430);
+        _renameSl.Location = new Point(0, 378);
         host.Controls.Add(_renameSl);
-        _minimizeToTray.Location = new Point(0, 456);
+        _minimizeToTray.Location = new Point(0, 404);
         host.Controls.Add(_minimizeToTray);
-        _startInBackground.Location = new Point(0, 482);
+        _startInBackground.Location = new Point(0, 430);
         host.Controls.Add(_startInBackground);
-        _startWithWindows.Location = new Point(0, 508);
+        _startWithWindows.Location = new Point(0, 456);
         host.Controls.Add(_startWithWindows);
+
+        _tutorialButton = new RoundedButton
+        {
+            Text = "Ver tutorial guiado",
+            Size = new Size(170, 30),
+            Location = new Point(0, 494),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(231, 240, 255),
+            ForeColor = Ink,
+            Font = UiTypography.BodySemibold(9f)
+        };
+        _tutorialButton.FlatAppearance.BorderSize = 0;
+        _tutorialButton.Click += (_, _) => StartTutorial();
+        host.Controls.Add(_tutorialButton);
 
         void LayoutSettingsRows()
         {
             const int fieldLeft = 200;
             const int buttonWidth = 120;
             const int rightInset = 18;
-            const int supportCompanyRowOffset = 40; // linha própria do checkbox "EMPRESA" abaixo de "Pasta de bases de apoio"
+            var rowY = new[] { 26, 68, 110, 194 };
             for (var i = 0; i < labels.Length; i++)
             {
-                var y = i * 40 + (i > 2 ? supportCompanyRowOffset : 0);
-                labels[i].Location = new Point(i == 2 || i == 6 ? 24 : 0, y + 8);
+                var y = rowY[i];
+                labels[i].Location = new Point(i == 2 ? 24 : 0, y);
                 if (i == 2) supportHelp.Location = new Point(0, y + 7);
-                if (i == 6) sicDynamicPasswordHelp.Location = new Point(0, y + 7);
-                if (i < pathFields.Length)
-                {
-                    pathFields[i].Location = new Point(fieldLeft, y);
-                    pathFields[i].Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
-                    pathFields[i].Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-                    browseButtons[i].Location = new Point(host.ClientSize.Width - buttonWidth - rightInset, y + 1);
-                    browseButtons[i].Anchor = AnchorStyles.Top | AnchorStyles.Right;
-                }
-                else
-                {
-                    var isFirebird = i == 4;
-                    var isSicDynamic = i == 6;
-                    var pwdField = isFirebird ? _password : isSicDynamic ? _sicDynamicPassword : _sicPassword;
-                    var pwdToggle = isFirebird ? _passwordVisibilityToggle : isSicDynamic ? _sicDynamicPasswordVisibilityToggle : _sicPasswordVisibilityToggle;
-                    var pwdSave = isFirebird ? _savePassword : isSicDynamic ? _saveSicDynamicPassword : _saveSicPassword;
-                    pwdField.Location = new Point(fieldLeft, y);
-                    pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
-                    pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-                    pwdField.Height = 30;
-                    pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y + 1);
-                    pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-                    var saveHeight = pwdSave.PreferredSize.Height;
-                    pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
-                    pwdSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
-                }
+                pathFields[i].Location = new Point(fieldLeft, y);
+                pathFields[i].Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
+                pathFields[i].Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                browseButtons[i].Location = new Point(host.ClientSize.Width - buttonWidth - rightInset, y + 1);
+                browseButtons[i].Anchor = AnchorStyles.Top | AnchorStyles.Right;
             }
         }
 
         host.Resize += (_, _) => LayoutSettingsRows();
         LayoutSettingsRows();
+        card.Controls.Add(host);
+        return card;
+    }
+
+    private Control BuildVpnSettingsPanel()
+    {
+        var card = Card();
+        var host = _vpnSettingsHost = new Panel
+        {
+            Location = new Point(18, 12),
+            Size = new Size(100, 520),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            AutoScroll = true,
+            Margin = Padding.Empty
+        };
+        const string vpnHelpText =
+            "Use a VPN somente quando a pasta de origem das solicitações estiver acessível apenas através dela (por exemplo, quando você está fora da rede).\n\n" +
+            "A conexão é feita antes de iniciar a transferência e desfeita ao final somente se ela não estava conectada antes.\n\n" +
+            "Se a conexão cair no meio da cópia, o aplicativo reconecta e refaz a cópia substituindo o que já tinha sido baixado.";
+        var vpnHelp = new PictureBox
+        {
+            Size = new Size(16, 16),
+            Location = new Point(0, 1),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
+            Cursor = Cursors.Hand
+        };
+        vpnHelp.MouseEnter += (_, _) => ShowHintPopup(vpnHelp, vpnHelpText);
+        vpnHelp.MouseLeave += (_, _) => HideHintPopup();
+
+        _vpnHint.Text =
+            "Com a VPN ligada, o aplicativo conecta a conexão escolhida antes de acessar a origem e desconecta ao final somente se ela não estava conectada antes.\n" +
+            "Se a conexão cair durante a cópia, a transferência reconecta e refaz a cópia, substituindo os arquivos já baixados.\n" +
+            "O script (conteúdo de um .bat/.cmd) é executado após a VPN ser conectada pelo aplicativo — somente quando ela é conectada (não se ela já estava conectada). Se o script falhar, a transferência é abortada com o erro.";
+        _saveVpnPassword.Text = "Salvar senha";
+        _saveVpnPassword.Margin = Padding.Empty;
+        _vpnPasswordVisibilityToggle.Margin = Padding.Empty;
+        _vpnUsername.Margin = Padding.Empty;
+        _vpnPassword.Margin = Padding.Empty;
+        _vpnConnectionName.Margin = Padding.Empty;
+
+        host.Controls.Add(vpnHelp);
+        host.Controls.Add(_useVpn);
+        host.Controls.Add(new Label { Text = "Nome da conexão VPN", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 43), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnConnectionName);
+        host.Controls.Add(_vpnRefreshList);
+        host.Controls.Add(_vpnUseManualCredentials);
+        host.Controls.Add(new Label { Text = "Usuário", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 126), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnUsername);
+        host.Controls.Add(new Label { Text = "Senha", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 170), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnPassword);
+        host.Controls.Add(_vpnPasswordVisibilityToggle);
+        host.Controls.Add(_saveVpnPassword);
+        host.Controls.Add(new Label { Text = "Máx. tentativas de reconexão", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 215), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnReconnectAttempts);
+        host.Controls.Add(new Label { Text = "Script ao conectar (.bat/.cmd)", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 255), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnRunConnectScript);
+        host.Controls.Add(_vpnConnectScript);
+        host.Controls.Add(_vpnHint);
+
+        void LayoutVpnRows()
+        {
+            const int fieldLeft = 220;
+            const int buttonWidth = 132;
+            const int rightInset = 18;
+            const int fieldToButtonGap = 10;
+
+            _useVpn.Location = new Point(24, 2);
+            // Alinha o ícone de ajuda verticalmente com o checkbox (fixo em 26 px).
+            vpnHelp.Location = new Point(0, _useVpn.Location.Y + (_useVpn.Height - 16) / 2);
+            _vpnConnectionName.Location = new Point(fieldLeft, 43);
+            _vpnConnectionName.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - fieldToButtonGap);
+            _vpnConnectionName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _vpnRefreshList.Location = new Point(host.ClientSize.Width - rightInset - buttonWidth, 43);
+            _vpnRefreshList.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            _vpnUseManualCredentials.Location = new Point(0, 88);
+
+            _vpnUsername.Location = new Point(fieldLeft, 126);
+            _vpnUsername.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - rightInset);
+            _vpnUsername.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            _vpnPassword.Location = new Point(fieldLeft, 170);
+            _vpnPassword.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
+            _vpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 171);
+            var saveHeight = _saveVpnPassword.PreferredSize.Height;
+            _saveVpnPassword.Location = new Point(host.ClientSize.Width - buttonWidth, 170 + (30 - saveHeight) / 2);
+            _saveVpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            _vpnReconnectAttempts.Location = new Point(fieldLeft, 215);
+            _vpnReconnectAttempts.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+
+            _vpnRunConnectScript.Location = new Point(fieldLeft, 257);
+            _vpnRunConnectScript.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            _vpnConnectScript.Location = new Point(0, 300);
+            _vpnConnectScript.Size = new Size(Math.Max(120, host.ClientSize.Width - 2 * rightInset), 120);
+            _vpnConnectScript.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            _vpnHint.Location = new Point(0, 436);
+            _vpnHint.Width = Math.Max(120, host.ClientSize.Width - 2 * rightInset);
+            _vpnHint.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        }
+
+        host.Resize += (_, _) => LayoutVpnRows();
+        LayoutVpnRows();
         card.Controls.Add(host);
         return card;
     }
@@ -3149,11 +3855,16 @@ internal sealed class MainForm : Form
         ThemeState.IsDark = dark;
         var memoBack = dark ? DarkMemo : Color.White;
         var memoFore = dark ? Color.FromArgb(220, 229, 242) : Ink;
-        foreach (var memo in new Control[] { _log, _resetLog, _restoreLog, _updateSicLog, _arqEmpEditor, _arqSistEditor, _arqEmpOutput, _arqSistOutput })
+        foreach (var memo in new Control[] { _log, _resetLog, _restoreLog, _updateSicLog, _arqEmpEditor, _arqSistEditor, _arqEmpOutput, _arqSistOutput, _vpnConnectScript, _sqlShortcutEditor })
         {
             if (memo is TextBox textBox) { textBox.BackColor = memoBack; textBox.ForeColor = memoFore; }
             else if (memo is RichTextBox richTextBox) { richTextBox.BackColor = memoBack; richTextBox.ForeColor = memoFore; }
         }
+
+        // Tema claro: borda de 1 px nos editores/resultados dos comandos ARQEMP/ARQSIST
+        // para separar o campo do fundo branco. No tema escuro a borda permanece sem desenho.
+        foreach (var editor in new RichTextBox[] { _arqEmpEditor, _arqSistEditor, _arqEmpOutput, _arqSistOutput })
+            editor.BorderStyle = dark ? BorderStyle.None : BorderStyle.FixedSingle;
         // Alterar base: a área da lista é o equivalente lógico ao memo do app; usa o mesmo fundo
         if (_changeBaseListCard is not null) _changeBaseListCard.BackColor = memoBack;
         if (_resetBaseListCard is not null) _resetBaseListCard.BackColor = memoBack;
@@ -3166,18 +3877,19 @@ internal sealed class MainForm : Form
         }
         HighlightSql(_arqEmpEditor);
         HighlightSql(_arqSistEditor);
+        HighlightSql(_sqlShortcutEditor);
         foreach (var control in EnumerateControls(this))
         {
             try
             {
-                if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _changeBaseListCard || control == _resetBaseListCard)
+                if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _vpnConnectScript || control == _sqlShortcutEditor || control == _changeBaseListCard || control == _resetBaseListCard)
                     continue; // memos/lista de Alterar base já tematizados acima
             if (control is Panel panel)
             {
                 if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel == _progressFill || panel == _updateSicProgressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
                 else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow || panel == _themeToggleRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
-                else if (panel == _settingsFieldsHost) panel.BackColor = surface;
+                else if (panel == _generalSettingsHost || panel == _passwordsSettingsHost || panel == _vpnSettingsHost) panel.BackColor = surface;
                 else if (panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);
                 else panel.BackColor = panel.BorderStyle == BorderStyle.None ? background : surface;
@@ -3194,10 +3906,23 @@ internal sealed class MainForm : Form
                 gridView.DefaultCellStyle.SelectionForeColor = Color.White;
                 gridView.DefaultCellStyle.Font = UiTypography.Body(9f);
                 gridView.GridColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
-                gridView.ColumnHeadersDefaultCellStyle.BackColor = dark ? Color.FromArgb(34, 42, 55) : Color.FromArgb(231, 240, 255);
-                gridView.ColumnHeadersDefaultCellStyle.ForeColor = text;
-                gridView.ColumnHeadersDefaultCellStyle.Font = UiTypography.BodySemibold(9f);
+
+                // Cabeçalhos: aplicar também por coluna, porque a grade de "Configurar caminhos"
+                // define WrapMode/Alinhamento/Padding em HeaderCell.Style e isso pode mascarar o
+                // estilo padrão em tema claro.
+                var headerBack = dark ? Color.FromArgb(34, 42, 55) : Color.FromArgb(231, 240, 255);
+                var headerFore = dark ? Color.FromArgb(232, 237, 245) : Ink;
+                var headerFont = UiTypography.BodySemibold(9f);
                 gridView.EnableHeadersVisualStyles = false;
+                gridView.ColumnHeadersDefaultCellStyle.BackColor = headerBack;
+                gridView.ColumnHeadersDefaultCellStyle.ForeColor = headerFore;
+                gridView.ColumnHeadersDefaultCellStyle.Font = headerFont;
+                foreach (DataGridViewColumn column in gridView.Columns)
+                {
+                    column.HeaderCell.Style.BackColor = headerBack;
+                    column.HeaderCell.Style.ForeColor = headerFore;
+                    column.HeaderCell.Style.Font = headerFont;
+                }
                 gridView.RowTemplate.DefaultCellStyle.BackColor = gridBackground;
                 gridView.RowTemplate.DefaultCellStyle.ForeColor = text;
                 // As linhas existentes foram clonadas do RowTemplate com as cores do tema anterior;
@@ -3223,7 +3948,17 @@ internal sealed class MainForm : Form
 
             if (control is Label label)
             {
-                label.ForeColor = label == _appVersionLabel
+                if (label == _homeTicketError)
+                {
+                    label.ForeColor = _homeTicketErrorShown ? Color.FromArgb(196, 43, 28) : muted;
+                    label.BackColor = Color.Transparent;
+                }
+                else if (label == _homeTicketTitle)
+                {
+                    label.ForeColor = text;
+                    label.BackColor = Color.Transparent;
+                }
+                else label.ForeColor = label == _appVersionLabel
                     ? dark ? Color.FromArgb(190, 208, 230) : Color.FromArgb(25, 94, 205)
                     : label.Text == "TRAZ BASE" || label == _versionLabel || label == _changeBaseVersionLabel
                     ? Color.FromArgb(31, 111, 235)
@@ -3241,14 +3976,25 @@ internal sealed class MainForm : Form
                     listView.ForeColor = text;
                 }
             }
-            else if (control is TextBox textBox) { textBox.BackColor = input; textBox.ForeColor = text; }
+            else if (control is TextBox textBox)
+            {
+                textBox.BackColor = input;
+                textBox.ForeColor = text;
+                if (control == _arqEmpDatabase || control == _arqSistDatabase)
+                    textBox.BorderStyle = BorderStyle.FixedSingle; // 1 px também no campo de base dos comandos
+            }
             else if (control is NumericUpDown numeric) { numeric.BackColor = input; numeric.ForeColor = text; }
-            else if (control is ComboBox combo) { combo.BackColor = input; combo.ForeColor = text; }
+            else if (control is ComboBox combo)
+            {
+                combo.BackColor = input;
+                combo.ForeColor = text;
+                combo.FlatStyle = FlatStyle.Flat; // desenha borda plana de 1 px no tema claro
+            }
             else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
             else if (control is Button button)
             {
-                var isNavigation = button == _menuToggle || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav || button == _folderShortcutsNav;
-                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton || button == _folderShortcutRemove;
+                var isNavigation = button == _menuToggle || button == _homeNav || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav || button == _folderShortcutsNav || button == _copySqlNav;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton || button == _folderShortcutRemove || button == _sqlShortcutCopy || button == _sqlShortcutDelete || button == _tutorialButton;
                 button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
                 if (isNavigation)
                 {
@@ -3272,6 +4018,7 @@ internal sealed class MainForm : Form
         ApplyNavigationColors();
         HighlightSql(_arqEmpEditor);
         HighlightSql(_arqSistEditor);
+        HighlightSql(_sqlShortcutEditor);
     }
 
     private void RefreshNativeScrollingThemes()
@@ -3284,8 +4031,9 @@ internal sealed class MainForm : Form
     {
         var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
         var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
-        foreach (var button in new[] { _menuToggle, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) button.BackColor = inactive;
-        if (_transferView.Visible) _transferNav.BackColor = active;
+        foreach (var button in new[] { _menuToggle, _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) button.BackColor = inactive;
+        if (_homeView.Visible) _homeNav.BackColor = active;
+        else if (_transferView.Visible) _transferNav.BackColor = active;
         else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
         else if (_resetView.Visible) _resetNav.BackColor = active;
         else if (_restoreView.Visible) _restoreNav.BackColor = active;
@@ -3295,6 +4043,7 @@ internal sealed class MainForm : Form
         else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
         else if (_arqSistView.Visible) _arqSistNav.BackColor = active;
         else if (_folderShortcutsView.Visible) _folderShortcutsNav.BackColor = active;
+        else if (_copySqlView.Visible) _copySqlNav.BackColor = active;
     }
 
     private static IEnumerable<Control> EnumerateControls(Control root)
@@ -3358,6 +4107,13 @@ internal sealed class MainForm : Form
         _settings.BasesRoot = _fields[nameof(AppSettings.BasesRoot)].Text.Trim();
         _settings.SupportRoot = _fields[nameof(AppSettings.SupportRoot)].Text.Trim();
         _settings.TempPath = _fields[nameof(AppSettings.TempPath)].Text.Trim();
+        _settings.UseVpn = _useVpn.Checked;
+        _settings.VpnConnectionName = _vpnConnectionName.Text.Trim();
+        _settings.VpnUseManualCredentials = _vpnUseManualCredentials.Checked;
+        _settings.VpnUsername = _vpnUsername.Text.Trim();
+        _settings.VpnReconnectAttempts = Math.Clamp((int)_vpnReconnectAttempts.Value, 1, 10);
+        _settings.VpnConnectScriptEnabled = _vpnRunConnectScript.Checked;
+        _settings.VpnConnectScript = _vpnConnectScript.Text;
         _settings.RenameSlFolderToClientName = _renameSl.Checked;
         _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
         SyncUpdateSicEntriesFromGrid();
@@ -3371,6 +4127,8 @@ internal sealed class MainForm : Form
         _settings.SetFirebirdPassword(_savePassword.Checked ? _password.Text : null);
         _settings.SetSicPassword(_saveSicPassword.Checked ? _sicPassword.Text : null);
         _settings.SetSicDynamicPassword(_saveSicDynamicPassword.Checked ? _sicDynamicPassword.Text : null);
+        // Senha da VPN só é mantida quando o operador optou por informar as credenciais no app.
+        _settings.SetVpnPassword(_saveVpnPassword.Checked && _vpnUseManualCredentials.Checked ? _vpnPassword.Text : null);
         _settings.Save();
     }
 
@@ -3393,6 +4151,7 @@ internal sealed class MainForm : Form
         try { _settings.Save(); }
         catch (Exception ex)
         {
+            AppLogger.Error("Salvar comandos SQL", ex.Message, ex);
             MessageBox.Show(this, $"Não foi possível salvar os comandos SQL: {ex.Message}", "Erro ao salvar comandos", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
@@ -3448,7 +4207,7 @@ internal sealed class MainForm : Form
         }
 
         try { PersistSettings(); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
 
     private void SaveSicPasswordPreference()
@@ -3462,7 +4221,7 @@ internal sealed class MainForm : Form
         }
 
         try { PersistSettings(); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
     }
 
     private void SaveSicDynamicPasswordPreference()
@@ -3476,21 +4235,201 @@ internal sealed class MainForm : Form
         }
 
         try { PersistSettings(); }
-        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void SaveVpnPasswordPreference()
+    {
+        if (_saveVpnPassword.Checked && _vpnUseManualCredentials.Checked && string.IsNullOrWhiteSpace(_vpnPassword.Text))
+        {
+            MessageBox.Show(this, "Digite a senha da VPN antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _saveVpnPassword.Checked = false;
+            _vpnPassword.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void UpdateVpnCredentialsEnabled()
+    {
+        var manual = _vpnUseManualCredentials.Checked;
+        foreach (var control in new Control[] { _vpnUsername, _vpnPassword, _vpnPasswordVisibilityToggle, _saveVpnPassword })
+            control.Enabled = manual;
+    }
+
+    // O editor do script fica desabilitado quando a opção está desmarcada (o roteiro nunca será executado).
+    private void UpdateVpnConnectScriptEnabled()
+    {
+        _vpnConnectScript.Enabled = _vpnRunConnectScript.Checked;
+    }
+
+    private async Task LoadVpnConnectionListAsync()
+    {
+        try
+        {
+            var connections = await Task.Run(VpnConnection.ListConnections);
+            var selected = _vpnConnectionName.Text.Trim();
+            _vpnConnectionName.BeginUpdate();
+            _vpnConnectionName.Items.Clear();
+            foreach (var connection in connections) _vpnConnectionName.Items.Add(connection);
+            _vpnConnectionName.EndUpdate();
+            _vpnConnectionName.Text = selected;
+        }
+        catch
+        {
+            // Enumeração indisponível: o operador digita o nome manualmente.
+        }
+    }
+
+    private enum VpnConnectOutcome { ConnectedByApp, AlreadyConnected, Failed }
+
+    private async Task<VpnConnectOutcome> ConnectVpnForTransferAsync(CancellationToken token)
+    {
+        var name = _settings.VpnConnectionName.Trim();
+        if (name.Length == 0)
+        {
+            FlowNotify("VPN não configurada", "Marque a opção 'Usar VPN para transferir bases' e informe o nome da conexão na tela Configuração, aba VPN.", error: true);
+            return VpnConnectOutcome.Failed;
+        }
+        if (_settings.VpnUseManualCredentials && string.IsNullOrWhiteSpace(_settings.VpnUsername))
+        {
+            FlowNotify("Credenciais incompletas", "Informe o usuário da VPN ou desmarque a opção 'Informar usuário e senha manualmente' na Configuração.", error: true);
+            return VpnConnectOutcome.Failed;
+        }
+
+        if (VpnConnection.IsConnected(name))
+        {
+            Log($"A VPN '{name}' já está conectada; ela será mantida após a transferência.");
+            return VpnConnectOutcome.AlreadyConnected;
+        }
+
+        Log($"Conectando à VPN '{name}'…");
+        var userName = _settings.VpnUseManualCredentials ? _settings.VpnUsername.Trim() : null;
+        var password = _settings.VpnUseManualCredentials ? _settings.GetVpnPassword() : null;
+        var result = await VpnConnection.ConnectAsync(name, _settings.VpnUseManualCredentials, userName, password, token);
+        if (!result.Success)
+        {
+            Log($"Não foi possível conectar à VPN '{name}': {result.Message}");
+            FlowNotify("Não foi possível conectar à VPN",
+                $"Verifique se a conexão '{name}' existe e se as credenciais estão corretas.\n\nDetalhe: {result.Message}", error: true);
+            return VpnConnectOutcome.Failed;
+        }
+
+        Log($"A VPN '{name}' foi conectada pelo aplicativo.");
+
+        // Executa o script somente quando o próprio aplicativo conectou a VPN — não quando ela já estava conectada.
+        if (_settings.VpnConnectScriptEnabled && !string.IsNullOrWhiteSpace(_settings.VpnConnectScript))
+        {
+            var scriptResult = await RunVpnConnectScriptAsync(token);
+            if (!scriptResult.Success)
+            {
+                Log($"Script de conexão da VPN falhou: {scriptResult.Message}");
+                try { await VpnConnection.DisconnectAsync(name); Log($"A VPN '{name}' foi desconectada porque o script de conexão falhou."); } catch { }
+                FlowNotify("Script de conexão da VPN falhou", scriptResult.Message, error: true);
+                return VpnConnectOutcome.Failed;
+            }
+            Log("Script de conexão da VPN concluído com sucesso.");
+        }
+
+        return VpnConnectOutcome.ConnectedByApp;
+    }
+
+    /// <summary>
+    /// Executa o script (.bat/.cmd) informado ao conectar a VPN pelo aplicativo.
+    /// O script é gravado num arquivo temporário e executado via cmd.exe; a saída e o código de encerramento
+    /// são registrados no log. Em erro, retorna o detalhe da falha (a transferência é abortada).
+    /// </summary>
+    private async Task<(bool Success, string Message)> RunVpnConnectScriptAsync(CancellationToken token)
+    {
+        var script = _settings.VpnConnectScript ?? "";
+        var tempFile = Path.Combine(Path.GetTempPath(), "TrazBase-vpn-" + Guid.NewGuid().ToString("N") + ".cmd");
+        try
+        {
+            // "@echo off" evita eco dos comandos no console; "chcp 65001" interpreta acentos. Sem BOM: cmd.exe não entende a marca de ordem de bytes.
+            var content = "@echo off\r\n@chcp 65001 >nul\r\n" + script.Replace("\r\n", "\n").Replace("\n", "\r\n");
+            await File.WriteAllTextAsync(tempFile, content, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false), token);
+
+            var start = new ProcessStartInfo
+            {
+                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "cmd.exe"),
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            start.ArgumentList.Add("/c");
+            start.ArgumentList.Add(tempFile);
+
+            using var process = new Process { StartInfo = start };
+            process.Start();
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(token);
+            linked.CancelAfter(TimeSpan.FromMinutes(3));
+            try
+            {
+                await process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                    throw;
+                }
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                return (false, "Tempo esgotado (3 minutos) esperando o script de conexão concluir.");
+            }
+
+            var output = (await outputTask).Trim();
+            var error = (await errorTask).Trim();
+            if (!string.IsNullOrEmpty(output)) Log("Script: " + output);
+
+            if (process.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(error) ? output : error;
+                if (string.IsNullOrWhiteSpace(detail)) detail = $"o script encerrou com o código {process.ExitCode}.";
+                return (false, detail);
+            }
+
+            return (true, output);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+        finally
+        {
+            try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+        }
     }
 
     private async Task StartFlowAsync()
     {
         if (_running) return;
+        try
+        {
         ReadFields();
         var sl = _sl.Text.Trim();
         if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c))) { FlowNotify("Número inválido", "Digite o número da solicitação usando apenas números.\n\nExemplo: 123456", error: true); return; }
         if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot)) { FlowNotify("Configuração necessária", "Antes de começar, defina estas pastas na tela Configuração:\n• Pasta local das bases\n• Pasta de bases de apoio", error: true); return; }
-        if (!Directory.Exists(_settings.SolicitationRoot)) { FlowNotify("Origem indisponível", "Não foi possível acessar a pasta de origem das solicitações.\n\nVerifique se o compartilhamento de rede está disponível e tente novamente.", error: true); return; }
         if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot)) { FlowNotify("Pastas indisponíveis", $"As pastas configuradas precisam existir e estar acessíveis:\n• Pasta local das bases: {_settings.BasesRoot}\n• Pasta de bases de apoio: {_settings.SupportRoot}\n\nConfira os caminhos na tela Configuração.", error: true); return; }
         if (string.IsNullOrWhiteSpace(_password.Text)) { FlowNotify("Senha necessária", "Para conectar ao Firebird, informe a senha na tela Configuração.", error: true); return; }
         try { PersistSettings(); }
         catch (Exception ex) { FlowNotify("Configuração não salva", $"Não foi possível salvar as configurações.\n\nDetalhe: {ex.Message}", error: true); return; }
+
+        // VPN: conectar antes de acessar a pasta de rede da origem.
+        _vpnConnectedByApp = false;
+        if (_settings.UseVpn)
+        {
+            var outcome = await ConnectVpnForTransferAsync(CancellationToken.None);
+            if (outcome == VpnConnectOutcome.Failed) return;
+            _vpnConnectedByApp = outcome == VpnConnectOutcome.ConnectedByApp;
+        }
+        if (!await DirectoryExistsWithVpnRetryAsync(_settings.SolicitationRoot, "Origem indisponível")) { FlowNotify("Origem indisponível", "Não foi possível acessar a pasta de origem das solicitações.\n\nVerifique se o compartilhamento de rede está disponível e tente novamente.", error: true); return; }
 
         var source = Path.GetFullPath(Path.Combine(_settings.SolicitationRoot, sl));
         string destination;
@@ -3509,7 +4448,7 @@ internal sealed class MainForm : Form
             }
         }
         catch { /* best-effort; a verificação pontual acima é suficiente */ }
-        if (!Directory.Exists(source)) { FlowNotify("SL não encontrada", $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", error: true); return; }
+        if (!await DirectoryExistsWithVpnRetryAsync(source, "SL não encontrada")) { FlowNotify("SL não encontrada", $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", error: true); return; }
         var destinationConflictChoice = ExistingDestinationAction.Cancel;
         if (Directory.Exists(destination))
         {
@@ -3549,7 +4488,7 @@ internal sealed class MainForm : Form
             Directory.CreateDirectory(destination);
             SetStatus("Copiando os arquivos da solicitação…");
             Log("Copiando os arquivos — isso pode levar alguns minutos.");
-            await CopyDirectoryAsync(source, destination, _runCancellation.Token);
+            await CopyWithVpnRetryAsync(source, destination, _runCancellation.Token);
             Log("Cópia concluída.");
             SetStatus("Preparando a base…");
 
@@ -3628,6 +4567,24 @@ internal sealed class MainForm : Form
         catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
         catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Transferir para saber em que etapa aconteceu.", error: true); }
         finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; _trayShortStatus = null; SetBusy(false); RefreshTrayTooltip(); }
+        }
+        finally
+        {
+            if (_vpnConnectedByApp)
+            {
+                _vpnConnectedByApp = false;
+                var vpnName = _settings.VpnConnectionName.Trim();
+                try
+                {
+                    await VpnConnection.DisconnectAsync(vpnName);
+                    Log($"A VPN '{vpnName}' foi desconectada.");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Não foi possível desconectar a VPN '{vpnName}': {ex.Message}");
+                }
+            }
+        }
     }
 
     private async Task ExtractArchivesAsync(string root, CancellationToken token)
@@ -3839,6 +4796,111 @@ internal sealed class MainForm : Form
         return list.CheckedItems.Cast<string>().ToArray();
     }
 
+    private static bool IsNetworkError(Exception ex)
+    {
+        for (Exception? current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is OperationCanceledException) return false;
+            if (current is IOException or UnauthorizedAccessException or DirectoryNotFoundException
+                or FileNotFoundException or System.Net.Sockets.SocketException)
+                return true;
+            if (current is Win32Exception win32)
+            {
+                // 53 = caminho de rede inacessível; 64 = nome de rede excluído; 67 = nome de rede inválido;
+                // 1219 = sessão duplicada; 1231/1232/1234 = rede indisponível; 12002/12029/1222 = timeouts/host inacessível.
+                var code = win32.NativeErrorCode;
+                if (code is 53 or 64 or 67 or 1219 or 1231 or 1232 or 1234 or 12002 or 12029 or 1222) return true;
+            }
+            var message = current.Message;
+            if (message.Contains("network", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("rede", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("remote procedure call", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Verifica a existência de um diretório que pode estar na rede (origem das solicitações) com
+    /// reconexão automática da VPN quando ela cai. Evita falso positivo de "pasta não encontrada"
+    /// por causa de uma instabilidade momentânea.
+    /// </summary>
+    private async Task<bool> DirectoryExistsWithVpnRetryAsync(string path, string context)
+    {
+        var maxChecks = Math.Clamp(_settings.VpnReconnectAttempts, 1, 10) + 1;
+        var vpnName = _settings.VpnConnectionName.Trim();
+        for (var check = 1; ; check++)
+        {
+            bool exists;
+            try { exists = Directory.Exists(path); }
+            catch (Exception ex)
+            {
+                exists = false;
+                if (_settings.UseVpn) Log($"{context}: erro ao acessar a rede ({ex.Message}).");
+            }
+
+            if (exists) return true;
+            if (!_settings.UseVpn || check >= maxChecks) return false;
+
+            // Se a VPN está conectada e a pasta continua não encontrada, é um caminho errado — não adianta reconectar.
+            if (VpnConnection.IsConnected(vpnName))
+            {
+                if (check == 1) Log($"{context}: a VPN está conectada, mas a pasta não foi encontrada — verifique o caminho.");
+                return false;
+            }
+
+            Log($"{context}: a VPN pode ter caído. Reconectando à VPN — verificação {check} de {maxChecks}.");
+            if (!await ConnectVpnForReconnectAsync(vpnName, CancellationToken.None)) return false;
+        }
+    }
+
+    /// <summary>
+    /// Copia com reconexão automática quando a VPN cai durante a transferência: reconecta e
+    /// refaz a cópia inteira, substituindo o que já tinha sido baixado (conforme a opção configurada).
+    /// </summary>
+    private async Task CopyWithVpnRetryAsync(string source, string destination, CancellationToken token)
+    {
+        var maxReconnects = Math.Clamp(_settings.VpnReconnectAttempts, 1, 10);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await CopyDirectoryAsync(source, destination, token);
+                return;
+            }
+            catch (Exception ex) when (attempt <= maxReconnects && _settings.UseVpn && !token.IsCancellationRequested && IsNetworkError(ex))
+            {
+                if (token.IsCancellationRequested) token.ThrowIfCancellationRequested();
+                SetStatus($"Conexão perdida. Reconectando à VPN… (tentativa {attempt} de {maxReconnects})");
+                Log($"A cópia dos arquivos falhou por causa da conexão ({ex.Message}).");
+                var vpnName = _settings.VpnConnectionName.Trim();
+                try { await VpnConnection.DisconnectAsync(vpnName); } catch { }
+                if (!await ConnectVpnForReconnectAsync(vpnName, token))
+                {
+                    var details = $"A VPN '{vpnName}' caiu durante a cópia e não foi possível reconectar — tente novamente.";
+                    Log(details);
+                    throw new IOException(details, ex);
+                }
+
+                Log($"Conexão restabelecida. Copiando tudo de novo, substituindo o que já tinha sido baixado (tentativa {attempt + 1}).");
+                try { if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true); }
+                catch (Exception cleanupEx) { Log($"Não foi possível limpar a pasta de destino antes da nova cópia: {cleanupEx.Message}"); }
+                Directory.CreateDirectory(destination);
+            }
+        }
+    }
+
+    private async Task<bool> ConnectVpnForReconnectAsync(string vpnName, CancellationToken token)
+    {
+        if (VpnConnection.IsConnected(vpnName)) return true;
+        var userName = _settings.VpnUseManualCredentials ? _settings.VpnUsername.Trim() : null;
+        var password = _settings.VpnUseManualCredentials ? _settings.GetVpnPassword() : null;
+        var result = await VpnConnection.ConnectAsync(vpnName, _settings.VpnUseManualCredentials, userName, password, token);
+        if (!result.Success) Log($"Não foi possível reconectar à VPN '{vpnName}': {result.Message}");
+        return result.Success;
+    }
+
     private async Task CopyDirectoryAsync(string source, string destination, CancellationToken token)
     {
         var files = Directory.GetFiles(source, "*", SearchOption.AllDirectories);
@@ -3882,7 +4944,7 @@ internal sealed class MainForm : Form
         SetTransferProgress(100, totalBytes, totalBytes, files.Length, files.Length);
     }
 
-    private static async Task CopyFileAsync(string source, string destination, CancellationToken token, Action<int>? copied = null, FileMode mode = FileMode.CreateNew)
+    private static async Task CopyFileAsync(string source, string destination, CancellationToken token, Action<int>? copied = null, FileMode mode = FileMode.Create)
     {
         const int bufferSize = 1024 * 1024;
         var buffer = new byte[bufferSize];
@@ -4232,6 +5294,15 @@ internal sealed class MainForm : Form
         menu.Items.Add(new ToolStripSeparator());
         var updateItem = new ToolStripMenuItem("Atualizar executáveis", SvgIconLoader.Load("Atualizar.svg", 16), async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
         menu.Items.Add(updateItem);
+
+        // Submenu com os SQLs salvos na tela "Copiar SQL" (separador acima, abaixo de "Atualizar executáveis").
+        menu.Items.Add(new ToolStripSeparator());
+        var copySqlItem = new SubmenuMenuItem("Copiar SQL") { ForeColor = TrayMenuTheme.Text, Image = GetTraySqlIcon(), ImageScaling = ToolStripItemImageScaling.None };
+        copySqlItem.DropDown = CreateTraySubMenu();
+        copySqlItem.DropDownOpening += (_, _) => PopulateCopySqlMenu(copySqlItem);
+        PopulateCopySqlMenu(copySqlItem); // carrega já de cara para a seta de submenu aparecer
+        menu.Items.Add(copySqlItem);
+
         var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C, ImageScaling = ToolStripItemImageScaling.None };
         menu.Items.Add(copySicPasswordItem);
         var copySicDynamicPasswordItem = new ToolStripMenuItem("Copiar senha padrão Empresa", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicDynamicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.X, ImageScaling = ToolStripItemImageScaling.None };
@@ -4259,6 +5330,13 @@ internal sealed class MainForm : Form
 
     private void FlowNotify(string caption, string message, bool error = false)
     {
+        if (error)
+        {
+            var path = AppLogger.FilePath;
+            AppLogger.Error(caption, message);
+            message += $"\n\nDetalhes do erro foram registrados em:\n{path}";
+        }
+
         if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
         {
             ShowBackgroundNotification(caption, message);
@@ -4360,21 +5438,54 @@ internal sealed class MainForm : Form
 
     private void TrayOpenTicket()
     {
-        var typed = _trayTicketBox?.Text.Trim() ?? "";
-        if (typed.Length == 0 || typed.Length > 12 || typed.Any(character => character is < '0' or > '9'))
+        var error = OpenTicketSearch(_trayTicketBox?.Text ?? "");
+        if (error is not null)
         {
-            ShowBackgroundNotification("Buscar chamado", "Informe um número de chamado com até 12 dígitos.");
+            ShowBackgroundNotification("Buscar chamado", error);
             return;
         }
+        _trayTicketBox?.Clear();
+    }
+
+    /// <summary>Busca da tela Início: usa a mesma validação e URL da bandeja, mas mostra o erro no próprio card.</summary>
+    private void OpenTicketFromHome()
+    {
+        var error = OpenTicketSearch(_homeTicketBox.Text);
+        if (error is not null)
+        {
+            _homeTicketError.Text = error.Split('\n')[0];
+            _homeTicketError.ForeColor = Color.FromArgb(196, 43, 28);
+            _homeTicketErrorShown = true;
+            _homeTicketBox.Focus();
+            return;
+        }
+        ResetHomeTicketHint();
+        _homeTicketBox.Clear();
+        _homeTicketBox.Focus();
+    }
+
+    private void ResetHomeTicketHint()
+    {
+        _homeTicketErrorShown = false;
+        _homeTicketError.Text = HomeTicketHintText;
+        _homeTicketError.ForeColor = _settings.DarkMode ? Color.FromArgb(166, 180, 199) : Muted;
+    }
+
+    /// <summary>Abre a busca do chamado no navegador. Retorna null em caso de sucesso ou a mensagem de erro.</summary>
+    private static string? OpenTicketSearch(string typed)
+    {
+        var ticket = typed.Trim();
+        if (ticket.Length == 0 || ticket.Length > 12 || ticket.Any(character => character is < '0' or > '9'))
+            return "Informe um número de chamado com até 12 dígitos.";
         try
         {
-            var uri = $"https://suporte.suprasys.com.br/intranet/admin/find_tickets.php?q={typed}&what=seqid";
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = uri, UseShellExecute = true });
-            _trayTicketBox?.Clear();
+            var uri = $"https://suporte.suprasys.com.br/intranet/admin/find_tickets.php?q={ticket}&what=seqid";
+            Process.Start(new ProcessStartInfo { FileName = uri, UseShellExecute = true });
+            return null;
         }
         catch (Exception ex)
         {
-            ShowBackgroundNotification("Buscar chamado", $"Não foi possível abrir o navegador:\n{ex.Message}");
+            return $"Não foi possível abrir o navegador:\n{ex.Message}";
         }
     }
 
@@ -4462,6 +5573,7 @@ internal sealed class MainForm : Form
     private static readonly Dictionary<string, Image?> _extensionIconCache = new(StringComparer.OrdinalIgnoreCase);
     private static Image? _trayFolderIcon;
     private static Image? _trayManageIcon;
+    private static Image? _traySqlIcon;
     private static Image? _filePlaceholderIcon;
 
     // Cache de ícones em disco: evita re-extrair o ícone de arquivos que nunca mudam (ex.: milhares de
@@ -4591,6 +5703,34 @@ internal sealed class MainForm : Form
 
     private static Image GetTrayFolderIcon() => _trayFolderIcon ??= SvgIconLoader.Load("Pasta.svg", 16);
     private static Image GetTrayManageIcon() => _trayManageIcon ??= SvgIconLoader.Load("Atalho.svg", 16);
+    private static Image GetTraySqlIcon() => _traySqlIcon ??= SvgIconLoader.Load("Copiar-SQL.svg", 16);
+
+    /// <summary>Submenu da bandeja com os SQLs salvos; cada item copia o comando para a área de transferência.</summary>
+    private void PopulateCopySqlMenu(ToolStripMenuItem parentItem)
+    {
+        var items = parentItem.DropDown.Items;
+        DisposeAllToolStripItems(items);
+        var shortcuts = _settings.SqlShortcuts;
+        if (shortcuts.Count == 0)
+        {
+            items.Add(new ToolStripMenuItem("Nenhum SQL cadastrado") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+        }
+        else
+        {
+            foreach (var sql in shortcuts)
+            {
+                var item = new ToolStripMenuItem((sql.Title ?? "").Replace("&", "&&"), GetTraySqlIcon(), (_, _) => CopySqlToClipboard(sql, fromTray: true))
+                {
+                    ForeColor = TrayMenuTheme.Text,
+                    ImageScaling = ToolStripItemImageScaling.None,
+                    ToolTipText = SqlPreview(sql.Content)
+                };
+                items.Add(item);
+            }
+            items.Add(new ToolStripSeparator());
+        }
+        items.Add(new ToolStripMenuItem("Gerenciar SQLs...", GetTraySqlIcon(), (_, _) => { RestoreFromMinimized(); ShowCopySqlView(); }) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None });
+    }
 
     private void PopulateFolderShortcutsMenu(ToolStripMenuItem parentItem)
     {
@@ -4771,8 +5911,29 @@ internal sealed class MainForm : Form
     private string GetConfiguredTempPath()
     {
         var custom = _settings.TempPath?.Trim();
-        if (!string.IsNullOrWhiteSpace(custom)) return custom;
-        return TryGetSicTempPath() ?? Path.GetTempPath();
+        var path = !string.IsNullOrWhiteSpace(custom)
+            ? custom
+            : TryGetSicTempPath() ?? Path.GetTempPath();
+
+        // Normaliza: caminho com apenas uma barra final, igual a BASE e EMPRESA no Registro.
+        try
+        {
+            // Caminho absoluto: normaliza (resolve "../", colapsa barras duplicadas, etc.).
+            if (Path.IsPathRooted(path))
+            {
+                var full = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                return full + Path.DirectorySeparatorChar;
+            }
+
+            // Caminho relativo/estranho: não tenta adivinhar a raiz; só garante a barra final.
+            var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return trimmed + Path.DirectorySeparatorChar;
+        }
+        catch
+        {
+            var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return trimmed + Path.DirectorySeparatorChar;
+        }
     }
 
     private static string? TryGetSicTempPath()
@@ -5057,6 +6218,7 @@ internal sealed class MainForm : Form
         _start.Enabled = !busy;
         _sl.Enabled = !busy;
         _menuToggle.Enabled = true;
+        _homeNav.Enabled = !busy;
         _transferNav.Enabled = true;
         _changeBaseNav.Enabled = !busy;
         _resetNav.Enabled = !busy;
@@ -5093,3 +6255,6 @@ internal sealed class MainForm : Form
         _log.ScrollToCaret();
     }
 }
+
+
+

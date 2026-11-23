@@ -6,28 +6,41 @@ Este documento descreve os fluxos **como estão implementados** na versão 0.3.0
 
 **Instância única** — abrir o `TrazBase.exe` com a aplicação já em execução **não abre outra janela**: o segundo processo detecta a instância em execução (mutex `Local\TrazBase.SingleInstance`), sinaliza-a (evento `Local\TrazBase.ShowWindow`) e encerra na hora. A instância em execução então **restaura a janela** (se estava oculta/minimizada na bandeja) e a traz para frente. O escopo é a sessão do usuário — cada sessão do Windows mantém a sua instância.
 
-Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualização de executáveis** → botão "Atualizar executáveis"; **Configurar caminhos executáveis** → grade de executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
-1. **Transferir** — copiar/extrair e preparar base por solicitação.
-2. **Alterar base** — apontar o Registro para uma base local já existente.
-3. **Redefinir base** — validar/preparar uma base local existente para a SL.
-4. **Restaurar base** — restaurar os `.FBK` da pasta selecionada (standalone).
-5. **Atualização de executáveis** — rodar a atualização dos executáveis configurados (ação equivalente ao `Atualiza_Tudo.cmd`).
-6. **Configurar caminhos executáveis** — editar a tabela de executáveis (origem, versão, destino, nome e renomear por linha).
-7. **Configuração** — pastas, senha Firebird e tema.
-8. **Comandos ARQEMP** — editor SQL executável na base `ARQEMP.FDB`.
-9. **Comandos ARQSIST** — editor SQL executável na base `ARQSIST.FDB`.
+Janela mínima 1020 × 760, inicial 1180 × 900, DPI `PerMonitorV2`. Layout em duas colunas: menu lateral (recolhido por padrão, 68 px; expandido com o botão sanduíche, 300 px) e área de conteúdo. Ao alternar para uma tela (e ao abrir o sistema), o foco vai automaticamente para o primeiro campo editável dela: **Início** → campo do número do chamado; **Transferir** → campo SL; **Alterar base** → lista de bases, com a base indicada pelo Registro (`HKCU\SIC\CONEXAO\BASE1`) já pré-selecionada quando encontrada; **Redefinir base** → lista de bases (com a base indicada pelo Registro pré-selecionada e a SL preenchida pela seleção); **Restaurar base** → campo da pasta selecionada; **Atualização de executáveis** → botão "Atualizar executáveis"; **Configurar caminhos executáveis** → grade de executáveis; **Comandos ARQEMP/ARQSIST** → editor de comandos SQL; **Configuração** → campo "Origem das solicitações". Em todas as telas, a tecla **Enter** move o foco para o próximo campo editável, terminando no botão/controle principal da tela. Itens do menu:
+1. **Início** — logo SupraSys em destaque e busca de chamado (tela aberta por padrão).
+2. **Transferir** — copiar/extrair e preparar base por solicitação.
+3. **Alterar base** — apontar o Registro para uma base local já existente.
+4. **Redefinir base** — validar/preparar uma base local existente para a SL.
+5. **Restaurar base** — restaurar os `.FBK` da pasta selecionada (standalone).
+6. **Atualização de executáveis** — rodar a atualização dos executáveis configurados (ação equivalente ao `Atualiza_Tudo.cmd`).
+7. **Configurar caminhos executáveis** — editar a tabela de executáveis (origem, versão, destino, nome e renomear por linha). Fica no menu lateral imediatamente abaixo de **Copiar SQL**, com o ícone `Configuração de atalhos.svg`; **Atalhos de pasta** voltou a usar `Atalho.svg`.
+8. **Configuração** — pastas, senha Firebird e tema.
+9. **Comandos ARQEMP** — editor SQL executável na base `ARQEMP.FDB`.
+10. **Comandos ARQSIST** — editor SQL executável na base `ARQSIST.FDB`.
+11. **Copiar SQL** — aba abaixo de "Atalhos de pasta": monte, salve e copie comandos SQL (mesmo editor com realce das telas ARQEMP/ARQSIST); os SQLs salvos também aparecem no submenu da bandeja.
 
-O rodapé do menu mostra a versão do aplicativo (clicar exibe a tela **Novidades** com as alterações da versão), o crédito "Criado por Bruno Passeti" e, quando há versão mais nova publicada no GitHub, um botão de atualização. A tela **Novidades** aparece automaticamente na primeira vez que a aplicação abre após cada release (quando o `DefaultScreen` é diferente de `Transferir`, a tela escolhida abre primeiro, seguida da tela de Novidades) — ou seja, uma vez por versão instalada; clicar na versão do rodapé a reabre manualmente.
+O rodapé do menu mostra a versão do aplicativo (clicar exibe a tela **Novidades** com as alterações da versão), o crédito "Criado por Bruno Passeti" e, quando há versão mais nova publicada no GitHub, um botão de atualização. A tela **Novidades** aparece automaticamente na primeira vez que a aplicação abre após cada release (quando o `DefaultScreen` é diferente de `Transferir` — padrão: `Inicio` —, a tela escolhida abre primeiro, seguida da tela de Novidades) — ou seja, uma vez por versão instalada; clicar na versão do rodapé a reabre manualmente.
 
 **Tela Novidades**: diálogo com o cabeçalho do app (arrastável, com o hover igual ao do Windows) e uma lista legível das mudanças da versão instalada. O botão **Entendi** (padrão) fecha — e registra que a versão foi exibida em `LastChangelogVersion` (configuração).
 
-## Fluxo 1 — Transferir (tela inicial)
+## Fluxo 0 — Início (Buscar chamado)
+
+Tela aberta por padrão ao iniciar (também acessível pelo primeiro botão do menu lateral, ícone `Inicio.svg`). A logo `Imagens/Logo.png` fica centralizada na parte superior em tamanho grande (600 × 400 px, proporção preservada); logo abaixo, um card centralizado com o campo **Nº do chamado** e o botão **Buscar**.
+
+1. Digite o número do chamado (somente dígitos, de 1 a 12) e clique em **Buscar** ou pressione **Enter** (o botão é o `AcceptButton` da tela).
+2. A aplicação abre no navegador padrão a URL `https://suporte.suprasys.com.br/intranet/admin/find_tickets.php?q=<número>&what=seqid` — a mesma busca do item "Buscar chamado" do menu em segundo plano (bandeja).
+3. Entrada vazia, com letras ou com mais de 12 dígitos: uma mensagem aparece **abaixo do campo**, no próprio card (sem diálogo nem toast), e some ao começar a digitar novamente. Falha ao abrir o navegador também aparece ali.
+4. Após sucesso, o campo é limpo e o foco volta para ele.
+
+A validação e a URL são compartilhadas com a bandeja; a diferença é apenas o destino da mensagem de erro (toast na bandeja, texto inline na tela).
+
+## Fluxo 1 — Transferir
 
 Pré-condições validadas ao clicar em **Trazer e preparar base** (ou Enter no campo SL):
 
 1. SL informada e contendo somente dígitos.
 2. Pastas local das bases (`BasesRoot`) e de apoio (`SupportRoot`) configuradas e existentes.
-3. Pasta de origem das solicitações (`SolicitationRoot`) acessível.
+3. Pasta de origem das solicitações (`SolicitationRoot`) acessível. Se a opção **Usar VPN para transferir bases** estiver ligada e a VPN não estiver conectada, o aplicativo conecta a conexão informada **antes** de verificar a origem — ao final da transferência ela é desconectada somente se o aplicativo a conectou (se já estava conectada, é mantida). Se a VPN cair durante a cópia, a transferência reconecta e refaz a cópia substituindo os arquivos já baixados (até o número de tentativas configurado). As verificações iniciais de acesso à origem e à pasta da SL também reconectam a VPN automaticamente se ela tiver caído — em vez de acusar "origem indisponível" / "SL não encontrada" sem tentar.
 4. Senha Firebird informada (não exige salvar).
 5. Configuração persistida antes de começar; falha ao salvar aborta o fluxo.
 
@@ -38,7 +51,7 @@ Execução:
 1. Origem = `SolicitationRoot\<SL>`; destino = `BasesRoot\<SL>` (resolvido por `BaseOperationRules.ResolveLocalBaseDirectory`, com proteção contra path traversal).
 2. Se a origem não existe → aviso e fim.
 3. **Conflito de destino**: se `BasesRoot\<SL>` já existe, diálogo próprio com três opções — **Cancelar**, **Criar backup** (renomeia para `<destino>.backup-yyyyMMdd-HHmmss`) ou **Substituir** (`Directory.Delete` recursivo). Sem escolha explícita, nada é apagado.
-4. Cria a pasta de destino e copia recursivamente com barra de progresso por bytes (`Transferindo: N% | MB copiados / total | arquivos copiados / total`), preservando timestamps e atributos.
+4. Cria a pasta de destino e copia recursivamente com barra de progresso por bytes (`Transferindo: N% | MB copiados / total | arquivos copiados / total`), preservando timestamps e atributos. Se a VPN cair durante a cópia, a transferência reconecta e refaz a cópia substituindo o que já tinha sido copiado.
 5. **Extração**: procura `*.rar` e `*.zip` na pasta destino (recursivo). Com mais de um arquivo, o operador seleciona quais extrair numa lista (padrão: todos marcados; **Pular extração** cancela o diálogo). Com um único arquivo, extrai direto. A estrutura de pastas recebidas (ex.: `ARQ01`, `ARQ05`) é mantida. ZIP usa `ZipArchive`; RAR usa `SharpCompress` (`ReaderFactory`) com relatório de progresso por entrada. Entradas com caminhos absolutos ou `..` são rejeitadas (`ArchivePathSafety`).
 6. **Escolha do caminho**: após a extração, o fluxo detecta pastas `ARQ##` (dois dígitos, na raiz da SL). Se existirem, aplica o **tratamento multi-base** (ver abaixo); caso contrário, todo `*.fdb` encontrado em subpastas é movido para a raiz do destino (se já existir um arquivo com o mesmo nome na raiz, o fluxo falha com mensagem explícita).
 6a. **Garantir bases obrigatórias (modo simples)**: `ARQSIST.FDB` ausente → abre `OpenFileDialog` para o operador escolher o arquivo (se cancelar, o fluxo é cancelado); o arquivo escolhido é **copiado** para a raiz. `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes são copiados da pasta de apoio para a raiz; se também faltarem lá, o fluxo falha.
@@ -65,7 +78,7 @@ Valores gravados em `HKCU\SIC\CONEXAO` (modo simples, pelas trocas/preparações
 | `BASE1`…`BASE<n>` | caminho completo da pasta da base, com `\` final — quantidade definida em **Quantidade de bases** nas Configurações (padrão 1) |
 | `EMPRESA` | idem (mesmo caminho) — ou a **pasta de apoio**, quando `UseSupportRootAsCompany` está ligado |
 | `SERVIDOR` | `LOCALHOST`                                   |
-| `TEMP`   | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
+| `TEMP`   | `TempPath` configurada (gravada com `\` final), ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` (gravada com `\` final) |
 
 ## Registro — modo multi-base
 
@@ -76,7 +89,7 @@ Quando a SL traz pastas `ARQ##` (detectado automaticamente, inclusive na troca d
 | `BASE<n>` | caminho completo da pasta `ARQ##`, com `\` final — uma chave por pasta (ex.: `ARQ01`→`BASE1`, `ARQ05`→`BASE5`) |
 | `EMPRESA` | caminho completo da pasta `ARQ00` (onde ficam `ARQEMP.FDB` e `ARQOCOR.FDB`), com `\` final — ou a **pasta de apoio**, quando `UseSupportRootAsCompany` está ligado |
 | `SERVIDOR` | `LOCALHOST` |
-| `TEMP` | `TempPath` configurada, ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` |
+| `TEMP` | `TempPath` configurada (gravada com `\` final), ou `HKCU\SIC\CONEXAO\TEMP` se existir; senão `Path.GetTempPath()` (gravada com `\` final) |
 
 Além de gravar, as chaves `BASE1`…`BASE99` **sem pasta correspondente são removidas** (ex.: só `ARQ01` e `ARQ05` → `BASE2`, `BASE3`, `BASE4`, `BASE6`… são apagadas). `ARQ00` não gera chave `BASE` — alimenta apenas `EMPRESA`. SLs sem pastas `ARQ##` mantêm o comportamento anterior (`BASE1`…`BASE4` e `EMPRESA` = pasta da SL).
 
@@ -163,30 +176,41 @@ Nova tela (criada na barra lateral como **Atalhos de pasta**, acima de **Configu
 - Atalhos ficam em `FolderShortcuts` dentro do `settings.json` (persistidos a cada alteração, como as demais configurações).
 - O mesmo submenu também fica disponível na **bandeja** (ícone de segundo plano → menu de contexto → **Atalhos**). O submenu é gerado ao abrir, lê sempre do `settings.json`, e oferece: **Abrir esta pasta no Explorer** (sempre), **abrir arquivos** com o filtro da pasta ativo, **navegar subpastas**, e **Gerenciar atalhos...** para abrir este cadastro.
 
+## Fluxo 11 — Copiar SQL
+
+Tela (aba abaixo de **Atalhos de pasta**, ícone `Copiar-SQL.svg`) para montar, salvar e copiar comandos SQL — mesma ideia dos atalhos de comando do SupraAgil:
+
+- **SQLs salvos** (colunas Nome / Comando) com caixa **Filtrar comandos...** (busca por nome ou conteúdo, sem diferenciar maiúsculas/minúsculas; igual ao SupraAgil) e resumo da quantidade. Duplo clique copia o comando da linha.
+- **Nome do comando** + editor montado com o **mesmo componente das telas Comandos ARQEMP/ARQSIST** (`ThemedRichTextBox` de `CreateSqlEditor()` com realce por `HighlightSql()` em `BuildEditorCard("Comando SQL", ...)`). Aqui o SQL não é executado contra o banco — apenas montado, salvo e copiado.
+- Botões **Salvar** (cria ou atualiza o SQL, validando nome e conteúdo, e já limpa o formulário em seguida — pronta para o próximo cadastro), **Copiar** (copia o SQL selecionado) e **Excluir** (confirma antes de remover).
+- Salvos em `SqlShortcuts` no `settings.json` (`Id`, `Title`, `Content`), persistidos na hora com `PersistSettings()`.
+- Na **bandeja**, um separador abaixo de **Atualizar executáveis** precede o submenu **Copiar SQL** (ícone `Copiar-SQL.svg`): um item por comando salvo (clique copia o SQL e confirma por toast) e **Gerenciar SQLs...** ao final, que abre esta tela. O submenu é preenchido também no `DropDownOpening`, para a seta aparecer já na primeira abertura.
 
 ## Fluxo 7 — Configuração
 
-Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
+A tela é dividida em três abas: **Geral** (pastas e comportamento), **Senhas** (Firebird, SIC e Empresa) e **VPN** (conexão para a transferência). Campos persistidos em `%APPDATA%\TrazBase\settings.json`:
 
 - **Origem das solicitações** (`SolicitationRoot`)
 - **Pasta local das bases** (`BasesRoot`)
 - **Pasta de bases de apoio** (`SupportRoot`) — acompanhada de um ícone de ajuda (`Ajuda.svg`). Ao passar o mouse sobre ele, abre um popup próprio (até 500 px de largura, texto quebrado automaticamente) explicando que a pasta deve conter `ARQEMP.FDB` e `ARQOCOR.FDB` e que a aplicação copia automaticamente esses arquivos para a pasta local da base sempre que eles não vierem na solicitação. O popup acompanha o tema (claro/escuro) e se fecha ao mover o mouse para fora do ícone ou quando a janela perde o foco.
 - **Apontar a EMPRESA do Regedit para a pasta de bases de apoio** (`UseSupportRootAsCompany`, padrão `false`) — checkbox logo abaixo do campo de apoio. Ligado: toda troca/preparação de base grava `EMPRESA` = a pasta de apoio (com `\` final), no lugar do caminho padrão (a pasta da base, no modo simples; `ARQ00`, no multi-base). Se a pasta de apoio estiver vazia ou inacessível, a aplicação usa o caminho padrão e registra um aviso no log da operação.
-- **Pasta temporária** (`TempPath` — usada no Registro `TEMP`; vazio = `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows)
+- **Pasta temporária** (`TempPath` — usada no Registro `TEMP`; vazio = `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows) — sempre gravada com `\` final
 - **Senha Firebird** (campo protegido; caixa **Salvar senha** grava protegida por DPAPI; botão de olho ao lado mostra/oculta o conteúdo)
 - **Senha padrão do SIC** (campo protegido, logo abaixo da senha Firebird; caixa **Salvar senha** grava protegida por DPAPI; botão de olho ao lado mostra/oculta o conteúdo) — com uma senha salva, o menu da bandeja exibe "Copiar senha padrão SIC" e o atalho **Ctrl+Alt+C** copia a senha para a área de transferência em qualquer tela do aplicativo (também quando minimizado para a bandeja).
 - **Senha do sistema Empresa** (campo logo abaixo do "Senha padrão do SIC"; ícone de ajuda (`Ajuda.svg`) à esquerda do rótulo — ao passar o mouse sobre ele, abre popup próprio explicando que a senha digitada é a parte fixa e que o aplicativo concatena automaticamente o resultado do cálculo ao copiar (atalho Ctrl+Alt+X), com o exemplo "TESTE" + (Dia × Hora × 13); caixa **Salvar senha** grava protegida por DPAPI; botão de olho ao lado mostra/oculta o conteúdo) — senha digitada, por exemplo `TESTE`. O atalho global **Ctrl+Alt+X** copia para a área de transferência o resultado da conta: **senha + (hora × dia × 13)**, com a hora local (0–23) e o dia do mês (1–31) — minutos e segundos são ignorados. Exemplos: dia 17, 16h → `TESTE3536`; meia-noite de dia 1 → `TESTE0`. Mesmo comportamento do recurso "Senha padrão (base)" do SupraAgil.
+
+Aba **VPN**: opção **"Usar VPN para transferir bases"** — liga a conexão da VPN configurada no Windows antes de acessar a pasta de origem; **"Nome da conexão VPN"** (combo com as conexões existentes, atualizado pelo botão **Atualizar lista**, ou digitado livremente); **"Informar usuário e senha manualmente"** (desmarcado usa as credenciais salvas no perfil do Windows); **"Usuário"** e **"Senha"** (DPAPI, com "Salvar senha" e botão de olho); **"Máx. tentativas de reconexão"** (padrão 3); e **"Executar script ao conectar a VPN"** — checkbox que liga um script (.bat/.cmd) executado **somente quando o aplicativo conecta a VPN** (não se ela já estava conectada). O conteúdo do script é gravado no `settings.json` (`VpnConnectScript`) e executado via `cmd.exe /c`; a saída vai para o log e, se falhar, a transferência é abortada e a VPN é desconectada de volta.
 - **Alternância de tema** — pílula claro/escuro (`Claro.svg`/`Escuro.svg`) presa à barra lateral, visível e acessível a partir de qualquer tela; alterna e persiste `DarkMode` na hora (sol = tema claro, lua = tema escuro)
 - **Fechar a janela minimiza para a bandeja do Windows (segundo plano)** (`MinimizeToTrayOnClose`, padrão `false`) — ao fechar a janela, o Traz Base some para a bandeja em vez de encerrar; na primeira vez da sessão, um toast explica o menu da bandeja. **Sem** essa opção (padrão), fechar a janela (× / Alt+F4) pergunta antes de encerrar: **"Deseja realmente fechar a aplicação?"** (Sim/Não; botão padrão **Não**). "Fechar" no menu da bandeja encerra de verdade, sem perguntar.
 - **Iniciar o TrazBase em segundo plano (na bandeja)** (`StartInBackground`, padrão `false`) — ao abrir o aplicativo, a janela não é exibida e o TrazBase inicia escondido na bandeja do Windows; os atalhos **Ctrl+Alt+C** e **Ctrl+Alt+X**, o menu da bandeja e a verificação silenciosa de atualização seguem funcionando. A janela é restaurada com o duplo clique no ícone da bandeja ou pelo menu.
 - **Iniciar o TrazBase com o Windows** (`StartWithWindows`, padrão `false`) — registra o TrazBase para abrir no login do Windows (chave `TrazBase` em `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, com o caminho do executável). No arranque, a chave é recriada com o caminho atual caso o executável tenha mudado de pasta. Combinada com a opção anterior, o TrazBase abre já na bandeja.
 - **Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)** (`ForceMultiBase`) — mesmo quando a SL não traz pastas `ARQ##`: o fluxo cria `ARQ01\` e move a `ARQSIST.FDB` para lá, cria `ARQ00\` e move `ARQEMP.FDB`/`ARQOCOR.FDB` para lá (ou copia da pasta de apoio/aninhadas), e usa o Registro no formato multi-base (`BASE1`…`BASE99` apenas com correspondente + `EMPRESA` = `ARQ00`). Os arquivos `*.fdb` são procurados também em subpastas (fora das pastas `ARQ##`); mais de uma candidata interrompe com aviso.
 - **Quantidade de bases** (`BaseCount`, padrão 1) — define quantas chaves `BASE1`…`BASE<n>` são gravadas no Registro no modo simples (`ARQsist` fora do modelo multi-base). Limitado a 1…99.
-- **Tela inicial** (`DefaultScreen`, padrão "Transferir") — define qual tela o app exibe ao abrir. Opções (em ordem alfabética): Alterar base, Atalhos de pasta, Atualização de executáveis, Configurar caminhos, Redefinir base, Restaurar base, Transferir. (Valores antigos "Configuração", "Comandos ARQEMP" e "Comandos ARQSIST" caem na Transferir.)
+- **Tela inicial** (`DefaultScreen`, padrão "Início"/`Inicio`) — define qual tela o app exibe ao abrir. Opções (em ordem alfabética): Alterar base, Atalhos de pasta, Atualização de executáveis, Configurar caminhos, Copiar SQL, Início, Redefinir base, Restaurar base, Transferir. (Valores antigos "Configuração", "Comandos ARQEMP" e "Comandos ARQSIST" caem na Transferir.) Instalações existentes com "Transferir" são migradas uma vez para "Início" na primeira abertura desta versão; uma escolha explícita posterior não é sobrescrita.
 - **Renomear pasta da solicitação para o nome fantasia (ou o nome) do cliente** (`RenameSlFolderToClientName`) — no fluxo "Transferir", após os comandos SQL da base, a aplicação executa `SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'` na **ARQSIST** e renomeia a pasta de destino para a **primeira palavra do NFANTASIA** (ou, se o NFANTASIA estiver vazio/nulo, do NOME; se os dois estiverem vazios, a pasta mantém o número da SL) + **`_<SL>`** (ex.: `"Teste_123456"`). A validação de "pasta já existe" ao iniciar a SL considera a pasta exata `<SL>` ou qualquer pasta que termine em `_<SL>` — ideal para detectar bases renomeadas anteriormente.
 - **Notificações de segundo plano** — toda notificação exibida com a aplicação em segundo plano (janela oculta ou minimizada), ou iniciada pela bandeja — início/fim/erro de transferências e atualizações, senhas, atalhos, dicas de bandeja e avisos — é um **toast do Windows** (Central de Notificações), com a marca **Traz Base** (nome/ícone resolvidos pelo atalho do menu Iniciar com o AppUserModelID `BrunoPasseti.TrazBase`, criado pelo instalador). Clicar no toast restaura a janela. Se o toast falhar (ex.: atalho do menu Iniciar ausente ou ambiente restrito), a aplicação cai para o balão da bandeja. Falhas do mecanismo nunca interrompem operações (falha é silenciosa). **Se nenhuma notificação aparecer**, confira se o atalho do menu Iniciar tem o `AppUserModelID` `BrunoPasseti.TrazBase` — sem o AUMID no atalho, o Windows descarta o toast silenciosamente; reinstale com a versão que o grava, ou atualize o atalho.
 
-Alterações de tema, senha, multi-base forçado, EMPRESA-apoio e quantidade de bases são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
+Alterações de tema, senha, multi-base forçado, EMPRESA-apoio, quantidade de bases e opções de VPN são salvas imediatamente; os demais campos são salvos ao iniciar operações, ao fechar o app e na saída.
 
 ## Fluxo 8 — Bandeja do Windows (tray)
 
@@ -199,11 +223,13 @@ O ícone "Traz Base" na bandeja **só fica visível com a janela oculta ou minim
   4. **Buscar chamado** — linha com ícone (`Chamado.svg`) + texto estático "Buscar chamado" + um edit ao lado, para informar o **número do chamado** (até 12 dígitos). Enter abre a busca do chamado no navegador padrão (`https://suporte.suprasys.com.br/intranet/admin/find_tickets.php?q=<número>&what=seqid`, como no SupraAgil — a sessão de acesso do navegador ao suporte é usada; o login pode ser necessário). Número inválido/vazio: toast informando o que fazer.
   5. Divisória.
   6. **Atualizar executáveis** — atalho: inicia a atualização dos executáveis configurados sem restaurar a janela; a confirmação "Deseja atualizar os executáveis?" é pulada quando iniciada pela bandeja, pois a ação é deliberada. Também dispara toast no início ("Atualização iniciada") e ao final (sucesso ou lista dos que falharam, com dica para ver o log na tela). Ícone `Atualizar.svg`.
-  7. **Copiar senha padrão SIC** — ícone `Copiar.svg`. Aparece **somente se uma senha padrão do SIC estiver salva** em Configurações; copia a senha (DPAPI) para a área de transferência. O atalho de teclado é **Ctrl+Alt+C** e funciona em qualquer lugar do aplicativo — mesmo com a janela minimizada/na bandeja.
-  8. Divisória.
-  9. **Atalhos** — ícone `Atalho.svg`; submenu carregado junto com o menu (e reavaliado a cada abertura, via `DropDownOpening`), de modo que a seta "›" aparece já na primeira abertura. Mostra as pastas cadastradas em "Atalhos de pasta" (menu acima de Configuração); cada item abre a listagem da própria pasta (subpastas viram novos submenus navegáveis; arquivos abrem com a associação do Windows; só aparecem os arquivos permitidos pelo filtro da pasta; "Abrir esta pasta no Explorer" sempre presente no topo; "Gerenciar atalhos..." ao final abre a tela de gerenciamento). Os itens de **arquivo exibem o ícone associado** (via shell, 16×16, com cache em memória — ícones dos executáveis como no Explorer); os de **pasta** e os de "Abrir esta pasta no Explorer" usam o ícone de pasta do aplicativo (`Pasta.svg`); "Gerenciar atalhos..." usa o ícone de atalho (`Atalho.svg`). A altura dos submenus é limitada a cerca de **20 itens**; o restante aparece com rolagem (setas no topo/rodapé do menu — também funcionam com a roda do mouse).
+  7. Divisória (acima do submenu de SQLs, imediatamente abaixo de "Atualizar executáveis").
+  8. **Copiar SQL** — ícone `Copiar-SQL.svg`; submenu com os comandos salvos na tela **Copiar SQL** (um item por SQL, cada clique copia o conteúdo e confirma por toast) e **Gerenciar SQLs...** ao final, que abre a tela. Preenchido junto com o menu e reavaliado no `DropDownOpening` (a seta "›" já aparece na primeira abertura).
+  9. **Copiar senha padrão SIC** — ícone `Copiar.svg`. Aparece **somente se uma senha padrão do SIC estiver salva** em Configurações; copia a senha (DPAPI) para a área de transferência. O atalho de teclado é **Ctrl+Alt+C** e funciona em qualquer lugar do aplicativo — mesmo com a janela minimizada/na bandeja.
   10. Divisória.
-  11. **Fechar** — ícone `Fechar.svg`. Encerra de verdade, sem perguntar (escolha deliberada no menu). Com `MinimizeToTrayOnClose` ligado, **fechar durante um processo em andamento também apenas esconde a janela** — a operação continua em segundo plano e avisa por toast ao terminar; sem a opção ligada, o fechar é bloqueado enquanto houver operação (com o aviso de sempre).
+  11. **Atalhos** — ícone `Atalho.svg`; submenu carregado junto com o menu (e reavaliado a cada abertura, via `DropDownOpening`), de modo que a seta "›" aparece já na primeira abertura. Mostra as pastas cadastradas em "Atalhos de pasta" (menu acima de Configuração); cada item abre a listagem da própria pasta (subpastas viram novos submenus navegáveis; arquivos abrem com a associação do Windows; só aparecem os arquivos permitidos pelo filtro da pasta; "Abrir esta pasta no Explorer" sempre presente no topo; "Gerenciar atalhos..." ao final abre a tela de gerenciamento). Os itens de **arquivo exibem o ícone associado** (via shell, 16×16, com cache em memória — ícones dos executáveis como no Explorer); os de **pasta** e os de "Abrir esta pasta no Explorer" usam o ícone de pasta do aplicativo (`Pasta.svg`); "Gerenciar atalhos..." usa o ícone de atalho (`Atalho.svg`). A altura dos submenus é limitada a cerca de **20 itens**; o restante aparece com rolagem (setas no topo/rodapé do menu — também funcionam com a roda do mouse).
+  12. Divisória.
+  13. **Fechar** — ícone `Fechar.svg`. Encerra de verdade, sem perguntar (escolha deliberada no menu). Com `MinimizeToTrayOnClose` ligado, **fechar durante um processo em andamento também apenas esconde a janela** — a operação continua em segundo plano e avisa por toast ao terminar; sem a opção ligada, o fechar é bloqueado enquanto houver operação (com o aviso de sempre).
 - **Duplo clique esquerdo** ou clique em um toast restauram a janela (o ícone some da bandeja enquanto a janela estiver aberta).
 - Durante uma ação iniciada pela bandeja, diálogos que exigem decisão do usuário (conflito de pasta de destino, escolha de quais arquivos RAR/ZIP extrair) aparecem como janelas próprias; o restante — validações, progresso, conclusão ou erro — vai apenas para o toast ao final.
 - Toasts de perguntas/mensagens de diálogos aparecem apenas com a janela minimizada/oculta (comportamento atual); ao minimizar com a opção `MinimizeToTrayOnClose`, um toast informativo explica o menu da bandeja (só na primeira vez por sessão).
