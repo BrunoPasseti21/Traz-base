@@ -38,7 +38,7 @@ powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1
 3. Publique novamente em `Instalador/Aplicativo` (comando acima).
 4. Rode `Instalador/Compilar-Instalador.ps1` para gerar `Instalador/TrazBase-Setup.exe`.
 5. Crie a release no GitHub com tag `vX.Y.Z` e anexe `TrazBase-Setup.exe`.
-6. Os clientes detectam a release pela API `releases/latest` na próxima abertura; o asset precisa terminar em `Setup.exe` e a URL precisa ser HTTPS.
+6. O workflow `.github/workflows/atualizar-version-manifest.yml` atualiza automaticamente `version.json` na branch `main` quando a release é publicada. O app consulta esse arquivo via `raw.githubusercontent.com` (sem consumir o limite da API do GitHub); o asset precisa terminar em `Setup.exe` e a URL precisa ser HTTPS.
 7. O instalador bloqueia downgrades e permite reinstalar a mesma versão.
 
 A versão exibida no aplicativo vem do `AssemblyVersion` (`GetName().Version`), no formato `X.Y.Z`.

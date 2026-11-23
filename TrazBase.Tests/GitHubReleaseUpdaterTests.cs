@@ -112,6 +112,47 @@ public sealed class GitHubReleaseUpdaterTests
         Assert.AreEqual("https://example.com/Outro-Setup.exe", update.InstallerUri.AbsoluteUri);
     }
 
+    [TestMethod]
+    public void ParseVersionManifest_ReturnsUpdateWhenNewerVersion()
+    {
+        var json = """
+        {
+          "version": "0.9.6",
+          "installerUrl": "https://github.com/BrunoPasseti21/Traz-base/releases/download/v0.9.6/TrazBase-Setup.exe"
+        }
+        """;
+
+        var update = GitHubReleaseUpdater.ParseVersionManifest(json, new Version(0, 9, 5));
+
+        Assert.IsNotNull(update);
+        Assert.AreEqual("0.9.6", update.Version);
+        Assert.IsTrue(update.InstallerUri.AbsoluteUri.EndsWith("TrazBase-Setup.exe", StringComparison.Ordinal));
+    }
+
+    [TestMethod]
+    public void ParseVersionManifest_ReturnsNullForSameOrOlderVersion()
+    {
+        var same = """{ "version": "0.9.6", "installerUrl": "https://example.com/TrazBase-Setup.exe" }""";
+        var older = """{ "version": "0.9.5", "installerUrl": "https://example.com/TrazBase-Setup.exe" }""";
+
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(same, new Version(0, 9, 6)));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(older, new Version(0, 9, 6)));
+    }
+
+    [TestMethod]
+    public void ParseVersionManifest_RejectsMissingFieldsOrNonHttpsUrl()
+    {
+        var missingVersion = """{ "installerUrl": "https://example.com/TrazBase-Setup.exe" }""";
+        var missingUrl = """{ "version": "1.0.0" }""";
+        var httpUrl = """{ "version": "1.0.0", "installerUrl": "http://example.com/TrazBase-Setup.exe" }""";
+        var wrongFile = """{ "version": "1.0.0", "installerUrl": "https://example.com/TrazBase.exe" }""";
+
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(missingVersion, Current));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(missingUrl, Current));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(httpUrl, Current));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(wrongFile, Current));
+    }
+
     private static string ReleaseJson(string tag, params (string Name, string Url)[] assets)
     {
         var assetJson = string.Join(",", assets.Select(asset =>

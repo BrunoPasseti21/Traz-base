@@ -1,0 +1,37 @@
+name: Atualizar manifest de versão
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  atualizar-manifest:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (main)
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Atualizar version.json
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          VERSIO="${TAG#v}"
+          URL="https://github.com/${REPO}/releases/download/${TAG}/TrazBase-Setup.exe"
+          jq -n --arg version "$VERSIO" --arg installerUrl "$URL" \
+            '{version: $version, installerUrl: $installerUrl}' > version.json
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add version.json
+          if git diff --cached --quiet; then
+            echo "version.json já está atualizado."
+          else
+            git commit -m "Atualiza version.json para ${TAG}"
+            git push origin main
+          fi
