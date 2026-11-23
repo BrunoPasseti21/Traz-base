@@ -63,6 +63,7 @@ internal sealed partial class MainForm : Form
     private readonly TableLayoutPanel _shell = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
     private readonly Panel _contentHost = new() { Dock = DockStyle.Fill };
     private readonly Panel _sidebar = new() { Dock = DockStyle.Fill, BackColor = Color.White };
+    private readonly Panel _sidebarScroll = new() { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
     private readonly PlainNavigationButton _menuToggle = new() { Text = "", Image = SvgIconLoader.Load("menu.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 54, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _transferNav = new() { Text = "", Image = SvgIconLoader.Load("Transferir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _changeBaseNav = new() { Text = "", Image = SvgIconLoader.Load("Trocar-Base.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
@@ -246,32 +247,37 @@ internal sealed partial class MainForm : Form
         _shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
         _shell.Controls.Add(_sidebar, 0, 0);
         _shell.Controls.Add(_contentHost, 1, 0);
+        // Painel rolável dos itens do menu: a barra só aparece quando o conteúdo não cabe.
+        _sidebar.Controls.Add(_sidebarScroll);
+        _sidebarScroll.Resize += (_, _) => RefreshSidebarScroll();
+
         _themeToggleRow.Controls.Add(_themeToggle);
         _themeToggleRow.Resize += (_, _) => CenterThemeToggle();
-        _sidebar.Controls.Add(_themeToggleRow); // adicionado antes do rodapé para o rodapé continuar na borda inferior
+        _sidebar.Controls.Add(_themeToggleRow); // rodapé fixo na borda inferior
         _updateRow.Controls.Add(_updateButton);
         _updateRow.Controls.Add(_updateProgress);
         _updateRow.Controls.Add(_updateAnimation);
         _menuFooter.Controls.Add(_updateRow);
         _menuFooter.Controls.Add(_creatorLabel);
         _menuFooter.Controls.Add(_appVersionLabel);
-        _sidebar.Controls.Add(_menuFooter);
-        _sidebar.Controls.Add(_arqSistNav);
-        _sidebar.Controls.Add(_arqEmpNav);
-        _sidebar.Controls.Add(_settingsNav);
-        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
-        _sidebar.Controls.Add(_configureSicNav); // abaixo de "Copiar SQL"
-        _sidebar.Controls.Add(_copySqlNav); // abaixo de "Atalhos de pasta"
-        _sidebar.Controls.Add(_folderShortcutsNav);
-        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos"/"Configurar caminhos"
-        _sidebar.Controls.Add(_updateSicNav);
-        _sidebar.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
-        _sidebar.Controls.Add(_restoreNav);
-        _sidebar.Controls.Add(_resetNav);
-        _sidebar.Controls.Add(_changeBaseNav);
-        _sidebar.Controls.Add(_transferNav);
-        _sidebar.Controls.Add(_homeNav); // adicionado depois do Transferir para ficar acima dele (Dock.Top)
-        _sidebar.Controls.Add(_menuToggle);
+        _sidebar.Controls.Add(_menuFooter); // rodapé fixo na borda inferior
+        _sidebarScroll.Controls.Add(_arqSistNav);
+        _sidebarScroll.Controls.Add(_arqEmpNav);
+        _sidebarScroll.Controls.Add(_settingsNav);
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
+        _sidebarScroll.Controls.Add(_configureSicNav); // abaixo de "Copiar SQL"
+        _sidebarScroll.Controls.Add(_copySqlNav); // abaixo de "Atalhos de pasta"
+        _sidebarScroll.Controls.Add(_folderShortcutsNav);
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos"/"Configurar caminhos"
+        _sidebarScroll.Controls.Add(_updateSicNav);
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
+        _sidebarScroll.Controls.Add(_restoreNav);
+        _sidebarScroll.Controls.Add(_resetNav);
+        _sidebarScroll.Controls.Add(_changeBaseNav);
+        _sidebarScroll.Controls.Add(_transferNav);
+        _sidebarScroll.Controls.Add(_homeNav); // adicionado depois do Transferir para ficar acima dele (Dock.Top)
+        _sidebarScroll.Controls.Add(_menuToggle);
+        RefreshSidebarScroll();
         _homeView = BuildHomeView();
         _transferView = BuildTransferView();
         _settingsView = BuildSettingsView();
@@ -674,6 +680,7 @@ internal sealed partial class MainForm : Form
     {
         base.OnResize(e);
         RefreshTrayIconVisibility();
+        RefreshSidebarScroll();
     }
 
     protected override void WndProc(ref Message m)
@@ -3142,6 +3149,21 @@ internal sealed partial class MainForm : Form
         }
     }
 
+    /// <summary>
+    /// Define a altura virtual do menu lateral. O scroll só aparece quando essa altura
+    /// ultrapassa o espaço disponível entre o topo e os rodapés fixos.
+    /// </summary>
+    private void RefreshSidebarScroll()
+    {
+        var total = 0;
+        foreach (Control item in _sidebarScroll.Controls)
+        {
+            if (item.Dock == DockStyle.Top && item.Visible)
+                total += item.Height;
+        }
+        _sidebarScroll.AutoScrollMinSize = new Size(0, total + 4);
+    }
+
     private void ApplyMenuExpansionState(bool expanded, bool applyWidth = true)
     {
         if (applyWidth) _shell.ColumnStyles[0].Width = expanded ? MenuExpandedWidth : MenuCollapsedWidth;
@@ -3162,6 +3184,7 @@ internal sealed partial class MainForm : Form
             UpdateDownloadButtonText();
         }
         ApplyMenuExpansionText(expanded);
+        RefreshSidebarScroll();
     }
 
     private void ApplyMenuExpansionText(bool expanded)
@@ -3902,7 +3925,7 @@ internal sealed partial class MainForm : Form
             {
                 if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel == _progressFill || panel == _updateSicProgressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
-                else if (panel == _sidebar || panel == _menuFooter || panel == _updateRow || panel == _themeToggleRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                else if (panel == _sidebar || panel == _sidebarScroll || panel == _menuFooter || panel == _updateRow || panel == _themeToggleRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
                 else if (panel == _generalSettingsHost || panel == _passwordsSettingsHost || panel == _vpnSettingsHost) panel.BackColor = surface;
                 else if (panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);
