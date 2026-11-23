@@ -171,6 +171,9 @@ internal sealed partial class MainForm : Form
     private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private readonly UnthemedTextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
     private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly ThemedListView _restoreBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly Label _restoreBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
+    private Panel? _restoreBaseListCard;
     private readonly Label _resetBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
     private bool _syncingResetSlFromList;
     private readonly RoundedButton _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
@@ -1610,8 +1613,10 @@ internal sealed partial class MainForm : Form
 
     private Control BuildRestoreView()
     {
-        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.Controls.Add(BuildHeader("Restaurar base", "Restaure os .FBK da pasta selecionada (ou da subpasta BKP, se existir) para .FDB ao lado deles",
@@ -1620,6 +1625,19 @@ internal sealed partial class MainForm : Form
             "• Arquivos .FBK sem nome conhecido pedem a escolha do destino; \"Pular\" ignora o arquivo.\r\n" +
             "• As três restaurações rodam em paralelo e um .FDB existente é substituído somente após confirmação.\r\n" +
             "• Ao final, você escolhe se deseja apontar o Registro para a pasta restaurada."), 0, 0);
+
+        page.Controls.Add(_restoreBaseFoldersRootLabel, 0, 1);
+        var listCard = Card();
+        _restoreBaseListCard = listCard;
+        _restoreBaseFolders.Font = UiTypography.Body(11f);
+        _restoreBaseFolders.ItemSelectionChanged += (_, _) =>
+        {
+            if (_restoreBaseFolders.SelectedItems.Count == 0) return;
+            if (_restoreBaseFolders.SelectedItems[0].Tag is string folder)
+                _restoreFolder.Text = folder;
+        };
+        listCard.Controls.Add(_restoreBaseFolders);
+        page.Controls.Add(listCard, 0, 2);
 
         var action = Card();
         action.Controls.Add(new Label { Text = "Pasta da base", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
@@ -1641,7 +1659,7 @@ internal sealed partial class MainForm : Form
         _restoreCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_restoreCancelButton);
         _restoreFolder.Width = 600;
-        page.Controls.Add(action, 0, 1);
+        page.Controls.Add(action, 0, 3);
 
         var logCard = Card();
         var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
@@ -1653,7 +1671,7 @@ internal sealed partial class MainForm : Form
         heading.Controls.Add(clear);
         logCard.Controls.Add(_restoreLog);
         logCard.Controls.Add(heading);
-        page.Controls.Add(logCard, 0, 2);
+        page.Controls.Add(logCard, 0, 4);
         return page;
     }
 
@@ -1669,10 +1687,12 @@ internal sealed partial class MainForm : Form
     {
         _baseFolders.Items.Clear();
         _resetBaseFolders.Items.Clear();
+        _restoreBaseFolders.Items.Clear();
         var root = _settings.BasesRoot?.Trim();
         var rootText = "Pastas encontradas em: " + (string.IsNullOrWhiteSpace(root) ? "(pasta local não configurada)" : root);
         _baseFoldersRootLabel.Text = rootText;
         _resetBaseFoldersRootLabel.Text = rootText;
+        _restoreBaseFoldersRootLabel.Text = rootText;
         if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
 
         var directories = Directory.GetDirectories(root);
@@ -1686,6 +1706,7 @@ internal sealed partial class MainForm : Form
             var name = Path.GetFileName(folder);
             _baseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
             _resetBaseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
+            _restoreBaseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
         }
 
         // Mantém selecionada a última pasta escolhida pelo usuário, mesmo após reordenar/recarregar.
@@ -2892,6 +2913,7 @@ internal sealed partial class MainForm : Form
         _folderShortcutsNav.BackColor = Color.White;
         _copySqlNav.BackColor = Color.White;
         AcceptButton = _restoreRunning ? null : _restoreButton;
+        RefreshBaseFolders();
         ApplyNavigationColors();
         if (!_restoreRunning) _restoreFolder.Focus();
     }
@@ -3885,6 +3907,7 @@ internal sealed partial class MainForm : Form
         // Alterar base: a área da lista é o equivalente lógico ao memo do app; usa o mesmo fundo
         if (_changeBaseListCard is not null) _changeBaseListCard.BackColor = memoBack;
         if (_resetBaseListCard is not null) _resetBaseListCard.BackColor = memoBack;
+        if (_restoreBaseListCard is not null) _restoreBaseListCard.BackColor = memoBack;
         _baseFolders.BackColor = memoBack;
         _baseFolders.ForeColor = memoFore;
         if (_resetBaseFolders is not null)
@@ -3892,6 +3915,8 @@ internal sealed partial class MainForm : Form
             _resetBaseFolders.BackColor = memoBack;
             _resetBaseFolders.ForeColor = memoFore;
         }
+        _restoreBaseFolders.BackColor = memoBack;
+        _restoreBaseFolders.ForeColor = memoFore;
         HighlightSql(_arqEmpEditor);
         HighlightSql(_arqSistEditor);
         HighlightSql(_sqlShortcutEditor);
@@ -3899,7 +3924,7 @@ internal sealed partial class MainForm : Form
         {
             try
             {
-                if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _vpnConnectScript || control == _sqlShortcutEditor || control == _changeBaseListCard || control == _resetBaseListCard)
+                if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _vpnConnectScript || control == _sqlShortcutEditor || control == _changeBaseListCard || control == _resetBaseListCard || control == _restoreBaseListCard)
                     continue; // memos/lista de Alterar base já tematizados acima
             if (control is Panel panel)
             {
@@ -3987,7 +4012,7 @@ internal sealed partial class MainForm : Form
             }
             else if (control is ListView listView)
             {
-                if (listView != _baseFolders && listView != _resetBaseFolders)
+                if (listView != _baseFolders && listView != _resetBaseFolders && listView != _restoreBaseFolders)
                 {
                     listView.BackColor = surface;
                     listView.ForeColor = text;
