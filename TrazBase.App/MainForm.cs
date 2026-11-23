@@ -879,28 +879,29 @@ internal sealed partial class MainForm : Form
     private Control BuildHeader(string title, string subtitle, string? helpText)
     {
         var panel = new Panel { Dock = DockStyle.Fill };
-        var left = 0;
+        panel.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(0, 2) });
+
+        var titleLabel = new Label { Text = title, Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 28) };
+        panel.Controls.Add(titleLabel);
+        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 72) });
 
         if (!string.IsNullOrWhiteSpace(helpText))
         {
+            var titleSize = titleLabel.PreferredSize;
             var help = new PictureBox
             {
-                Size = new Size(16, 16),
-                Location = new Point(0, 32),
+                Size = new Size(24, 24),
+                Location = new Point(titleSize.Width + 8, 28 + Math.Max(0, (titleSize.Height - 24) / 2)),
                 SizeMode = PictureBoxSizeMode.Zoom,
-                Image = SvgIconLoader.Load("Ajuda.svg", 16),
+                Image = SvgIconLoader.Load("Ajuda.svg", 24),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand
             };
             help.MouseEnter += (_, _) => ShowHintPopup(help, helpText!);
             help.MouseLeave += (_, _) => HideHintPopup();
             panel.Controls.Add(help);
-            left = 22;
         }
 
-        panel.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(left, 2) });
-        panel.Controls.Add(new Label { Text = title, Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(left, 28) });
-        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(left + 1, 72) });
         return panel;
     }
 
