@@ -354,129 +354,33 @@ internal sealed partial class MainForm
             new TutorialStep(
                 "Bem-vindo ao Traz Base!",
                 "Olá! Seja bem-vindo ao Traz Base.\n\n" +
-                "Vamos fazer um tour rápido pelas telas e configurações mais importantes para você começar a usar o sistema com segurança.\n\n" +
+                "Vamos fazer um tour rápido pelas telas e pelas abas de configuração. Em cada passo destacamos a tela inteira, sem entrar campo a campo.\n\n" +
                 "Use Próximo para avançar. Se preferir, clique em Pular no canto superior direito — você poderá rever este tutorial depois em Configurações → Geral.",
                 beforeShow: () => _owner.ShowHomeView(),
                 target: null),
 
             new TutorialStep(
-                "Configurações — visão geral",
-                "A tela Configurações tem três abas: Geral (pastas e comportamento), Senhas e VPN.\n\n" +
+                "Configurações — aba Geral",
+                "Nesta aba ficam as pastas fundamentais (origem das solicitações, bases locais, bases de apoio e temporária) e as preferências de comportamento: nº de bases no Regedit, tela inicial, estrutura multi-base, renomeação da SL e execução em segundo plano.\n\n" +
                 "Todas as alterações são salvas automaticamente.",
                 beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._settingsTabs),
-
-            new TutorialStep(
-                "Origem das solicitações",
-                "Informe o compartilhamento de rede onde ficam as pastas das solicitações (SLs).\n\n" +
-                "Você pode digitar o caminho ou clicar em Procurar para selecioná-lo.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._fields[nameof(AppSettings.SolicitationRoot)]),
-
-            new TutorialStep(
-                "Pasta local das bases",
-                "Aqui fica a cópia das bases no computador. É para esta pasta que o aplicativo traz e prepara cada SL.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._fields[nameof(AppSettings.BasesRoot)]),
-
-            new TutorialStep(
-                "Pasta de bases de apoio",
-                "Pasta com ARQEMP.FDB e ARQOCOR.FDB. Quando uma SL vem sem esses arquivos, o aplicativo copia daqui automaticamente.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._fields[nameof(AppSettings.SupportRoot)]),
-
-            new TutorialStep(
-                "EMPRESA no apoio",
-                "Quando ligado, o valor EMPRESA do Registro aponta para a pasta de bases de apoio em vez da pasta ARQ00 da base.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._useSupportAsCompany),
-
-            new TutorialStep(
-                "Pasta da base temporária",
-                "Informe o caminho onde fica a base ARQTEMPSIC.FDB, responsável pelos arquivos temporários do SIC.\n\n" +
-                "Esse caminho será usado pela aplicação e gravado no Registro do Windows na chave TEMP. Se o campo ficar vazio, será usado o valor atual do Registro ou a pasta temporária do Windows.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._fields[nameof(AppSettings.TempPath)]),
-
-            new TutorialStep(
-                "Nº de bases no Regedit",
-                "Define quantas chaves BASE1, BASE2… são gravadas no Registro para o SIC. Padrão: 1.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._baseCount),
-
-            new TutorialStep(
-                "Tela inicial",
-                "Escolha qual tela aparece ao abrir o aplicativo: Início, Transferir, Alterar base, Atalhos, Configurar caminhos etc.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._defaultScreen),
-
-            new TutorialStep(
-                "Estrutura multi-base",
-                "Cria pastas ARQ01/ARQ00 mesmo quando a SL não as trouxer. Útil para bases que usam o formato multi-base do SIC.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._forceMultiBase),
-
-            new TutorialStep(
-                "Renomear pasta da SL",
-                "Renomeia a pasta da solicitação para o nome fantasia do cliente + número da SL (ex.: Teste_123456).",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._renameSl),
-
-            new TutorialStep(
-                "Segundo plano",
-                "Estas três opções controlam o comportamento em segundo plano:\n\n" +
-                "• Fechar a janela minimiza para a bandeja.\n" +
-                "• Iniciar o TrazBase já na bandeja.\n" +
-                "• Iniciar o TrazBase com o Windows.",
-                beforeShow: () => _owner.ShowSettingsTab(0),
-                target: () => _owner._minimizeToTray,
-                extraTargets:
-                [
-                    () => _owner._startInBackground,
-                    () => _owner._startWithWindows
-                ],
+                target: () => _owner._generalSettingsHost,
                 placePopupBesideTargets: true),
 
             new TutorialStep(
-                "Senha Firebird",
-                "Senha usada para conectar aos bancos .FDB. Marque “Salvar senha” para protegê-la com a conta do Windows.",
+                "Configurações — aba Senhas",
+                "Aqui ficam as senhas usadas pelo sistema: Firebird (bases .FDB), padrão do SIC e do sistema Empresa. Marque “Salvar senha” para protegê-las com a conta do Windows.\n\n" +
+                "Os atalhos Ctrl+Alt+C e Ctrl+Alt+X copiam rapidamente as senhas do SIC e da Empresa.",
                 beforeShow: () => _owner.ShowSettingsTab(1),
-                target: () => _owner._password),
+                target: () => _owner._passwordsSettingsHost,
+                placePopupBesideTargets: true),
 
             new TutorialStep(
-                "Senha padrão do SIC",
-                "Senha do sistema SIC. O atalho Ctrl+Alt+C copia essa senha para a área de transferência.",
-                beforeShow: () => _owner.ShowSettingsTab(1),
-                target: () => _owner._sicPassword),
-
-            new TutorialStep(
-                "Senha do sistema Empresa",
-                "Informe apenas a parte fixa: o app completa com (dia × hora × 13) ao copiar com Ctrl+Alt+X.",
-                beforeShow: () => _owner.ShowSettingsTab(1),
-                target: () => _owner._sicDynamicPassword),
-
-            new TutorialStep(
-                "VPN — conexão",
-                "Quando a origem só estiver acessível fora da rede, ative a VPN e escolha a conexão configurada no Windows.",
+                "Configurações — aba VPN",
+                "Use esta aba quando a origem das solicitações só estiver acessível fora da rede: escolha a conexão VPN, credenciais, tentativas de reconexão e um script opcional executado ao conectar.\n\n" +
+                "O aplicativo conecta antes da transferência e desconecta ao final, se ela não estava conectada.",
                 beforeShow: () => _owner.ShowSettingsTab(2),
-                target: () => _owner._useVpn),
-
-            new TutorialStep(
-                "VPN — credenciais",
-                "Marque “Informar usuário e senha manualmente” se a conexão não usar as credenciais salvas no Windows.",
-                beforeShow: () => _owner.ShowSettingsTab(2),
-                target: () => _owner._vpnUseManualCredentials),
-
-            new TutorialStep(
-                "VPN — tentativas e script",
-                "Defina quantas reconexões são tentadas se a conexão cair durante a transferência.\n\n" +
-                "No campo abaixo você pode informar um script .bat/.cmd executado quando o aplicativo conectar a VPN — por exemplo, para mapear unidades de rede.",
-                beforeShow: () => _owner.ShowSettingsTab(2),
-                target: () => _owner._vpnReconnectAttempts,
-                extraTargets:
-                [
-                    () => _owner._vpnConnectScript
-                ],
+                target: () => _owner._vpnSettingsHost,
                 placePopupBesideTargets: true),
 
             new TutorialStep(
@@ -485,55 +389,53 @@ internal sealed partial class MainForm
                 target: () => _owner._themeToggle),
 
             new TutorialStep(
-                "Comandos ARQEMP",
-                "Nesta tela você informa a base Firebird (.FDB), escreve os comandos SQL e clica em “Testar comando”.\n\n" +
-                "Os comandos são executados na ARQEMP e o resultado aparece na área inferior. As alterações no editor são salvas automaticamente.",
+                "Comandos SQL (ARQEMP e ARQSIST)",
+                "Nestas telas você escolhe a base Firebird (.FDB), escreve os comandos SQL e clica em “Testar comando”. O resultado aparece na área inferior e o editor salva automaticamente.\n\n" +
+                "Há uma tela para a ARQEMP e outra para a ARQSIST.",
                 beforeShow: () => _owner.ShowCommandView(arqEmp: true),
-                target: () => _owner._arqEmpDatabase,
+                target: () => _owner._arqEmpEditor,
                 extraTargets:
                 [
-                    () => _owner._arqEmpEditor,
                     () => _owner._arqEmpOutput
                 ],
                 placePopupBesideTargets: true),
 
             new TutorialStep(
-                "Comandos ARQSIST",
-                "A mesma ferramenta existe para a ARQSIST: escolha a base, ajuste os comandos SQL e teste o resultado antes de usar na rotina.",
-                beforeShow: () => _owner.ShowCommandView(arqEmp: false),
-                target: () => _owner._arqSistDatabase,
-                extraTargets:
-                [
-                    () => _owner._arqSistEditor,
-                    () => _owner._arqSistOutput
-                ],
+                "Transferir",
+                "Na tela Transferir, digite o número da solicitação (SL) e clique em “Trazer e preparar base”. O aplicativo copia os arquivos, extrai os compactados, ajusta os bancos e aponta o Registro.\n\n" +
+                "O andamento aparece no log e, ao concluir, a versão do SIC é exibida no canto da tela.",
+                beforeShow: () => _owner.ShowView(settings: false),
+                target: () => _owner._sl,
                 placePopupBesideTargets: true),
 
             new TutorialStep(
-                "Transferir — SL",
-                "Na tela Transferir, digite apenas o número da solicitação (SL) e clique em “Trazer e preparar base”.\n\n" +
-                "O aplicativo copia os arquivos, extrai os compactados, ajusta os bancos e aponta o Registro.",
-                beforeShow: () => _owner.ShowView(settings: false),
-                target: () => _owner._sl),
-
-            new TutorialStep(
-                "Transferir — andamento",
-                "Durante a operação, o botão Cancelar interrompe o fluxo. O status e a barra de progresso ficam abaixo do log.\n\n" +
-                "Ao concluir, a versão do SIC aparece no canto da tela.",
-                beforeShow: () => _owner.ShowView(settings: false),
-                target: () => _owner._start),
-
-            new TutorialStep(
                 "Alterar base",
-                "Em “Alterar base”, escolha uma pasta da lista e clique em “Trocar base” para apontar o Registro para ela.\n\n" +
-                "“Abrir pasta” abre a base no Explorer e a versão do SIC aparece no canto superior direito.",
+                "Escolha uma pasta na lista e clique em “Trocar base” para apontar o Registro para ela. “Abrir pasta” abre a base no Explorer.\n\n" +
+                "A lista pode ser ordenada por nome ou data de modificação.",
                 beforeShow: () => _owner.ShowChangeBaseView(),
-                target: () => _owner._baseFolders),
+                target: () => _owner._baseFolders,
+                placePopupBesideTargets: true),
+
+            new TutorialStep(
+                "Redefinir e Restaurar base",
+                "Em “Redefinir base” você valida e prepara uma base local existente (executa scripts e atualiza o Registro). Em “Restaurar base” você restaura os backups .FBK para .FDB.\n\n" +
+                "Ambas usam a lista de pastas do diretório de bases.",
+                beforeShow: () => _owner.ShowRestoreView(),
+                target: () => _owner._restoreBaseFolders,
+                placePopupBesideTargets: true),
+
+            new TutorialStep(
+                "Atualização de executáveis",
+                "Aqui você baixa e extrai os executáveis do SIC na versão configurada. A tela “Configurar caminhos”, logo abaixo no menu, edita a lista de executáveis, origem e destino.\n\n" +
+                "O aplicativo também avisa quando há uma nova versão disponível.",
+                beforeShow: () => _owner.ShowUpdateSicView(),
+                target: () => _owner._updateSicButton,
+                placePopupBesideTargets: true),
 
             new TutorialStep(
                 "Pronto para explorar",
                 "Você já conhece o essencial.\n\n" +
-                "Explore também no menu lateral: Redefinir base, Restaurar base, Atualização de executáveis, Configurar caminhos, Atalhos de pasta, Copiar SQL e Comandos ARQEMP/ARQSIST.\n\n" +
+                "Explore também no menu lateral: Atalhos de pasta e Copiar SQL.\n\n" +
                 "Este tutorial pode ser reaberto em Configurações → Geral → “Ver tutorial guiado”.",
                 beforeShow: () => _owner.ShowView(settings: false),
                 target: null)
