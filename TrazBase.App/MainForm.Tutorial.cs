@@ -354,7 +354,6 @@ internal sealed partial class MainForm
             new TutorialStep(
                 "Bem-vindo ao Traz Base!",
                 "Olá! Seja bem-vindo ao Traz Base.\n\n" +
-                "Vamos fazer um tour rápido pelas telas e pelas abas de configuração. Em cada passo destacamos a tela inteira, sem entrar campo a campo.\n\n" +
                 "Use Próximo para avançar. Se preferir, clique em Pular no canto superior direito — você poderá rever este tutorial depois em Configurações → Geral.",
                 beforeShow: () => _owner.ShowHomeView(),
                 target: null),
