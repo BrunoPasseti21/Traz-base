@@ -416,27 +416,12 @@ internal sealed partial class MainForm
                 placePopupBesideTargets: true),
 
             new TutorialStep(
-                "Redefinir e Restaurar base",
-                "Em “Redefinir base” você valida e prepara uma base local existente (executa scripts e atualiza o Registro). Em “Restaurar base” você restaura os backups .FBK para .FDB.\n\n" +
-                "Ambas usam a lista de pastas do diretório de bases.",
-                beforeShow: () => _owner.ShowRestoreView(),
-                target: () => _owner._restoreBaseFolders,
-                placePopupBesideTargets: true),
-
-            new TutorialStep(
-                "Atualização de executáveis",
-                "Aqui você baixa e extrai os executáveis do SIC na versão configurada. A tela “Configurar caminhos”, logo abaixo no menu, edita a lista de executáveis, origem e destino.\n\n" +
-                "O aplicativo também avisa quando há uma nova versão disponível.",
-                beforeShow: () => _owner.ShowUpdateSicView(),
-                target: () => _owner._updateSicButton,
-                placePopupBesideTargets: true),
-
-            new TutorialStep(
-                "Pronto para explorar",
-                "Você já conhece o essencial.\n\n" +
-                "Explore também no menu lateral: Atalhos de pasta e Copiar SQL.\n\n" +
-                "Este tutorial pode ser reaberto em Configurações → Geral → “Ver tutorial guiado”.",
-                beforeShow: () => _owner.ShowView(settings: false),
+                "Tudo pronto!",
+                "Você já conhece o essencial para começar: configurar o sistema, trazer e preparar bases, trocar a base ativa e testar comandos SQL.\n\n" +
+                "No menu lateral você também encontra Redefinir base, Restaurar base, Atualização de executáveis, Configurar caminhos, Atalhos de pasta e Copiar SQL — explore à medida que precisar.\n\n" +
+                "Podemos atualizar o aplicativo pelo botão no rodapé do menu. Se quiser rever este passo a passo, abra Configurações → Geral → “Ver tutorial guiado”.\n\n" +
+                "Bom trabalho!",
+                beforeShow: () => _owner.ShowHomeView(),
                 target: null)
         ];
 
