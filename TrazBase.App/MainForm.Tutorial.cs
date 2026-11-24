@@ -243,6 +243,22 @@ internal sealed partial class MainForm
             return true;
         }
 
+        /// <summary>
+        /// Retorna o controle apenas se ele estiver realmente visível e inteiramente dentro
+        /// da área do formulário (não cortado por painel com rolagem).
+        /// </summary>
+        private Control? VisibleWithoutScroll(Control? control)
+        {
+            if (control is null || !IsReallyVisible(control)) return null;
+            try
+            {
+                var formBounds = _owner.RectangleToScreen(_owner.ClientRectangle);
+                var rect = control.RectangleToScreen(control.ClientRectangle);
+                return formBounds.Contains(rect) ? control : null;
+            }
+            catch { return null; }
+        }
+
         private void PositionPopup(TutorialStep step, IReadOnlyList<Control> targets)
         {
             if (_popup is null) return;
@@ -269,10 +285,13 @@ internal sealed partial class MainForm
                 return;
             }
 
-            // Apenas os passos marcados com PlacePopupBesideTargets ficam ao lado (ex.: passo 12).
+            // Apenas os passos marcados com PlacePopupBesideTargets ficam ao lado.
             if (step.PlacePopupBesideTargets)
             {
-                var y = ClampToRange(focus.Top, area.Top, area.Bottom - _popup.Height);
+                // No passo dos comandos SQL, centralizar verticalmente evita cobrir o editor e o resultado.
+                var y = step.CenterPopupVertically
+                    ? ClampToRange(focus.Top + Math.Max(0, (focus.Height - _popup.Height) / 2), area.Top, area.Bottom - _popup.Height)
+                    : ClampToRange(focus.Top, area.Top, area.Bottom - _popup.Height);
                 var rightX = focus.Right + gap;
                 if (rightX + _popup.Width <= area.Right)
                 {
@@ -395,9 +414,12 @@ internal sealed partial class MainForm
                 target: () => _owner._arqEmpEditor,
                 extraTargets:
                 [
-                    () => _owner._arqEmpOutput
+                    () => _owner._arqEmpOutput,
+                    () => VisibleWithoutScroll(_owner._arqEmpTestButton),
+                    () => VisibleWithoutScroll(_owner._arqSistTestButton)
                 ],
-                placePopupBesideTargets: true),
+                placePopupBesideTargets: true,
+                centerPopupVertically: true),
 
             new TutorialStep(
                 "Transferir",
@@ -434,12 +456,14 @@ internal sealed partial class MainForm
                 Action? beforeShow = null,
                 Func<Control?>? target = null,
                 IReadOnlyList<Func<Control?>>? extraTargets = null,
-                bool placePopupBesideTargets = false)
+                bool placePopupBesideTargets = false,
+                bool centerPopupVertically = false)
             {
                 Title = title;
                 Text = text;
                 BeforeShow = beforeShow;
                 PlacePopupBesideTargets = placePopupBesideTargets;
+                CenterPopupVertically = centerPopupVertically;
                 var all = new List<Func<Control?>>();
                 if (target is not null) all.Add(target);
                 if (extraTargets is not null) all.AddRange(extraTargets);
@@ -451,6 +475,7 @@ internal sealed partial class MainForm
             public Action? BeforeShow { get; }
             public IReadOnlyList<Func<Control?>> Targets { get; }
             public bool PlacePopupBesideTargets { get; }
+            public bool CenterPopupVertically { get; }
         }
 
         /// <summary>

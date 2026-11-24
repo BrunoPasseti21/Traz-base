@@ -214,6 +214,8 @@ internal sealed partial class MainForm : Form
     private bool _updateSicRunning;
     private readonly UnthemedTextBox _arqEmpDatabase = new();
     private readonly UnthemedTextBox _arqSistDatabase = new();
+    private RoundedButton? _arqEmpTestButton;
+    private RoundedButton? _arqSistTestButton;
     private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
     private readonly RichTextBox _arqSistEditor = CreateSqlEditor();
     private readonly RichTextBox _arqEmpOutput = CreateSqlOutput();
@@ -2981,6 +2983,8 @@ internal sealed partial class MainForm : Form
         };
         testButton.FlatAppearance.BorderSize = 0;
         testButton.Click += async (_, _) => await TestSqlCommandAsync(databaseName, databasePath, editor, output, testButton);
+        if (string.Equals(databaseName, "ARQEMP", StringComparison.Ordinal)) _arqEmpTestButton = testButton;
+        else if (string.Equals(databaseName, "ARQSIST", StringComparison.Ordinal)) _arqSistTestButton = testButton;
         actions.Controls.Add(testButton);
         page.Controls.Add(actions, 0, 4);
         return page;
