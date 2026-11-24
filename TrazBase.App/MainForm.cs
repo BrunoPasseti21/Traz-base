@@ -268,10 +268,10 @@ internal sealed partial class MainForm : Form
         _sidebarScroll.Controls.Add(_arqEmpNav);
         _sidebarScroll.Controls.Add(_settingsNav);
         _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
-        _sidebarScroll.Controls.Add(_configureSicNav); // abaixo de "Copiar SQL"
         _sidebarScroll.Controls.Add(_copySqlNav); // abaixo de "Atalhos de pasta"
         _sidebarScroll.Controls.Add(_folderShortcutsNav);
-        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos"/"Configurar caminhos"
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos de pasta"
+        _sidebarScroll.Controls.Add(_configureSicNav); // adicionado antes => fica abaixo de "Atualização de executáveis"
         _sidebarScroll.Controls.Add(_updateSicNav);
         _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
         _sidebarScroll.Controls.Add(_restoreNav);
