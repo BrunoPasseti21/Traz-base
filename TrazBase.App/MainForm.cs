@@ -798,7 +798,7 @@ internal sealed partial class MainForm : Form
         if (_updateButton.Tag is not ReleaseUpdate update) return;
         if (_running)
         {
-            MessageBox.Show(this, "Aguarde a operação atual terminar antes de atualizar a aplicação.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            MessageBox.Show(this, "Há uma transferência de base em andamento. Aguarde a transferência terminar antes de atualizar a aplicação.", "Transferência em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
         }
         var answer = MessageBox.Show(this,
@@ -6275,16 +6275,9 @@ internal sealed partial class MainForm : Form
         _start.Enabled = !busy;
         _sl.Enabled = !busy;
         _menuToggle.Enabled = true;
-        _homeNav.Enabled = !busy;
-        _transferNav.Enabled = true;
-        _changeBaseNav.Enabled = !busy;
-        _resetNav.Enabled = !busy;
-        _restoreNav.Enabled = !busy;
-        _updateSicNav.Enabled = !busy;
-        _settingsNav.Enabled = !busy;
-        _arqEmpNav.Enabled = !busy;
-        _arqSistNav.Enabled = !busy;
-        _folderShortcutsNav.Enabled = !busy;
+        // A transferência não bloqueia mais as opções do menu: o usuário pode navegar
+        // e usar as outras telas livremente enquanto ela acontece.
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
         _cancel.Visible = busy;
         _cancel.Enabled = busy;
         _progressFooter.Visible = busy;
