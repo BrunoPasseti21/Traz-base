@@ -288,10 +288,7 @@ internal sealed partial class MainForm
             // Apenas os passos marcados com PlacePopupBesideTargets ficam ao lado.
             if (step.PlacePopupBesideTargets)
             {
-                // No passo dos comandos SQL, centralizar verticalmente evita cobrir o editor e o resultado.
-                var y = step.CenterPopupVertically
-                    ? ClampToRange(focus.Top + Math.Max(0, (focus.Height - _popup.Height) / 2), area.Top, area.Bottom - _popup.Height)
-                    : ClampToRange(focus.Top, area.Top, area.Bottom - _popup.Height);
+                var y = ClampToRange(focus.Top, area.Top, area.Bottom - _popup.Height);
                 var rightX = focus.Right + gap;
                 if (rightX + _popup.Width <= area.Right)
                 {
@@ -302,6 +299,15 @@ internal sealed partial class MainForm
                 if (leftX >= area.Left)
                 {
                     _popup.Location = new Point(leftX, y);
+                    return;
+                }
+
+                // Não há espaço lateral: centralizar verticalmente evita cobrir o editor e o resultado.
+                if (step.CenterPopupVertically)
+                {
+                    _popup.Location = new Point(
+                        ClampToRange((area.Left + area.Right - _popup.Width) / 2, area.Left, area.Right - _popup.Width),
+                        ClampToRange(focus.Top + Math.Max(0, (focus.Height - _popup.Height) / 2), area.Top, area.Bottom - _popup.Height));
                     return;
                 }
             }
@@ -411,15 +417,12 @@ internal sealed partial class MainForm
                 "Nestas telas você escolhe a base Firebird (.FDB), escreve os comandos SQL e clica em “Testar comando”. O resultado aparece na área inferior e o editor salva automaticamente.\n\n" +
                 "Há uma tela para a ARQEMP e outra para a ARQSIST.",
                 beforeShow: () => _owner.ShowCommandView(arqEmp: true),
-                target: () => _owner._arqEmpEditor,
+                target: () => VisibleWithoutScroll(_owner._arqEmpTestButton) ?? _owner._arqEmpEditor,
                 extraTargets:
                 [
-                    () => _owner._arqEmpOutput,
-                    () => VisibleWithoutScroll(_owner._arqEmpTestButton),
                     () => VisibleWithoutScroll(_owner._arqSistTestButton)
                 ],
-                placePopupBesideTargets: true,
-                centerPopupVertically: true),
+                placePopupBesideTargets: true),
 
             new TutorialStep(
                 "Transferir",
