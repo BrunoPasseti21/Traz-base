@@ -419,7 +419,8 @@ internal sealed partial class MainForm
                 "Tudo pronto!",
                 "Você já conhece o essencial para começar: configurar o sistema, trazer e preparar bases, trocar a base ativa e testar comandos SQL.\n\n" +
                 "No menu lateral você também encontra Redefinir base, Restaurar base, Atualização de executáveis, Configurar caminhos, Atalhos de pasta e Copiar SQL — explore à medida que precisar.\n\n" +
-                "Podemos atualizar o aplicativo pelo botão no rodapé do menu. Se quiser rever este passo a passo, abra Configurações → Geral → “Ver tutorial guiado”.\n\n" +
+                "Podemos atualizar o aplicativo pelo botão no rodapé do menu.\n\n" +
+                "Se quiser rever este passo a passo, abra Configurações → Geral → “Ver tutorial guiado”.\n\n" +
                 "Bom trabalho!",
                 beforeShow: () => _owner.ShowHomeView(),
                 target: null)
