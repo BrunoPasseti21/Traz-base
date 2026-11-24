@@ -430,13 +430,8 @@ internal sealed partial class MainForm
                 target: () => _owner._arqEmpEditor,
                 extraTargets:
                 [
-                    () => VisibleWithoutScroll(_owner._arqEmpTestButton),
-                    () => VisibleWithoutScroll(_owner._arqEmpBrowseButton),
-                    () => VisibleWithoutScroll(_owner._arqSistTestButton),
-                    () => VisibleWithoutScroll(_owner._arqSistBrowseButton)
+                    () => _owner._arqSistNav
                 ],
-                placePopupBesideTargets: true,
-                centerPopupVertically: true,
                 keepSqlEditorUncovered: true),
 
             new TutorialStep(
