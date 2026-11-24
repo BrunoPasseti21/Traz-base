@@ -6,6 +6,9 @@ internal sealed partial class MainForm
 {
     private TutorialGuide? _tutorialGuide;
 
+    /// <summary>True enquanto o tour guiado está ativo (usado para bloquear o fechamento do app).</summary>
+    internal bool IsTutorialActive => _tutorialGuide is not null;
+
     private async Task ShowTutorialAfterWelcomeAsync()
     {
         // Pequena pausa para a notificação de boas-vindas aparecer antes do spotlight.
@@ -150,7 +153,16 @@ internal sealed partial class MainForm
             {
                 Owner = _owner
             };
+            // Sempre que o usuário clicar fora (no app), traz a mensagem do tour de volta para cima.
+            _owner.Activated += OwnerActivated;
             _popup.Show();
+        }
+
+        private void OwnerActivated(object? sender, EventArgs e)
+        {
+            if (_disposed || _popup is null || _popup.IsDisposed) return;
+            _popup.BringToFront();
+            _popup.Activate();
         }
 
         private void UpdateFocusArea(IReadOnlyList<Control> targets)
@@ -369,6 +381,7 @@ internal sealed partial class MainForm
         {
             if (_disposed) return;
             _disposed = true;
+            _owner.Activated -= OwnerActivated;
             _dialogWatchTimer?.Stop();
             _dialogWatchTimer?.Dispose();
             _dialogWatchTimer = null;
@@ -644,6 +657,7 @@ internal sealed partial class MainForm
                 ShowInTaskbar = false;
                 MinimizeBox = false;
                 MaximizeBox = false;
+                TopMost = true;
                 BackColor = border;
                 Padding = new Padding(1);
                 Font = UiTypography.Body();

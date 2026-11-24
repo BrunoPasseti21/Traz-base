@@ -619,6 +619,13 @@ internal sealed partial class MainForm : Form
             _menuAnimationClock.Stop();
             HideHintPopup();
 
+            // Não permitir fechar o aplicativo enquanto o tour guiado estiver ativo.
+            if (IsTutorialActive && e.CloseReason == CloseReason.UserClosing && !_exitRequested)
+            {
+                e.Cancel = true;
+                return;
+            }
+
             // O Inno Setup está fechando o app para substituir os arquivos: encerra sem
             // confirmação e sem minimizar para a bandeja, e deixa ele reabrir ao final.
             if (_updateInstallInProgress)
