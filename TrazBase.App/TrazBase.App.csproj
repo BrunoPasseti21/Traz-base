@@ -10,6 +10,7 @@
     <AssemblyName>TrazBase</AssemblyName>
     <Version>0.9.6</Version>
     <ApplicationIcon>..\Imagens\icone\icone_supra.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="SharpCompress" Version="0.50.7" />
