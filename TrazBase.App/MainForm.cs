@@ -216,6 +216,8 @@ internal sealed partial class MainForm : Form
     private readonly UnthemedTextBox _arqSistDatabase = new();
     private RoundedButton? _arqEmpTestButton;
     private RoundedButton? _arqSistTestButton;
+    private RoundedButton? _arqEmpBrowseButton;
+    private RoundedButton? _arqSistBrowseButton;
     private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
     private readonly RichTextBox _arqSistEditor = CreateSqlEditor();
     private readonly RichTextBox _arqEmpOutput = CreateSqlOutput();
@@ -2953,6 +2955,8 @@ internal sealed partial class MainForm : Form
         browse.Location = new Point(databaseCard.ClientSize.Width - browse.Width - 18, 8);
         databaseCard.Resize += (_, _) => browse.Left = databaseCard.ClientSize.Width - browse.Width - 18;
         browse.Click += (_, _) => BrowseCommandDatabase(databasePath);
+        if (string.Equals(databaseName, "ARQEMP", StringComparison.Ordinal)) _arqEmpBrowseButton = browse;
+        else if (string.Equals(databaseName, "ARQSIST", StringComparison.Ordinal)) _arqSistBrowseButton = browse;
         databaseCard.Controls.Add(databaseLabel);
         databasePath.Size = new Size(Math.Max(120, databaseCard.ClientSize.Width - 160 - browse.Width - 44), 32);
         databasePath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;

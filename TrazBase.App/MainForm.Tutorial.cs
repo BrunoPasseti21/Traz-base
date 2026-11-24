@@ -265,6 +265,16 @@ internal sealed partial class MainForm
             var area = Screen.FromControl(_owner).WorkingArea;
             var gap = HighlightPadding + 12;
 
+            // No passo dos comandos SQL, manter o popup no canto inferior direito para não cobrir o editor.
+            if (step.KeepSqlEditorUncovered)
+            {
+                var formBounds = _owner.RectangleToScreen(_owner.ClientRectangle);
+                _popup.Location = new Point(
+                    ClampToRange(formBounds.Right - _popup.Width - 18, area.Left, area.Right - _popup.Width),
+                    ClampToRange(formBounds.Bottom - _popup.Height - 18, area.Top, area.Bottom - _popup.Height));
+                return;
+            }
+
             var focus = Rectangle.Empty;
             foreach (var target in targets)
             {
@@ -414,15 +424,20 @@ internal sealed partial class MainForm
 
             new TutorialStep(
                 "Comandos SQL (ARQEMP e ARQSIST)",
-                "Nestas telas você escolhe a base Firebird (.FDB), escreve os comandos SQL e clica em “Testar comando”. O resultado aparece na área inferior e o editor salva automaticamente.\n\n" +
+                "Nestas telas você escolhe a base Firebird (.FDB) em “Procurar”, escreve os comandos no editor e clica em “Testar comando”. O resultado aparece na área inferior e o editor salva automaticamente.\n\n" +
                 "Há uma tela para a ARQEMP e outra para a ARQSIST.",
                 beforeShow: () => _owner.ShowCommandView(arqEmp: true),
-                target: () => VisibleWithoutScroll(_owner._arqEmpTestButton) ?? _owner._arqEmpEditor,
+                target: () => _owner._arqEmpEditor,
                 extraTargets:
                 [
-                    () => VisibleWithoutScroll(_owner._arqSistTestButton)
+                    () => VisibleWithoutScroll(_owner._arqEmpTestButton),
+                    () => VisibleWithoutScroll(_owner._arqEmpBrowseButton),
+                    () => VisibleWithoutScroll(_owner._arqSistTestButton),
+                    () => VisibleWithoutScroll(_owner._arqSistBrowseButton)
                 ],
-                placePopupBesideTargets: true),
+                placePopupBesideTargets: true,
+                centerPopupVertically: true,
+                keepSqlEditorUncovered: true),
 
             new TutorialStep(
                 "Transferir",
@@ -460,13 +475,15 @@ internal sealed partial class MainForm
                 Func<Control?>? target = null,
                 IReadOnlyList<Func<Control?>>? extraTargets = null,
                 bool placePopupBesideTargets = false,
-                bool centerPopupVertically = false)
+                bool centerPopupVertically = false,
+                bool keepSqlEditorUncovered = false)
             {
                 Title = title;
                 Text = text;
                 BeforeShow = beforeShow;
                 PlacePopupBesideTargets = placePopupBesideTargets;
                 CenterPopupVertically = centerPopupVertically;
+                KeepSqlEditorUncovered = keepSqlEditorUncovered;
                 var all = new List<Func<Control?>>();
                 if (target is not null) all.Add(target);
                 if (extraTargets is not null) all.AddRange(extraTargets);
@@ -479,6 +496,7 @@ internal sealed partial class MainForm
             public IReadOnlyList<Func<Control?>> Targets { get; }
             public bool PlacePopupBesideTargets { get; }
             public bool CenterPopupVertically { get; }
+            public bool KeepSqlEditorUncovered { get; }
         }
 
         /// <summary>
