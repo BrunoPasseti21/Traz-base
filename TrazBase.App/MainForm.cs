@@ -851,9 +851,6 @@ internal sealed partial class MainForm : Form
         _updateProgress.SetMarquee(true);
         _menuToolTip.SetToolTip(_updateButton, "Baixando a atualização…");
         UpdateDownloadButtonText();
-        ShowBackgroundNotification("Atualização do Traz Base",
-            $"Iniciando a atualização para a versão {update.Version}. O aplicativo será reiniciado ao final.",
-            ToastNotifier.NotificationSound.Info);
         try
         {
             var progress = new Progress<int>(value =>
@@ -876,7 +873,9 @@ internal sealed partial class MainForm : Form
             {
                 UseShellExecute = true,
                 Verb = "runas",
-                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+                // Sem /VERYSILENT: o instalador mostra a janela de progresso enquanto o app fecha,
+                // como nos atualizadores do OpenCode/Notepad++. /SP- oculta só a página final.
+                Arguments = "/NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
             });
             _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
 
