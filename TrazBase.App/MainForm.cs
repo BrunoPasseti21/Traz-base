@@ -5567,6 +5567,9 @@ internal sealed partial class MainForm : Form
         _ = Handle; // cria o handle: o registro dos hotkeys acontece no HandleCreated
         EnsureTrayIcon();            // janela oculta => o ícone da bandeja fica visível
         RefreshTrayIconVisibility();
+        ShowBackgroundNotification("Traz Base em segundo plano",
+            "O Traz Base abriu na bandeja. Clique nesta notificação ou dê dois cliques no ícone da bandeja para abrir a janela.",
+            ToastNotifier.NotificationSound.Info);
         _ = CheckForUpdatesAsync();  // atualização silenciosa: só ajusta o botão "Atualização disponível", sem diálogos
     }
 
