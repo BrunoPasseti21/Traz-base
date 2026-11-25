@@ -201,6 +201,9 @@ internal sealed partial class MainForm : Form
     private long _updateSicTotalBytes;
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
+    // Pergunta sobre o Registro que ficou pendente porque o app estava em segundo plano
+    // quando a restauração terminou; é respondida assim que a janela volta a ser ativada.
+    private string? _pendingRestoreRegistryFolder;
     private readonly TabControl _restoreLogTabs = new() { Dock = DockStyle.Fill, Visible = false };
     private readonly object _restoreLogTargetsLock = new();
     private readonly List<RestoreLogTarget> _restoreLogTargets = new();
@@ -418,6 +421,7 @@ internal sealed partial class MainForm : Form
         };
         SetStartWithWindowsRegistry(_settings.StartWithWindows); // settings.json é a fonte da verdade: com a opção ligada, cria/repara a chave com o caminho atual; desligada, garante a remoção
         AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
+        Activated += (_, _) => FlushPendingRestorePrompt();
         _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
         _baseCount.ValueChanged += (_, _) =>
         {
@@ -2062,11 +2066,14 @@ internal sealed partial class MainForm : Form
 
         _restoreRunning = true;
         _restoreCancellation = new CancellationTokenSource();
+        _pendingRestoreRegistryFolder = null;
         _restoreFolder.Enabled = false;
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
         PrepareRestoreLogs(plan, folder);
+        if (IsAppInBackground())
+            ShowBackgroundNotification("Restauração iniciada", $"Restaurando {plan.Count} base(s) em segundo plano…");
         var token = _restoreCancellation.Token;
         try
         {
@@ -2103,58 +2110,16 @@ internal sealed partial class MainForm : Form
             }).ToList();
 
             var results = await Task.WhenAll(tasks);
-            var failures = results.Where(result => result.Error is not null).ToList();
-            var cancelled = token.IsCancellationRequested;
-
-            if (cancelled)
-                AppendRestoreLog("Restauração cancelada.");
-            else if (failures.Count == 0)
-                AppendRestoreLog("Restauração concluída com sucesso.");
-            else
-                AppendRestoreLog($"Restauração concluída com {failures.Count} falha(s): " + string.Join(", ", failures.Select(failure => failure.Item.Database)));
-
-            if (results.Any(result => result.Error is null) && !cancelled)
-            {
-                var multiBase = MultiBaseOperationRules.IsMultiBase(folder);
-                // No multi-base o Registro aponta para a raiz da SL (igual à tela Alterar base),
-                // nunca para a pasta ARQ## onde estava o .FBK.
-                var restoredFolder = multiBase
-                    ? Path.GetFullPath(folder)
-                    : Path.GetDirectoryName(plan[0].DestinationPath)!;
-
-                if (multiBase && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)))
-                {
-                    var warning = $"A pasta tem a estrutura multi-base (pastas ARQ##), mas a pasta ARQ00 não existe:\n{MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)}\n\nSem a ARQ00 o sistema não teria para onde apontar a EMPRESA. O Registro não foi alterado.";
-                    AppendRestoreLog("Atenção: " + warning.Replace("\n", " "));
-                    MessageBox.Show(this, warning, "Estrutura multi-base incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                }
-                else
-                {
-                    var answer = MessageBox.Show(this,
-                        $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
-                        "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
-                    if (answer == DialogResult.Yes) await UpdateRegistryForFolderAsync(restoredFolder, AppendRestoreLog);
-                }
-            }
-
-            if (cancelled)
-            {
-                // O cancelamento já foi registrado no log; nenhuma ação adicional.
-            }
-            else if (failures.Count == 0)
-            {
-                MessageBox.Show(this, $"{results.Length} base(s) restaurada(s) com sucesso.", "Restauração concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
-            }
-            else
-            {
-                MessageBox.Show(this, "A restauração terminou com falhas. Veja o log para detalhes.", "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            }
+            await CompleteRestoreAsync(plan, results, token.IsCancellationRequested, folder);
         }
         catch (Exception ex)
         {
             AppendRestoreLog("ERRO: " + ex.Message);
             AppLogger.Error("Restauração", ex.Message, ex);
-            MessageBox.Show(this, ex.Message, "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            if (IsAppInBackground())
+                ShowBackgroundNotification("Falha na restauração", "Não foi possível concluir a restauração: " + ex.Message + "\nAbra o Traz Base para ver o log.");
+            else
+                MessageBox.Show(this, ex.Message, "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally
         {
@@ -2166,6 +2131,112 @@ internal sealed partial class MainForm : Form
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
             _restoreCancelButton.Visible = false;
+        }
+    }
+
+    /// <summary>
+    /// Finaliza a restauração: em segundo plano notifica sucesso/erro e guarda a pergunta do
+    /// Registro para quando a janela voltar; com a janela aberta, mantém os diálogos normais.
+    /// </summary>
+    private async Task CompleteRestoreAsync(
+        IReadOnlyList<RestorePlanItem> plan,
+        (RestorePlanItem Item, string? Error)[] results,
+        bool cancelled,
+        string folder)
+    {
+        var failures = results.Where(result => result.Error is not null).ToList();
+        var succeeded = results.Length - failures.Count;
+        var inBackground = IsAppInBackground();
+
+        if (cancelled)
+            AppendRestoreLog("Restauração cancelada.");
+        else if (failures.Count == 0)
+            AppendRestoreLog("Restauração concluída com sucesso.");
+        else
+            AppendRestoreLog($"Restauração concluída com {failures.Count} falha(s): " + string.Join(", ", failures.Select(failure => failure.Item.Database)));
+
+        string? restoredFolder = null;
+        string? structureWarning = null;
+        if (!cancelled && succeeded > 0)
+        {
+            var multiBase = MultiBaseOperationRules.IsMultiBase(folder);
+            // No multi-base o Registro aponta para a raiz da SL (igual à tela Alterar base),
+            // nunca para a pasta ARQ## onde estava o .FBK.
+            restoredFolder = multiBase
+                ? Path.GetFullPath(folder)
+                : Path.GetDirectoryName(plan[0].DestinationPath)!;
+
+            if (multiBase && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)))
+            {
+                structureWarning = $"A pasta tem a estrutura multi-base (pastas ARQ##), mas a pasta ARQ00 não existe:\n{MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)}\n\nSem a ARQ00 o sistema não teria para onde apontar a EMPRESA. O Registro não foi alterado.";
+                AppendRestoreLog("Atenção: " + structureWarning.Replace("\n", " "));
+                restoredFolder = null;
+            }
+        }
+
+        if (inBackground)
+        {
+            if (cancelled)
+                ShowBackgroundNotification("Restauração cancelada", "A restauração foi cancelada. Abra o Traz Base para ver o log.");
+            else if (succeeded == 0)
+                ShowBackgroundNotification("Falha na restauração", $"Nenhuma base foi restaurada ({failures.Count} falha(s)). Abra o Traz Base para ver o log.");
+            else if (structureWarning is not null)
+                ShowBackgroundNotification("Estrutura multi-base incompleta", "A pasta ARQ00 não existe; o Registro não foi alterado. Abra o Traz Base para ver o log.");
+            else
+            {
+                _pendingRestoreRegistryFolder = restoredFolder;
+                var detail = failures.Count == 0
+                    ? $"{succeeded} base(s) restaurada(s) com sucesso."
+                    : $"{succeeded} base(s) restaurada(s), {failures.Count} falha(s).";
+                ShowBackgroundNotification("Restauração concluída", detail + "\nAbra o Traz Base para decidir se quer apontar o Registro para a pasta.");
+            }
+            return;
+        }
+
+        if (structureWarning is not null)
+            MessageBox.Show(this, structureWarning, "Estrutura multi-base incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        else if (restoredFolder is not null)
+        {
+            var answer = MessageBox.Show(this,
+                $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
+                "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+            if (answer == DialogResult.Yes) await UpdateRegistryForFolderAsync(restoredFolder, AppendRestoreLog);
+        }
+
+        if (cancelled)
+        {
+            // O cancelamento já foi registrado no log; nenhum diálogo adicional.
+        }
+        else if (failures.Count == 0)
+        {
+            MessageBox.Show(this, $"{results.Length} base(s) restaurada(s) com sucesso.", "Restauração concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        else
+        {
+            MessageBox.Show(this, "A restauração terminou com falhas. Veja o log para detalhes.", "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    /// <summary>Responde, ao reabrir a janela, à pergunta do Registro que ficou pendente em segundo plano.</summary>
+    private async void FlushPendingRestorePrompt()
+    {
+        var folder = _pendingRestoreRegistryFolder;
+        if (string.IsNullOrWhiteSpace(folder) || IsAppInBackground() || IsDisposed || !IsHandleCreated) return;
+        _pendingRestoreRegistryFolder = null;
+
+        var answer = MessageBox.Show(this,
+            $"A restauração terminou em segundo plano.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{folder}?",
+            "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes) return;
+
+        try
+        {
+            await UpdateRegistryForFolderAsync(folder, AppendRestoreLog);
+        }
+        catch (Exception ex)
+        {
+            AppendRestoreLog("ERRO ao atualizar o Registro: " + ex.Message);
+            MessageBox.Show(this, $"Não foi possível alterar a base no Registro:\n{ex.Message}", "Falha ao alterar base", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
     }
 
@@ -5572,6 +5643,8 @@ internal sealed partial class MainForm : Form
         if (_notifyIcon is not null) _notifyIcon.Visible = ShouldShowTrayIcon();
     }
 
+    private bool IsAppInBackground() => _backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized;
+
     private void FlowNotify(string caption, string message, bool error = false)
     {
         if (error)
@@ -6150,6 +6223,7 @@ internal sealed partial class MainForm : Form
         BringToFront();
         Activate();
         RefreshTrayIconVisibility(); // janela visível => oculta o ícone da bandeja
+        FlushPendingRestorePrompt();
     }
 
     private string GetConfiguredTempPath()
