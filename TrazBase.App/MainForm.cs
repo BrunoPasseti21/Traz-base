@@ -3760,6 +3760,7 @@ internal sealed partial class MainForm : Form
         _configureSicView.Visible = false;
         _arqEmpView.Visible = false;
         _arqSistView.Visible = false;
+        _copySqlView.Visible = false;
         _folderShortcutsView.Visible = true;
         _transferNav.BackColor = Color.White;
         _changeBaseNav.BackColor = Color.White;
