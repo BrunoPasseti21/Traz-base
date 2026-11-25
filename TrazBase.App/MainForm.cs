@@ -65,7 +65,7 @@ internal sealed partial class MainForm : Form
     private readonly TableLayoutPanel _shell = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
     private readonly Panel _contentHost = new() { Dock = DockStyle.Fill };
     private readonly Panel _sidebar = new() { Dock = DockStyle.Fill, BackColor = Color.White };
-    private readonly Panel _sidebarScroll = new() { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
+    private readonly ThemedPanel _sidebarScroll = new() { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
     private readonly PlainNavigationButton _menuToggle = new() { Text = "", Image = SvgIconLoader.Load("menu.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 54, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _transferNav = new() { Text = "", Image = SvgIconLoader.Load("Transferir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
     private readonly PlainNavigationButton _changeBaseNav = new() { Text = "", Image = SvgIconLoader.Load("Trocar-Base.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
@@ -148,7 +148,7 @@ internal sealed partial class MainForm : Form
 
     private Control _arqSistView = null!;
     private Control _folderShortcutsView = null!;
-    private Panel _generalSettingsHost = null!;
+    private ThemedPanel _generalSettingsHost = null!;
     private Panel _passwordsSettingsHost = null!;
     private Panel _vpnSettingsHost = null!;
     // VPN: opção de conectar a uma VPN do Windows antes de transferir as bases.
@@ -3904,11 +3904,15 @@ internal sealed partial class MainForm : Form
     private Control BuildGeneralSettingsPanel()
     {
         var card = Card();
-        var host = _generalSettingsHost = new Panel
+        var host = _generalSettingsHost = new ThemedPanel
         {
             Location = new Point(18, 20),
             Size = new Size(100, 544),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom,
+            AutoScroll = true,
+            // Altura necessária para os controles da aba: se a janela estiver menor,
+            // a barra de rolagem aparece em vez de sobrepor os componentes.
+            AutoScrollMinSize = new Size(0, 560),
             Margin = Padding.Empty
         };
         var labels = new[]

@@ -73,6 +73,19 @@ internal interface IThemedScrollingControl
     void RefreshNativeTheme();
 }
 
+/// <summary>Painel com rolagem cuja barra nativa acompanha o tema claro/escuro.</summary>
+internal sealed class ThemedPanel : Panel, IThemedScrollingControl
+{
+    public void RefreshNativeTheme()
+    {
+        if (!IsHandleCreated) return;
+        var scroll = AutoScrollPosition;
+        RecreateHandle();
+        try { AutoScrollPosition = new Point(-scroll.X, -scroll.Y); }
+        catch { /* painel sem conteúdo rolável neste momento */ }
+    }
+}
+
 /// <summary>Estado global de tema: permite que os controles customizados pintem sem depender do tema nativo.</summary>
 internal static class ThemeState
 {
