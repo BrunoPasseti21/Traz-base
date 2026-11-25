@@ -149,6 +149,7 @@ internal sealed partial class MainForm : Form
     private Control _arqSistView = null!;
     private Control _folderShortcutsView = null!;
     private Panel _generalSettingsHost = null!;
+    private ThemedPanel _generalSettingsScroller = null!;
     private Panel _passwordsSettingsHost = null!;
     private Panel _vpnSettingsHost = null!;
     // VPN: opção de conectar a uma VPN do Windows antes de transferir as bases.
@@ -3907,12 +3908,12 @@ internal sealed partial class MainForm : Form
         var card = Card();
         // Painel rolável dedicado: o conteúdo mantém a altura fixa e a barra aparece
         // quando a janela/cartão fica menor que ele (não sobrepõe os controles).
-        var scroller = new ThemedPanel
+        var scroller = _generalSettingsScroller = new ThemedPanel
         {
             Dock = DockStyle.Fill,
             AutoScroll = true,
             AutoScrollMinSize = new Size(0, 570),
-            BackColor = Color.Transparent
+            BackColor = Surface
         };
         var host = _generalSettingsHost = new Panel
         {
@@ -4274,7 +4275,7 @@ internal sealed partial class MainForm : Form
                 if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel == _progressFill || panel == _updateSicProgressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
                 else if (panel == _sidebar || panel == _sidebarScroll || panel == _menuFooter || panel == _updateRow || panel == _themeToggleRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
-                else if (panel == _generalSettingsHost || panel == _passwordsSettingsHost || panel == _vpnSettingsHost) panel.BackColor = surface;
+                else if (panel == _generalSettingsHost || panel == _generalSettingsScroller || panel == _passwordsSettingsHost || panel == _vpnSettingsHost) panel.BackColor = surface;
                 else if (panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
                 else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);
                 else panel.BackColor = panel.BorderStyle == BorderStyle.None ? background : surface;
