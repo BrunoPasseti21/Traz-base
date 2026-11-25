@@ -933,7 +933,7 @@ internal sealed partial class MainForm : Form
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Location = new Point(0, 31), // 3 px de margem superior extra no item do título
+            Location = new Point(0, 28),
             ColumnCount = 2,
             RowCount = 1,
             BackColor = Color.Transparent,
@@ -964,7 +964,7 @@ internal sealed partial class MainForm : Form
                 Image = SvgIconLoader.Load("Ajuda.svg", 24),
                 BackColor = Color.Transparent,
                 Cursor = Cursors.Hand,
-                Margin = new Padding(8, 0, 0, 0),
+                Margin = new Padding(8, 3, 0, 0),
                 Anchor = AnchorStyles.Left
             };
             help.MouseEnter += (_, _) => ShowHintPopup(help, helpText!);
