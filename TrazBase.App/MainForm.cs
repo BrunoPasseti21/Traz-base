@@ -755,6 +755,12 @@ internal sealed partial class MainForm : Form
     [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
     private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
     private void CenterThemeToggle() =>
         _themeToggle.Location = new Point(
             Math.Max(0, (_themeToggleRow.Width - _themeToggle.Width) / 2),
@@ -816,6 +822,27 @@ internal sealed partial class MainForm : Form
         }
     }
 
+    /// <summary>Traz a janela do instalador ao primeiro plano uma vez, sem mantê-la sempre no topo.</summary>
+    private static async Task BringInstallerToFrontAsync(System.Diagnostics.Process process)
+    {
+        try
+        {
+            for (var attempt = 0; attempt < 20 && !process.HasExited; attempt++)
+            {
+                process.Refresh();
+                var handle = process.MainWindowHandle;
+                if (handle != IntPtr.Zero)
+                {
+                    ShowWindow(handle, 9); // SW_RESTORE
+                    SetForegroundWindow(handle);
+                    return;
+                }
+                await Task.Delay(100);
+            }
+        }
+        catch { /* best-effort: a janela do instalador aparece pelo próprio Windows */ }
+    }
+
     /// <summary>Informa na abertura se a atualização iniciada na sessão anterior foi aplicada.</summary>
     private void NotifyPendingUpdateResult()
     {
@@ -870,7 +897,7 @@ internal sealed partial class MainForm : Form
             // Não fechamos o app aqui: /CLOSEAPPLICATIONS fecha no momento certo da instalação e
             // /RESTARTAPPLICATIONS o reabre com a nova versão ao terminar.
             _updateInstallInProgress = true;
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installer)
+            var installerProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installer)
             {
                 UseShellExecute = true,
                 Verb = "runas",
@@ -880,6 +907,10 @@ internal sealed partial class MainForm : Form
                 Arguments = "/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
             });
             _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
+
+            // Traz a janela do instalador para o primeiro plano uma única vez, para o usuário
+            // enxergar o progresso. Não usa TopMost: ela continua atrás/na frente como qualquer janela.
+            if (installerProcess is not null) _ = BringInstallerToFrontAsync(installerProcess);
 
             // O Restart Manager do Inno Setup normalmente encerra o app por nós. Caso ele
             // não consiga (por exemplo, diferença de integridade com o executável elevado),
