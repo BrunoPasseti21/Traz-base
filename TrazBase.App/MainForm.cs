@@ -2115,11 +2115,26 @@ internal sealed partial class MainForm : Form
 
             if (results.Any(result => result.Error is null) && !cancelled)
             {
-                var restoredFolder = Path.GetDirectoryName(plan[0].DestinationPath)!;
-                var answer = MessageBox.Show(this,
-                    $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
-                    "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
-                if (answer == DialogResult.Yes) await UpdateRegistryForFolderAsync(restoredFolder, AppendRestoreLog);
+                var multiBase = MultiBaseOperationRules.IsMultiBase(folder);
+                // No multi-base o Registro aponta para a raiz da SL (igual à tela Alterar base),
+                // nunca para a pasta ARQ## onde estava o .FBK.
+                var restoredFolder = multiBase
+                    ? Path.GetFullPath(folder)
+                    : Path.GetDirectoryName(plan[0].DestinationPath)!;
+
+                if (multiBase && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)))
+                {
+                    var warning = $"A pasta tem a estrutura multi-base (pastas ARQ##), mas a pasta ARQ00 não existe:\n{MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)}\n\nSem a ARQ00 o sistema não teria para onde apontar a EMPRESA. O Registro não foi alterado.";
+                    AppendRestoreLog("Atenção: " + warning.Replace("\n", " "));
+                    MessageBox.Show(this, warning, "Estrutura multi-base incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+                else
+                {
+                    var answer = MessageBox.Show(this,
+                        $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
+                        "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+                    if (answer == DialogResult.Yes) await UpdateRegistryForFolderAsync(restoredFolder, AppendRestoreLog);
+                }
             }
 
             if (cancelled)
