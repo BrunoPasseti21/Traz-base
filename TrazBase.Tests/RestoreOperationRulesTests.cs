@@ -116,6 +116,44 @@ public sealed class RestoreOperationRulesTests
         Assert.IsEmpty(duplicates);
     }
 
+    [TestMethod]
+    public void FindArqFolderName_ReturnsArqFolderOnlyInsideTheBaseRoot()
+    {
+        using var temp = new TempDirectory();
+        var arq = Directory.CreateDirectory(System.IO.Path.Combine(temp.Path, "ARQ01")).FullName;
+        var inside = System.IO.Path.Combine(arq, "ARQSIST.fbk");
+        var outside = System.IO.Path.Combine(temp.Path, "BKP", "ARQSIST.fbk");
+
+        Assert.AreEqual("ARQ01", RestoreOperationRules.FindArqFolderName(inside, temp.Path));
+        Assert.IsNull(RestoreOperationRules.FindArqFolderName(outside, temp.Path));
+    }
+
+    [TestMethod]
+    public void GetTabName_UsesDatabaseNameOrArqPrefix()
+    {
+        var simple = new RestorePlanItem(@"C:\base\BKP\ARQSIST.fbk", "ARQSIST", @"C:\base\BKP\ARQSIST.FDB");
+        var multi = new RestorePlanItem(@"C:\base\ARQ01\ARQSIST.fbk", "ARQSIST", @"C:\base\ARQ01\ARQSIST.FDB");
+
+        Assert.AreEqual("ARQSIST", RestoreOperationRules.GetTabName(simple, @"C:\base"));
+        Assert.AreEqual("ARQ01 - ARQSIST", RestoreOperationRules.GetTabName(multi, @"C:\base"));
+    }
+
+    [TestMethod]
+    public void FindFbkFiles_IncludesArqFolderBackupsWhenMultiBase()
+    {
+        using var temp = new TempDirectory();
+        var bkp = Directory.CreateDirectory(System.IO.Path.Combine(temp.Path, "BKP")).FullName;
+        var bkpFbk = System.IO.Path.Combine(bkp, "ARQEMP.fbk");
+        var arq01 = Directory.CreateDirectory(System.IO.Path.Combine(temp.Path, "ARQ01")).FullName;
+        var arqFbk = System.IO.Path.Combine(arq01, "ARQSIST.fbk");
+        File.WriteAllText(bkpFbk, "");
+        File.WriteAllText(arqFbk, "");
+
+        var files = RestoreOperationRules.FindFbkFiles(temp.Path, bkp);
+
+        CollectionAssert.AreEquivalent(new[] { bkpFbk, arqFbk }, files.ToArray());
+    }
+
     private sealed class TempDirectory : IDisposable
     {
         public TempDirectory()

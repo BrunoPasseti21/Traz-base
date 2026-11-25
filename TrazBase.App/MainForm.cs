@@ -201,10 +201,20 @@ internal sealed partial class MainForm : Form
     private long _updateSicTotalBytes;
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
-    // Saída do gbak pode gerar milhares de linhas: agrupa as mensagens e descarrega na UI
-    // de uma vez, em vez de agendar um BeginInvoke por linha (isso travava a interface).
-    private readonly ConcurrentQueue<string> _restoreLogPending = new();
-    private int _restoreLogFlushScheduled;
+    private readonly TabControl _restoreLogTabs = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly object _restoreLogTargetsLock = new();
+    private readonly List<RestoreLogTarget> _restoreLogTargets = new();
+
+    /// <summary>Cada base restaurada tem seu próprio destino de log (e aba, quando há mais de uma).</summary>
+    private sealed class RestoreLogTarget
+    {
+        public RestorePlanItem? Item { get; init; }
+        public required ThemedTextBox Box { get; init; }
+        // A saída do gbak gera milhares de linhas: agrupa e descarrega na UI de uma vez,
+        // em vez de agendar um BeginInvoke por linha (isso travava a interface).
+        public ConcurrentQueue<string> Pending { get; } = new();
+        public int FlushScheduled;
+    }
     private readonly CheckBox _updateSicSingleDestinationCheck = new() { Text = "Usar o mesmo destino para todos os executáveis", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly UnthemedTextBox _updateSicSingleDestination = new() { Width = 760, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Enabled = false };
     private readonly RoundedButton _updateSicSingleDestinationBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f), Enabled = false };
@@ -1652,7 +1662,8 @@ internal sealed partial class MainForm : Form
             "• Selecione a pasta; os arquivos .FBK são procurados na subpasta BKP — se ela não existir, na própria pasta selecionada.\r\n" +
             "• Arquivos com ARQEMP, ARQOCOR ou ARQSIST no nome viram ARQEMP.FDB, ARQOCOR.FDB ou ARQSIST.FDB na mesma pasta do .FBK.\r\n" +
             "• Arquivos .FBK sem nome conhecido pedem a escolha do destino; \"Pular\" ignora o arquivo.\r\n" +
-            "• As três restaurações rodam em paralelo e um .FDB existente é substituído somente após confirmação.\r\n" +
+            "• As restaurações rodam em paralelo e um .FDB existente é substituído somente após confirmação.\r\n" +
+            "• Com mais de um .FBK, cada base ganha uma aba de log; em estruturas multi-base a aba é \"ARQ## - BASE\".\r\n" +
             "• Ao final, você escolhe se deseja apontar o Registro para a pasta restaurada."), 0, 0);
 
         page.Controls.Add(_restoreBaseFoldersRootLabel, 0, 1);
@@ -1695,10 +1706,12 @@ internal sealed partial class MainForm : Form
         heading.Controls.Add(new Label { Text = "Andamento da restauração", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
         var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
         clear.FlatAppearance.BorderSize = 0;
-        clear.Click += (_, _) => _restoreLog.Clear();
+        clear.Click += (_, _) => ClearRestoreLogs();
         heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
         heading.Controls.Add(clear);
+        logCard.Controls.Add(_restoreLogTabs);
         logCard.Controls.Add(_restoreLog);
+        _restoreLog.BringToFront();
         logCard.Controls.Add(heading);
         page.Controls.Add(logCard, 0, 4);
         return page;
@@ -1999,8 +2012,8 @@ internal sealed partial class MainForm : Form
             return;
         }
 
-        var fbkFiles = Directory.GetFiles(backupDirectory, "*.fbk");
-        if (fbkFiles.Length == 0)
+        var fbkFiles = RestoreOperationRules.FindFbkFiles(folder, backupDirectory);
+        if (fbkFiles.Count == 0)
         {
             MessageBox.Show(this, $"Nenhum arquivo .FBK foi encontrado em:\n{backupDirectory}", "Nada para restaurar", MessageBoxButtons.OK, MessageBoxIcon.Information);
             return;
@@ -2053,7 +2066,7 @@ internal sealed partial class MainForm : Form
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
-        _restoreLog.Clear();
+        PrepareRestoreLogs(plan, folder);
         var token = _restoreCancellation.Token;
         try
         {
@@ -2061,24 +2074,30 @@ internal sealed partial class MainForm : Form
             if (string.Equals(backupDirectory, folder, StringComparison.OrdinalIgnoreCase))
                 AppendRestoreLog("Subpasta BKP não encontrada; usando a pasta selecionada.");
             if (skipped.Count > 0) AppendRestoreLog("Ignorados: " + string.Join(", ", skipped));
+            var hasArqFbk = plan.Any(item => RestoreOperationRules.FindArqFolderName(item.FbkPath, folder) is not null);
+            if (hasArqFbk)
+                AppendRestoreLog("Estrutura multi-base detectada nas pastas ARQ##; cada aba identifica a pasta da base.");
+            else if (MultiBaseOperationRules.IsMultiBase(folder))
+                AppendRestoreLog("Atenção: a pasta tem ARQ##, mas nenhum .FBK foi encontrado dentro dessas pastas; os .FDB serão criados ao lado dos .FBK.");
 
             var tasks = plan.Select(async item =>
             {
-                AppendRestoreLog($"Restaurando {Path.GetFileName(item.FbkPath)} → {item.DestinationPath}");
+                void ItemLog(string message) => AppendRestoreLog(item, message);
+                ItemLog($"Restaurando {Path.GetFileName(item.FbkPath)} → {item.DestinationPath}");
                 try
                 {
-                    await RestoreDatabaseAsync(item, token, AppendRestoreLog, _password.Text);
-                    AppendRestoreLog($"{item.Database}: restauração concluída.");
+                    await RestoreDatabaseAsync(item, token, ItemLog, _password.Text);
+                    ItemLog($"{item.Database}: restauração concluída.");
                     return (Item: item, Error: (string?)null);
                 }
                 catch (Exception ex) when (ex is OperationCanceledException)
                 {
-                    AppendRestoreLog($"{item.Database}: cancelada.");
+                    ItemLog($"{item.Database}: cancelada.");
                     return (Item: item, Error: "cancelada");
                 }
                 catch (Exception ex)
                 {
-                    AppendRestoreLog($"{item.Database}: ERRO — {ex.Message}");
+                    ItemLog($"{item.Database}: ERRO — {ex.Message}");
                     return (Item: item, Error: ex.Message);
                 }
             }).ToList();
@@ -2171,33 +2190,133 @@ internal sealed partial class MainForm : Form
         return builder.ToString();
     }
 
-    private void AppendRestoreLog(string message)
+    private void AppendRestoreLog(string message) => AppendToRestoreLogs(null, message);
+
+    private void AppendRestoreLog(RestorePlanItem item, string message) => AppendToRestoreLogs(item, message);
+
+    /// <summary>Sem item, a mensagem vai para todos os logs; com item, só para a aba daquela base.</summary>
+    private void AppendToRestoreLogs(RestorePlanItem? item, string message)
     {
         var line = $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}";
-        if (!InvokeRequired)
+        RestoreLogTarget[] targets;
+        lock (_restoreLogTargetsLock)
         {
-            FlushRestoreLog();
-            _restoreLog.AppendText(line);
+            targets = item is null
+                ? _restoreLogTargets.ToArray()
+                : _restoreLogTargets.Where(target => ReferenceEquals(target.Item, item)).ToArray();
+        }
+        if (targets.Length == 0) return;
+        foreach (var target in targets) EnqueueRestoreLog(target, line);
+    }
+
+    private void EnqueueRestoreLog(RestoreLogTarget target, string line)
+    {
+        if (target.Box.IsDisposed) return;
+        if (!target.Box.InvokeRequired)
+        {
+            FlushRestoreLog(target);
+            target.Box.AppendText(line);
             return;
         }
 
-        _restoreLogPending.Enqueue(line);
-        if (Interlocked.Exchange(ref _restoreLogFlushScheduled, 1) != 0) return;
-        try { BeginInvoke(new Action(FlushRestoreLog)); }
-        catch { Interlocked.Exchange(ref _restoreLogFlushScheduled, 0); }
+        target.Pending.Enqueue(line);
+        if (Interlocked.Exchange(ref target.FlushScheduled, 1) != 0) return;
+        try { target.Box.BeginInvoke(new Action(() => FlushRestoreLog(target))); }
+        catch { Interlocked.Exchange(ref target.FlushScheduled, 0); }
     }
 
-    /// <summary>Descarrega todas as linhas pendentes na UI de uma só vez.</summary>
-    private void FlushRestoreLog()
+    /// <summary>Descarrega as linhas pendentes de um log de uma só vez na thread da UI.</summary>
+    private void FlushRestoreLog(RestoreLogTarget target)
     {
-        Interlocked.Exchange(ref _restoreLogFlushScheduled, 0);
-        if (_restoreLogPending.IsEmpty) return;
+        Interlocked.Exchange(ref target.FlushScheduled, 0);
+        if (target.Box.IsDisposed || target.Pending.IsEmpty) return;
 
         var text = new StringBuilder();
-        while (_restoreLogPending.TryDequeue(out var line)) text.Append(line);
-        _restoreLog.AppendText(text.ToString());
-        _restoreLog.SelectionStart = _restoreLog.TextLength;
-        _restoreLog.ScrollToCaret();
+        while (target.Pending.TryDequeue(out var line)) text.Append(line);
+        target.Box.AppendText(text.ToString());
+        target.Box.SelectionStart = target.Box.TextLength;
+        target.Box.ScrollToCaret();
+    }
+
+    /// <summary>
+    /// Prepara os logs para uma nova restauração: com um único .FBK mantém o log simples;
+    /// com vários, cria uma aba por base ("ARQSIST", "ARQEMP"...; no multi-base "ARQ## - BASE").
+    /// </summary>
+    private void PrepareRestoreLogs(IReadOnlyList<RestorePlanItem> plan, string root)
+    {
+        ClearRestoreLogs();
+        lock (_restoreLogTargetsLock)
+        {
+            _restoreLogTargets.Clear();
+            var oldPages = new List<TabPage>();
+            foreach (TabPage page in _restoreLogTabs.TabPages) oldPages.Add(page);
+            foreach (var page in oldPages) page.Dispose();
+            _restoreLogTabs.TabPages.Clear();
+
+            if (plan.Count <= 1)
+            {
+                _restoreLogTargets.Add(new RestoreLogTarget { Item = plan.FirstOrDefault(), Box = _restoreLog });
+                _restoreLogTabs.Visible = false;
+                _restoreLog.Visible = true;
+                _restoreLog.BringToFront();
+                return;
+            }
+
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in plan)
+            {
+                var name = RestoreOperationRules.GetTabName(item, root);
+                if (!used.Add(name))
+                {
+                    var suffix = 2;
+                    while (!used.Add($"{name} ({suffix})")) suffix++;
+                    name = $"{name} ({suffix})";
+                }
+                var page = new TabPage(name) { BackColor = _settings.DarkMode ? Color.FromArgb(34, 42, 55) : Color.White };
+                var box = CreateRestoreLogBox();
+                page.Controls.Add(box);
+                _restoreLogTabs.TabPages.Add(page);
+                _restoreLogTargets.Add(new RestoreLogTarget { Item = item, Box = box });
+            }
+            _restoreLog.Visible = false;
+            _restoreLogTabs.Visible = true;
+            _restoreLogTabs.SelectedIndex = 0;
+            _restoreLogTabs.BringToFront();
+        }
+    }
+
+    private ThemedTextBox CreateRestoreLogBox()
+    {
+        var dark = _settings.DarkMode;
+        return new ThemedTextBox
+        {
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Vertical,
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.None,
+            BackColor = dark ? DarkMemo : Color.White,
+            ForeColor = dark ? DarkMemoText : Ink,
+            Font = new Font("Consolas", 10f)
+        };
+    }
+
+    private void ClearRestoreLogs()
+    {
+        RestoreLogTarget[] targets;
+        lock (_restoreLogTargetsLock) targets = _restoreLogTargets.ToArray();
+        foreach (var target in targets)
+        {
+            while (target.Pending.TryDequeue(out _)) { }
+            if (target.Box.IsDisposed) continue;
+            if (target.Box.InvokeRequired)
+            {
+                try { target.Box.BeginInvoke(new Action(() => target.Box.Clear())); }
+                catch { /* controle já descartado */ }
+            }
+            else target.Box.Clear();
+        }
+        if (_restoreLogTargets.Count == 0) _restoreLog.Clear();
     }
 
     private static DataGridView CreateUpdateSicGrid()
@@ -3959,6 +4078,14 @@ internal sealed partial class MainForm : Form
             if (memo is TextBox textBox) { textBox.BackColor = memoBack; textBox.ForeColor = memoFore; }
             else if (memo is RichTextBox richTextBox) { richTextBox.BackColor = memoBack; richTextBox.ForeColor = memoFore; }
         }
+        foreach (var target in _restoreLogTargets)
+        {
+            target.Box.BackColor = memoBack;
+            target.Box.ForeColor = memoFore;
+        }
+        _restoreLogTabs.BackColor = surface;
+        _restoreLogTabs.ForeColor = text;
+        foreach (TabPage page in _restoreLogTabs.TabPages) page.BackColor = surface;
 
         // Tema claro: borda de 1 px nos editores/resultados dos comandos ARQEMP/ARQSIST
         // para separar o campo do fundo branco. No tema escuro a borda permanece sem desenho.
