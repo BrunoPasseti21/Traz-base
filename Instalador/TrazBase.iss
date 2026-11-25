@@ -22,6 +22,7 @@ OutputDir=.
 OutputBaseFilename=TrazBase-Setup
 Compression=lzma2/ultra64
 SolidCompression=yes
+CloseApplications=force
 WizardStyle=modern
 SetupLogging=yes
 TimeStampsInUTC=yes

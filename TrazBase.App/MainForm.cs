@@ -224,9 +224,9 @@ internal sealed partial class MainForm : Form
     private readonly RichTextBox _arqSistOutput = CreateSqlOutput();
     private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
     private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
-    // GitHub API sem autenticação permite 60 requisições/hora. Verificar a cada 15 min (4/hora)
-    // evita esgotar o limite — antes era 1/min e o app parava de avisar atualizações após ~1h.
-    private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 900_000 };
+    // Consulta um arquivo estático em raw.githubusercontent.com, sem consumir o limite da API
+    // do GitHub; por isso pode verificar a cada 1 minuto sem parar de avisar atualizações.
+    private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 60_000 };
     private string? _updateNotifiedVersion; // versão já notificada nesta sessão (evita toast repetido a cada minuto)
     private bool _updateCheckRunning;
     private bool _menuExpanded;
@@ -619,19 +619,20 @@ internal sealed partial class MainForm : Form
             _menuAnimationClock.Stop();
             HideHintPopup();
 
-            // Não permitir fechar o aplicativo enquanto o tour guiado estiver ativo.
-            if (IsTutorialActive && e.CloseReason == CloseReason.UserClosing && !_exitRequested)
-            {
-                e.Cancel = true;
-                return;
-            }
-
             // O Inno Setup está fechando o app para substituir os arquivos: encerra sem
-            // confirmação e sem minimizar para a bandeja, e deixa ele reabrir ao final.
+            // confirmação, sem minimizar para a bandeja e sem qualquer outro bloqueio
+            // (tour, operação em andamento ou confirmação de saída), e deixa ele reabrir ao final.
             if (_updateInstallInProgress)
             {
                 _exitRequested = true;
                 e.Cancel = false;
+                return;
+            }
+
+            // Não permitir fechar o aplicativo enquanto o tour guiado estiver ativo.
+            if (IsTutorialActive && e.CloseReason == CloseReason.UserClosing && !_exitRequested)
+            {
+                e.Cancel = true;
                 return;
             }
 
@@ -828,9 +829,20 @@ internal sealed partial class MainForm : Form
             {
                 UseShellExecute = true,
                 Verb = "runas",
-                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+                Arguments = "/VERYSILENT /SUPPRESSMSGBOXES /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
             });
             _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
+
+            // O Restart Manager do Inno Setup normalmente encerra o app por nós. Caso ele
+            // não consiga (por exemplo, diferença de integridade com o executável elevado),
+            // garantimos a saída limpa. A pequena espera dá tempo ao instalador de registrar
+            // o aplicativo para que /RESTARTAPPLICATIONS possa reabri-lo ao final.
+            await Task.Delay(1500);
+            if (!IsDisposed)
+            {
+                try { Close(); Application.Exit(); }
+                catch { /* o instalador encerra o processo se ele ainda estiver aberto */ }
+            }
         }
         catch (Exception ex)
         {
