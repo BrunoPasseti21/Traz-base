@@ -4,6 +4,16 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["0.9.7"] =
+        [
+            "Tutorial guiado enxugado para uma visão geral por tela/aba (9 passos): o passo 6 destaca o editor de comandos SQL e o item ARQSIST do menu, sem cobrir o editor; os botões \"Testar\" e \"Procurar\" não são mais destacados. O popup fica sempre acima da sobreposição, continua funcionando após cliques fora e impede o fechamento do app enquanto o tour está ativo.",
+            "Dicas de uso agora ficam em ícones de ajuda de 24×24 ao lado do título de cada tela, em vez de cards.",
+            "Menu lateral rola apenas quando o conteúdo não cabe; \"Configurar caminhos\" passou a ficar abaixo de \"Atualização de executáveis\".",
+            "Restaurar base lista as pastas de bases encontradas e mantém o botão \"Procurar\".",
+            "Atualizações: verificação passou a rodar a cada 15 minutos e a consultar um manifesto estático (version.json) em vez da API do GitHub, evitando o limite de requisições.",
+            "O executável do Traz Base agora solicita privilégios de administrador (UAC) ao abrir.",
+            "Transferência de bases não bloqueia mais as opções do menu — é possível navegar e usar as outras telas durante o processo; ao tentar atualizar o app, um aviso pede para esperar a transferência terminar.",
+        ],
         ["0.9.6"] =
         [
             "Novo tutorial guiado para novos usuários (25 passos): recepção na tela Início, Configurações detalhadas, tema, comandos ARQEMP/ARQSIST, Transferir e Alterar base, com opção de pular. Roda na primeira instalação e uma vez nesta atualização; pode ser reaberto em Configurações → Geral.",
