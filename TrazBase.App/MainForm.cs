@@ -148,7 +148,7 @@ internal sealed partial class MainForm : Form
 
     private Control _arqSistView = null!;
     private Control _folderShortcutsView = null!;
-    private ThemedPanel _generalSettingsHost = null!;
+    private Panel _generalSettingsHost = null!;
     private Panel _passwordsSettingsHost = null!;
     private Panel _vpnSettingsHost = null!;
     // VPN: opção de conectar a uma VPN do Windows antes de transferir as bases.
@@ -3905,15 +3905,20 @@ internal sealed partial class MainForm : Form
     private Control BuildGeneralSettingsPanel()
     {
         var card = Card();
-        var host = _generalSettingsHost = new ThemedPanel
+        // Painel rolável dedicado: o conteúdo mantém a altura fixa e a barra aparece
+        // quando a janela/cartão fica menor que ele (não sobrepõe os controles).
+        var scroller = new ThemedPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoScroll = true,
+            AutoScrollMinSize = new Size(0, 570),
+            BackColor = Color.Transparent
+        };
+        var host = _generalSettingsHost = new Panel
         {
             Location = new Point(18, 20),
             Size = new Size(100, 544),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right | AnchorStyles.Bottom,
-            AutoScroll = true,
-            // Altura necessária para os controles da aba: se a janela estiver menor,
-            // a barra de rolagem aparece em vez de sobrepor os componentes.
-            AutoScrollMinSize = new Size(0, 560),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
             Margin = Padding.Empty
         };
         var labels = new[]
@@ -4049,7 +4054,8 @@ internal sealed partial class MainForm : Form
 
         host.Resize += (_, _) => LayoutSettingsRows();
         LayoutSettingsRows();
-        card.Controls.Add(host);
+        scroller.Controls.Add(host);
+        card.Controls.Add(scroller);
         return card;
     }
 
