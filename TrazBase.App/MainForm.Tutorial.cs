@@ -69,7 +69,7 @@ internal sealed partial class MainForm
     };
 
     /// <summary>
-    /// Tour guiado reduzido: Configurações → Tema → Transferir → Alterar base → encerramento.
+    /// Tour guiado reduzido: Configurações → Tema → Buscar base → Trocar base → encerramento.
     /// </summary>
     private sealed class TutorialGuide : IDisposable
     {
@@ -448,15 +448,15 @@ internal sealed partial class MainForm
                 keepSqlEditorUncovered: true),
 
             new TutorialStep(
-                "Transferir",
-                "Na tela Transferir, digite o número da solicitação (SL) e clique em “Trazer e preparar base”. O aplicativo copia os arquivos, extrai os compactados, ajusta os bancos e aponta o Registro.\n\n" +
+                "Buscar base",
+                "Na tela Buscar base, digite o número da solicitação (SL) e clique em “Trazer e preparar base”. O aplicativo copia os arquivos, extrai os compactados, ajusta os bancos e aponta o Registro.\n\n" +
                 "O andamento aparece no log e, ao concluir, a versão do SIC é exibida no canto da tela.",
                 beforeShow: () => _owner.ShowView(settings: false),
                 target: () => _owner._sl,
                 placePopupBesideTargets: true),
 
             new TutorialStep(
-                "Alterar base",
+                "Trocar base",
                 "Escolha uma pasta na lista e clique em “Trocar base” para apontar o Registro para ela. “Abrir pasta” abre a base no Explorer.\n\n" +
                 "A lista pode ser ordenada por nome ou data de modificação.",
                 beforeShow: () => _owner.ShowChangeBaseView(),

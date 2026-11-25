@@ -39,15 +39,15 @@ internal sealed partial class MainForm : Form
     private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
     [
-        (StartScreen.AlterarBase, "Alterar base"),
         (StartScreen.Atalhos, "Atalhos de pasta"),
         (StartScreen.AtualizarSic, "Atualização de executáveis"),
+        (StartScreen.Transferir, "Buscar base"),
         (StartScreen.ConfigurarSic, "Configurar caminhos"),
         (StartScreen.CopiarSql, "Copiar SQL"),
         (StartScreen.Inicio, "Início"),
         (StartScreen.RedefinirBase, "Redefinir base"),
         (StartScreen.RestaurarBase, "Restaurar base"),
-        (StartScreen.Transferir, "Transferir")
+        (StartScreen.AlterarBase, "Trocar base")
     ];
     private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 280, Height = 30 };
     private readonly UnthemedTextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
@@ -1027,7 +1027,7 @@ internal sealed partial class MainForm : Form
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
         page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
-        page.Controls.Add(BuildHeader("Transferir", "Cópia, extração e configuração Firebird em um único fluxo"), 0, 0);
+        page.Controls.Add(BuildHeader("Buscar base", "Cópia, extração e configuração Firebird em um único fluxo"), 0, 0);
         page.Controls.Add(BuildActionPanel(), 0, 1);
         page.Controls.Add(BuildLogPanel(), 0, 2);
         page.Controls.Add(BuildProgressFooter(), 0, 3);
@@ -1565,7 +1565,7 @@ internal sealed partial class MainForm : Form
         page.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
         var header = new Panel { Dock = DockStyle.Fill };
         header.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(0, 2) });
-        header.Controls.Add(new Label { Text = "Alterar base", Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 28) });
+        header.Controls.Add(new Label { Text = "Trocar base", Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 28) });
         header.Controls.Add(new Label { Text = "Selecione uma pasta para apontar o Registro para essa base", Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 72) });
         _changeBaseVersionLabel.Location = new Point(0, 30);
         header.Controls.Add(_changeBaseVersionLabel);
@@ -1882,7 +1882,7 @@ internal sealed partial class MainForm : Form
         }
         catch (Exception ex)
         {
-            AppLogger.Error("Registro - Alterar base", ex.Message, ex);
+            AppLogger.Error("Registro - Trocar base", ex.Message, ex);
             MessageBox.Show(this, $"Não foi possível alterar a base no Registro:\n{ex.Message}", "Falha ao alterar base", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
         finally { _changeBaseButton.Enabled = true; }
@@ -3516,8 +3516,8 @@ internal sealed partial class MainForm : Form
     {
         _menuToggle.Text = expanded ? "Menu" : "";
         _homeNav.Text = expanded ? "Início" : "";
-        _transferNav.Text = expanded ? "Transferir" : "";
-        _changeBaseNav.Text = expanded ? "Alterar base" : "";
+        _transferNav.Text = expanded ? "Buscar base" : "";
+        _changeBaseNav.Text = expanded ? "Trocar base" : "";
         _resetNav.Text = expanded ? "Redefinir base" : "";
         _restoreNav.Text = expanded ? "Restaurar base" : "";
         _updateSicNav.Text = expanded ? "Atualização de executáveis" : "";
@@ -4305,7 +4305,7 @@ internal sealed partial class MainForm : Form
                     ? dark ? Color.FromArgb(190, 208, 230) : Color.FromArgb(25, 94, 205)
                     : label.Text == "TRAZ BASE" || label == _versionLabel || label == _changeBaseVersionLabel
                     ? Color.FromArgb(31, 111, 235)
-                    : label.Text is "Preparar base por solicitação" or "Transferir" or "Configurações" or "Comandos ARQEMP" or "Comandos ARQSIST"
+                    : label.Text is "Preparar base por solicitação" or "Buscar base" or "Configurações" or "Comandos ARQEMP" or "Comandos ARQSIST"
                         ? text : muted;
                 label.BackColor = label == _appVersionLabel
                     ? dark ? Color.FromArgb(38, 50, 68) : Color.FromArgb(231, 240, 255)
@@ -4908,7 +4908,7 @@ internal sealed partial class MainForm : Form
             FlowNotify("Pronto!", $"A base da SL {sl} foi preparada e selecionada.\n\nÉ só abrir o sistema e trabalhar normalmente.");
         }
         catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
-        catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Transferir para saber em que etapa aconteceu.", error: true); }
+        catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Buscar base para saber em que etapa aconteceu.", error: true); }
         finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; _trayShortStatus = null; SetBusy(false); RefreshTrayTooltip(); }
         }
         finally
@@ -5623,7 +5623,7 @@ internal sealed partial class MainForm : Form
         var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = false, Renderer = new TrayMenuRenderer() };
 
         // Linhas de entrada (texto estático + edit). Os ícones ficam à esquerda de cada linha.
-        var transferRow = CreateTrayInputRow("Transferir", "Transferir.svg", "Nº da SL");
+        var transferRow = CreateTrayInputRow("Buscar base", "Transferir.svg", "Nº da SL");
         _traySlBox = transferRow.Box;
         transferRow.Box.KeyDown += async (_, e) =>
         {
@@ -5636,7 +5636,7 @@ internal sealed partial class MainForm : Form
         var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
         menu.Items.Add(transferItem);
 
-        var changeBaseRow = CreateTrayInputRow("Alterar base", "Trocar-Base.svg", "Nome da base");
+        var changeBaseRow = CreateTrayInputRow("Trocar base", "Trocar-Base.svg", "Nome da base");
         _trayChangeBaseBox = changeBaseRow.Box;
         changeBaseRow.Box.KeyDown += async (_, e) =>
         {
@@ -5730,7 +5730,7 @@ internal sealed partial class MainForm : Form
         var sl = _traySlBox?.Text.Trim() ?? "";
         if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c)))
         {
-            ShowBackgroundNotification("Transferir", "Digite um número de SL válido (apenas dígitos) para iniciar.");
+            ShowBackgroundNotification("Buscar base", "Digite um número de SL válido (apenas dígitos) para iniciar.");
             return;
         }
         _sl.Text = sl;
@@ -5756,12 +5756,12 @@ internal sealed partial class MainForm : Form
         var typed = _trayChangeBaseBox?.Text.Trim() ?? "";
         if (typed.Length == 0)
         {
-            ShowBackgroundNotification("Alterar base", "Digite o nome da base para apontar o Registro para ela.");
+            ShowBackgroundNotification("Trocar base", "Digite o nome da base para apontar o Registro para ela.");
             return;
         }
         if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || !Directory.Exists(_settings.BasesRoot))
         {
-            ShowBackgroundNotification("Alterar base", "A pasta local das bases não está configurada ou não está acessível. Configure em Configurações.");
+            ShowBackgroundNotification("Trocar base", "A pasta local das bases não está configurada ou não está acessível. Configure em Configurações.");
             return;
         }
 
@@ -5771,25 +5771,25 @@ internal sealed partial class MainForm : Form
             var (chosen, cancelled) = ResolveBaseChoice(_settings.BasesRoot, typed);
             if (cancelled)
             {
-                ShowBackgroundNotification("Alterar base", "Seleção cancelada. A base não foi alterada.");
+                ShowBackgroundNotification("Trocar base", "Seleção cancelada. A base não foi alterada.");
                 return;
             }
             folder = chosen;
         }
         catch (Exception ex)
         {
-            ShowBackgroundNotification("Alterar base", $"Não foi possível buscar a base:\n{ex.Message}");
+            ShowBackgroundNotification("Trocar base", $"Não foi possível buscar a base:\n{ex.Message}");
             return;
         }
         if (folder is null)
         {
-            ShowBackgroundNotification("Alterar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca por prefixo (ex.: \"TE\" lista TESTE e TESTE_123456) ou por sufixo \"_<dígitos>\".");
+            ShowBackgroundNotification("Trocar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca por prefixo (ex.: \"TE\" lista TESTE e TESTE_123456) ou por sufixo \"_<dígitos>\".");
             return;
         }
 
         if (MultiBaseOperationRules.IsMultiBase(folder) && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(folder)))
         {
-            ShowBackgroundNotification("Alterar base", $"A base \"{Path.GetFileName(folder)}\" tem a estrutura multi-base (pastas ARQ##), mas não existe a pasta ARQ00:\n{MultiBaseOperationRules.GetCompanyDirectory(folder)}\n\nO Registro não foi alterado.");
+            ShowBackgroundNotification("Trocar base", $"A base \"{Path.GetFileName(folder)}\" tem a estrutura multi-base (pastas ARQ##), mas não existe a pasta ARQ00:\n{MultiBaseOperationRules.GetCompanyDirectory(folder)}\n\nO Registro não foi alterado.");
             return;
         }
 
@@ -5801,13 +5801,13 @@ internal sealed partial class MainForm : Form
             Log($"Base alterada pela bandeja: {folder}");
             var version = await TryGetSicVersionAsync(folder);
             _ = UpdateChangeBaseVersionAsync(folder);
-            ShowBackgroundNotification("Alterar base", version is null
+            ShowBackgroundNotification("Trocar base", version is null
                 ? $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}"
                 : $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}\nVersão: {version}");
         }
         catch (Exception ex)
         {
-            ShowBackgroundNotification("Alterar base", $"Não foi possível alterar a base no Registro:\n{ex.Message}");
+            ShowBackgroundNotification("Trocar base", $"Não foi possível alterar a base no Registro:\n{ex.Message}");
         }
     }
 
@@ -6255,7 +6255,7 @@ internal sealed partial class MainForm : Form
         _trayHintShown = true;
         ShowBackgroundNotification(
             "Traz Base",
-            "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Transferir, Atualizar executáveis ou Fechar.");
+            "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Buscar base, Atualizar executáveis ou Fechar.");
     }
 
     /// <summary>Thread de escuta do evento de instância única: quando uma segunda tentativa de abrir o app acontece, traz a janela para frente (se estiver oculta/minimizada, restaura da bandeja).</summary>
