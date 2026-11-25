@@ -2117,7 +2117,7 @@ internal sealed partial class MainForm : Form
             AppendRestoreLog("ERRO: " + ex.Message);
             AppLogger.Error("Restauração", ex.Message, ex);
             if (IsAppInBackground())
-                ShowBackgroundNotification("Falha na restauração", "Não foi possível concluir a restauração: " + ex.Message + "\nAbra o Traz Base para ver o log.");
+                ShowBackgroundNotification("Falha na restauração", "Não foi possível concluir a restauração: " + ex.Message + "\nAbra o Traz Base para ver o log.", ToastNotifier.NotificationSound.Error);
             else
                 MessageBox.Show(this, ex.Message, "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
@@ -2177,18 +2177,19 @@ internal sealed partial class MainForm : Form
         if (inBackground)
         {
             if (cancelled)
-                ShowBackgroundNotification("Restauração cancelada", "A restauração foi cancelada. Abra o Traz Base para ver o log.");
+                ShowBackgroundNotification("Restauração cancelada", "A restauração foi cancelada. Abra o Traz Base para ver o log.", ToastNotifier.NotificationSound.Error);
             else if (succeeded == 0)
-                ShowBackgroundNotification("Falha na restauração", $"Nenhuma base foi restaurada ({failures.Count} falha(s)). Abra o Traz Base para ver o log.");
+                ShowBackgroundNotification("Falha na restauração", $"Nenhuma base foi restaurada ({failures.Count} falha(s)). Abra o Traz Base para ver o log.", ToastNotifier.NotificationSound.Error);
             else if (structureWarning is not null)
-                ShowBackgroundNotification("Estrutura multi-base incompleta", "A pasta ARQ00 não existe; o Registro não foi alterado. Abra o Traz Base para ver o log.");
+                ShowBackgroundNotification("Estrutura multi-base incompleta", "A pasta ARQ00 não existe; o Registro não foi alterado. Abra o Traz Base para ver o log.", ToastNotifier.NotificationSound.Error);
             else
             {
                 _pendingRestoreRegistryFolder = restoredFolder;
                 var detail = failures.Count == 0
                     ? $"{succeeded} base(s) restaurada(s) com sucesso."
                     : $"{succeeded} base(s) restaurada(s), {failures.Count} falha(s).";
-                ShowBackgroundNotification("Restauração concluída", detail + "\nAbra o Traz Base para decidir se quer apontar o Registro para a pasta.");
+                ShowBackgroundNotification("Restauração concluída", detail + "\nAbra o Traz Base para decidir se quer apontar o Registro para a pasta.",
+                    failures.Count == 0 ? ToastNotifier.NotificationSound.Success : ToastNotifier.NotificationSound.Error);
             }
             return;
         }
@@ -5502,12 +5503,38 @@ internal sealed partial class MainForm : Form
         _notifyIcon.Text = tip.Length > 120 ? tip[..117] + "…" : tip;
     }
 
-    /// <summary>Exibe a notificação de segundo plano como toast do Windows (marca "Traz Base"; clique restaura a janela). Se o toast falhar, cai para o balão da bandeja. Nunca abre diálogo próprio.</summary>
-    private void ShowBackgroundNotification(string caption, string message)
+    /// <summary>
+    /// Exibe a notificação de segundo plano como toast do Windows (marca "Traz Base"; clique restaura a janela).
+    /// O som é escolhido por tipo: sucesso, falha ou informação (detectado pelo texto quando não informado).
+    /// Se o toast falhar, cai para o balão da bandeja com som equivalente. Nunca abre diálogo próprio.
+    /// </summary>
+    private void ShowBackgroundNotification(string caption, string message, ToastNotifier.NotificationSound? sound = null)
     {
+        sound ??= LooksLikeFailure(caption, message)
+            ? ToastNotifier.NotificationSound.Error
+            : ToastNotifier.NotificationSound.Info;
+
         EnsureTrayIcon();
-        if (ToastNotifier.TryShow(caption, message, RestoreWindowFromBackground)) return;
+        if (ToastNotifier.TryShow(caption, message, RestoreWindowFromBackground, sound.Value)) return;
+
+        try
+        {
+            if (sound == ToastNotifier.NotificationSound.Error) System.Media.SystemSounds.Exclamation.Play();
+            else if (sound == ToastNotifier.NotificationSound.Success) System.Media.SystemSounds.Asterisk.Play();
+        }
+        catch { /* o som do balão é best-effort */ }
         _notifyIcon?.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+    }
+
+    private static bool LooksLikeFailure(string caption, string message)
+    {
+        var text = caption + " " + message;
+        return text.Contains("falha", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("erro", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("não foi possível", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("cancelada", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("incompleta", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("não encontrad", StringComparison.OrdinalIgnoreCase);
     }
 
     private void RestoreWindowFromBackground()
@@ -5656,7 +5683,8 @@ internal sealed partial class MainForm : Form
 
         if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
         {
-            ShowBackgroundNotification(caption, message);
+            ShowBackgroundNotification(caption, message,
+                error ? ToastNotifier.NotificationSound.Error : ToastNotifier.NotificationSound.Success);
             return;
         }
         MessageBox.Show(this, message, caption, MessageBoxButtons.OK, error ? MessageBoxIcon.Error : MessageBoxIcon.Information);

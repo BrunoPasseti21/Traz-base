@@ -16,6 +16,18 @@ internal static class ToastNotifier
 {
     internal const string AppUserModelId = "BrunoPasseti.TrazBase";
 
+    internal enum NotificationSound
+    {
+        /// <summary>Som de informação leve (padrão para avisos do dia a dia).</summary>
+        Info,
+        /// <summary>Som de conclusão com sucesso.</summary>
+        Success,
+        /// <summary>Som de alerta para falhas.</summary>
+        Error,
+        /// <summary>Sem som.</summary>
+        Silent
+    }
+
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = false)]
     private static extern int SetCurrentProcessExplicitAppUserModelID(string appId);
 
@@ -26,19 +38,30 @@ internal static class ToastNotifier
         catch { /* best-effort: toast continua disponível, apenas sem a marca */ }
     }
 
-    /// <summary>Mostra um toast do Windows. Retorna false se algo falhar (o chamador decide o fallback; nunca lança).</summary>
-    internal static bool TryShow(string title, string body, Action? onActivated)
+    /// <summary>
+    /// Mostra um toast do Windows com som: sucesso, falha ou informação (eventos sonoros
+    /// internos do Windows, sem arquivos extras). Retorna false se algo falhar (o chamador
+    /// decide o fallback; nunca lança).
+    /// </summary>
+    internal static bool TryShow(string title, string body, Action? onActivated, NotificationSound sound = NotificationSound.Info)
     {
         try
         {
             var safeTitle = SecurityElement.Escape(title ?? "") ?? "";
             var safeBody = SecurityElement.Escape(
                 (body ?? "").Replace("\r\n", " · ").Replace('\n', ' ').Replace('\r', ' ')) ?? "";
+            var audio = sound switch
+            {
+                NotificationSound.Silent => "<audio silent=\"true\"/>",
+                NotificationSound.Success => "<audio src=\"ms-winsoundevent:Notification.Default\"/>",
+                NotificationSound.Error => "<audio src=\"ms-winsoundevent:Notification.Alarm\"/>",
+                _ => "<audio src=\"ms-winsoundevent:Notification.IM\"/>"
+            };
             var xml = new XmlDocument();
             xml.LoadXml(
                 $"<toast><visual><binding template=\"ToastGeneric\">" +
                 $"<text>{safeTitle}</text><text>{safeBody}</text>" +
-                $"</binding></visual><audio silent=\"true\"/></toast>");
+                $"</binding></visual>{audio}</toast>");
             var toast = new ToastNotification(xml);
             if (onActivated is not null)
             {
