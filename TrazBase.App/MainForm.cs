@@ -933,7 +933,7 @@ internal sealed partial class MainForm : Form
         {
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Location = new Point(0, 28),
+            Location = new Point(0, 31), // 3 px de margem superior extra no item do título
             ColumnCount = 2,
             RowCount = 1,
             BackColor = Color.Transparent,
