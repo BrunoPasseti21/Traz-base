@@ -41,6 +41,10 @@ powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1
 6. O workflow `.github/workflows/atualizar-version-manifest.yml` atualiza automaticamente `version.json` na branch `main` quando a release é publicada. O app consulta esse arquivo via `raw.githubusercontent.com` (sem consumir o limite da API do GitHub); o asset precisa terminar em `Setup.exe` e a URL precisa ser HTTPS.
 7. O instalador bloqueia downgrades e permite reinstalar a mesma versão.
 
+### Regenerar a mesma versão (republish)
+
+Quando for precisar gerar de novo uma versão já publicada (por exemplo, para corrigir um bug sem mudar `X.Y.Z`), incremente o `<UpdateTag>` em `TrazBase.App/TrazBase.App.csproj` (ex.: `r1` → `r2`) e o campo `tag` de `version.json` com o mesmo valor. A tag fica compilada no executável como metadado de assembly; o app compara as duas e oferece a atualização mesmo com a versão igual. Instalações novas já nascem com a tag correta e não entram em looping. O workflow só apaga a tag quando a versão publicada é diferente da atual.
+
 A versão exibida no aplicativo vem do `AssemblyVersion` (`GetName().Version`), no formato `X.Y.Z`.
 
 ## Estrutura do repositório

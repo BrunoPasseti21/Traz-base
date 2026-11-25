@@ -1,5 +1,6 @@
 using System.Net;
 using System.Net.Http.Headers;
+using System.Reflection;
 using System.Text.Json;
 
 namespace TrazBase.App;
@@ -23,25 +24,44 @@ internal static class GitHubReleaseUpdater
         return client;
     }
 
-    public static async Task<ReleaseUpdate?> CheckAsync(Version currentVersion)
+    /// <summary>
+    /// Tag de rebuild compilada no executável. Serve para forçar uma nova atualização quando a
+    /// versão precisa ser regenerada sem mudar o número (ex.: correções publicadas na 0.9.7).
+    /// </summary>
+    public static string? GetCurrentUpdateTag() =>
+        Assembly.GetExecutingAssembly()
+            .GetCustomAttributes<AssemblyMetadataAttribute>()
+            .FirstOrDefault(attribute => string.Equals(attribute.Key, "UpdateTag", StringComparison.OrdinalIgnoreCase))
+            ?.Value;
+
+    public static async Task<ReleaseUpdate?> CheckAsync(Version currentVersion, string? currentUpdateTag)
     {
         using var response = await Client.GetAsync(VersionManifestUrl);
         response.EnsureSuccessStatusCode();
         var json = await response.Content.ReadAsStringAsync();
-        return ParseVersionManifest(json, currentVersion);
+        return ParseVersionManifest(json, currentVersion, currentUpdateTag);
     }
 
     /// <summary>
     /// Lê o manifest estático publicado em version.json (atualizado por GitHub Action a cada release).
+    /// Uma versão igual à atual ainda é oferecida quando o campo "tag" difere da tag compilada no app.
     /// </summary>
-    internal static ReleaseUpdate? ParseVersionManifest(string json, Version currentVersion)
+    internal static ReleaseUpdate? ParseVersionManifest(string json, Version currentVersion, string? currentUpdateTag)
     {
         using var manifest = JsonDocument.Parse(json);
         var root = manifest.RootElement;
 
         if (!root.TryGetProperty("version", out var versionElement)) return null;
         var versionText = versionElement.GetString()?.TrimStart('v', 'V');
-        if (!Version.TryParse(versionText, out var latest) || latest <= currentVersion) return null;
+        if (!Version.TryParse(versionText, out var latest)) return null;
+
+        var manifestTag = root.TryGetProperty("tag", out var tagElement)
+            ? tagElement.GetString()?.Trim()
+            : null;
+        var forcedReupdate = latest == currentVersion
+            && !string.IsNullOrEmpty(manifestTag)
+            && !string.Equals(manifestTag, currentUpdateTag ?? string.Empty, StringComparison.OrdinalIgnoreCase);
+        if (latest < currentVersion || (latest == currentVersion && !forcedReupdate)) return null;
 
         if (!root.TryGetProperty("installerUrl", out var urlElement)) return null;
         var url = urlElement.GetString();

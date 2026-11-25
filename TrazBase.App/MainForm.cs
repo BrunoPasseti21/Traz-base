@@ -774,7 +774,7 @@ internal sealed partial class MainForm : Form
     {
         try
         {
-            var update = await GitHubReleaseUpdater.CheckAsync(GetCurrentVersion());
+            var update = await GitHubReleaseUpdater.CheckAsync(GetCurrentVersion(), GitHubReleaseUpdater.GetCurrentUpdateTag());
             if (update is null || IsDisposed) return;
             if (_updateButton.Tag is ReleaseUpdate shown && shown.Version == update.Version) return; // já exibida; sem piscar a UI
             _updateButton.Text = $"Atualização disponível · v{update.Version}";

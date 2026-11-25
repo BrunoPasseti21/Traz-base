@@ -122,7 +122,7 @@ public sealed class GitHubReleaseUpdaterTests
         }
         """;
 
-        var update = GitHubReleaseUpdater.ParseVersionManifest(json, new Version(0, 9, 5));
+        var update = GitHubReleaseUpdater.ParseVersionManifest(json, new Version(0, 9, 5), null);
 
         Assert.IsNotNull(update);
         Assert.AreEqual("0.9.6", update.Version);
@@ -135,8 +135,8 @@ public sealed class GitHubReleaseUpdaterTests
         var same = """{ "version": "0.9.6", "installerUrl": "https://example.com/TrazBase-Setup.exe" }""";
         var older = """{ "version": "0.9.5", "installerUrl": "https://example.com/TrazBase-Setup.exe" }""";
 
-        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(same, new Version(0, 9, 6)));
-        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(older, new Version(0, 9, 6)));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(same, new Version(0, 9, 6), null));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(older, new Version(0, 9, 6), null));
     }
 
     [TestMethod]
@@ -147,10 +147,42 @@ public sealed class GitHubReleaseUpdaterTests
         var httpUrl = """{ "version": "1.0.0", "installerUrl": "http://example.com/TrazBase-Setup.exe" }""";
         var wrongFile = """{ "version": "1.0.0", "installerUrl": "https://example.com/TrazBase.exe" }""";
 
-        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(missingVersion, Current));
-        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(missingUrl, Current));
-        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(httpUrl, Current));
-        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(wrongFile, Current));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(missingVersion, Current, null));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(missingUrl, Current, null));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(httpUrl, Current, null));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(wrongFile, Current, null));
+    }
+
+    [TestMethod]
+    public void GetCurrentUpdateTag_ReturnsCompiledTag()
+    {
+        var tag = GitHubReleaseUpdater.GetCurrentUpdateTag();
+
+        Assert.IsFalse(string.IsNullOrWhiteSpace(tag));
+    }
+
+    [TestMethod]
+    public void ParseVersionManifest_OffersReupdateWhenSameVersionHasDifferentTag()
+    {
+        var json = """
+        { "version": "0.9.7", "tag": "r2", "installerUrl": "https://example.com/TrazBase-Setup.exe" }
+        """;
+
+        var update = GitHubReleaseUpdater.ParseVersionManifest(json, new Version(0, 9, 7), "r1");
+
+        Assert.IsNotNull(update);
+        Assert.AreEqual("0.9.7", update.Version);
+    }
+
+    [TestMethod]
+    public void ParseVersionManifest_SkipsSameVersionWhenTagMatches()
+    {
+        var json = """
+        { "version": "0.9.7", "tag": "r2", "installerUrl": "https://example.com/TrazBase-Setup.exe" }
+        """;
+
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(json, new Version(0, 9, 7), "r2"));
+        Assert.IsNull(GitHubReleaseUpdater.ParseVersionManifest(json, new Version(0, 9, 8), "r1"));
     }
 
     private static string ReleaseJson(string tag, params (string Name, string Url)[] assets)

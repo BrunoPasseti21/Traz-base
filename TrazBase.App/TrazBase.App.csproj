@@ -9,6 +9,10 @@
     <RootNamespace>TrazBase.App</RootNamespace>
     <AssemblyName>TrazBase</AssemblyName>
     <Version>0.9.7</Version>
+    <!-- Incrementar a tag quando for preciso regerar a MESMA versão (ex.: r2, r3).
+         O app compara essa tag com o campo "tag" de version.json e oferece a atualização
+         mesmo quando o número da versão não mudou. -->
+    <UpdateTag>r2</UpdateTag>
     <ApplicationIcon>..\Imagens\icone\icone_supra.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
@@ -18,6 +22,7 @@
   </ItemGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="TrazBase.Tests" />
+    <AssemblyMetadata Include="UpdateTag" Value="$(UpdateTag)" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="..\Imagens\*.svg" Link="Imagens\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />

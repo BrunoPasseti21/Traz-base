@@ -24,8 +24,13 @@ jobs:
           set -euo pipefail
           VERSIO="${TAG#v}"
           URL="https://github.com/${REPO}/releases/download/${TAG}/TrazBase-Setup.exe"
-          jq -n --arg version "$VERSIO" --arg installerUrl "$URL" \
-            '{version: $version, installerUrl: $installerUrl}' > version.json
+          # Ao republicar a MESMA versão, preserva a tag de rebuild (r2, r3...) para que
+          # o app ofereça a atualização mesmo sem mudança no número da versão.
+          OLD_VERSION=$(jq -r '.version // ""' version.json)
+          OLD_TAG=$(jq -r '.tag // ""' version.json)
+          if [ "$VERSIO" = "$OLD_VERSION" ]; then TAG_VALUE="$OLD_TAG"; else TAG_VALUE=""; fi
+          jq -n --arg version "$VERSIO" --arg tag "$TAG_VALUE" --arg installerUrl "$URL" \
+            '{version: $version, tag: $tag, installerUrl: $installerUrl}' > version.json
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add version.json

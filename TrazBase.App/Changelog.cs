@@ -13,6 +13,7 @@ internal static class Changelog
             "Atualizações: verificação passou a rodar a cada 1 minuto e a consultar um manifesto estático (version.json) em vez da API do GitHub, evitando o limite de requisições; na hora de atualizar, o app se encerra e o instalador substitui os arquivos mesmo com o executável elevado, reabrindo o aplicativo ao final.",
             "O executável do Traz Base agora solicita privilégios de administrador (UAC) ao abrir.",
             "Transferência de bases não bloqueia mais as opções do menu — é possível navegar e usar as outras telas durante o processo; ao tentar atualizar o app, um aviso pede para esperar a transferência terminar.",
+            "Atualização: quando uma versão precisa ser regenerada sem mudar o número, uma tag de rebuild (r2, r3...) faz o app oferecer a atualização novamente.",
         ],
         ["0.9.6"] =
         [
