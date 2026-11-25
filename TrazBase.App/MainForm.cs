@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Win32;
 using System.Globalization;
 using System.IO.Compression;
@@ -10,6 +11,7 @@ using SharpCompress.Readers;
 using System.Text.RegularExpressions;
 using System.Runtime.InteropServices;
 using System.ComponentModel;
+using System.Text;
 
 namespace TrazBase.App;
 
@@ -199,6 +201,10 @@ internal sealed partial class MainForm : Form
     private long _updateSicTotalBytes;
     private CancellationTokenSource? _restoreCancellation;
     private bool _restoreRunning;
+    // Saída do gbak pode gerar milhares de linhas: agrupa as mensagens e descarrega na UI
+    // de uma vez, em vez de agendar um BeginInvoke por linha (isso travava a interface).
+    private readonly ConcurrentQueue<string> _restoreLogPending = new();
+    private int _restoreLogFlushScheduled;
     private readonly CheckBox _updateSicSingleDestinationCheck = new() { Text = "Usar o mesmo destino para todos os executáveis", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly UnthemedTextBox _updateSicSingleDestination = new() { Width = 760, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Enabled = false };
     private readonly RoundedButton _updateSicSingleDestinationBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f), Enabled = false };
@@ -2047,7 +2053,6 @@ internal sealed partial class MainForm : Form
         _restoreBrowseButton.Enabled = false;
         _restoreButton.Enabled = false;
         _restoreCancelButton.Visible = true;
-        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = false;
         _restoreLog.Clear();
         var token = _restoreCancellation.Token;
         try
@@ -2062,7 +2067,7 @@ internal sealed partial class MainForm : Form
                 AppendRestoreLog($"Restaurando {Path.GetFileName(item.FbkPath)} → {item.DestinationPath}");
                 try
                 {
-                    await RestoreDatabaseAsync(item, token, AppendRestoreLog);
+                    await RestoreDatabaseAsync(item, token, AppendRestoreLog, _password.Text);
                     AppendRestoreLog($"{item.Database}: restauração concluída.");
                     return (Item: item, Error: (string?)null);
                 }
@@ -2127,31 +2132,38 @@ internal sealed partial class MainForm : Form
             _restoreBrowseButton.Enabled = true;
             _restoreButton.Enabled = true;
             _restoreCancelButton.Visible = false;
-            foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = true;
         }
     }
 
-    private async Task RestoreDatabaseAsync(RestorePlanItem item, CancellationToken token, Action<string> log)
+    private async Task RestoreDatabaseAsync(RestorePlanItem item, CancellationToken token, Action<string> log, string password)
     {
-        var connectionString = BuildFirebirdServiceConnectionString(item.DestinationPath);
-        var restore = new FbRestore(connectionString)
+        var connectionString = BuildFirebirdServiceConnectionString(item.DestinationPath, password);
+        var replace = File.Exists(item.DestinationPath);
+        var backupFile = new FbBackupFile(Path.GetFullPath(item.FbkPath), null);
+
+        // Executa o gbak em uma thread de worker: nem a conexão com o serviço Firebird,
+        // nem o processamento das mensagens de saída rodam na thread da interface.
+        await Task.Run(async () =>
         {
-            Options = File.Exists(item.DestinationPath) ? FbRestoreFlags.Replace : FbRestoreFlags.Create,
-            Verbose = true
-        };
-        restore.ServiceOutput += (_, args) => log(args.Message);
-        restore.BackupFiles.Add(new FbBackupFile(Path.GetFullPath(item.FbkPath), null));
-        await restore.ExecuteAsync(token);
+            var restore = new FbRestore(connectionString)
+            {
+                Options = replace ? FbRestoreFlags.Replace : FbRestoreFlags.Create,
+                Verbose = true
+            };
+            restore.ServiceOutput += (_, args) => log(args.Message);
+            restore.BackupFiles.Add(backupFile);
+            await restore.ExecuteAsync(token).ConfigureAwait(false);
+        }, token).ConfigureAwait(false);
     }
 
-    private string BuildFirebirdServiceConnectionString(string databasePath)
+    private string BuildFirebirdServiceConnectionString(string databasePath, string password)
     {
         var builder = new FbConnectionStringBuilder
         {
             DataSource = "localhost",
             Database = Path.GetFullPath(databasePath),
             UserID = "SYSDBA",
-            Password = _password.Text,
+            Password = password,
             Charset = "UTF8",
             Pooling = false,
             ServerType = FbServerType.Default
@@ -2161,8 +2173,29 @@ internal sealed partial class MainForm : Form
 
     private void AppendRestoreLog(string message)
     {
-        if (InvokeRequired) { BeginInvoke(new Action(() => AppendRestoreLog(message))); return; }
-        _restoreLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        var line = $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}";
+        if (!InvokeRequired)
+        {
+            FlushRestoreLog();
+            _restoreLog.AppendText(line);
+            return;
+        }
+
+        _restoreLogPending.Enqueue(line);
+        if (Interlocked.Exchange(ref _restoreLogFlushScheduled, 1) != 0) return;
+        try { BeginInvoke(new Action(FlushRestoreLog)); }
+        catch { Interlocked.Exchange(ref _restoreLogFlushScheduled, 0); }
+    }
+
+    /// <summary>Descarrega todas as linhas pendentes na UI de uma só vez.</summary>
+    private void FlushRestoreLog()
+    {
+        Interlocked.Exchange(ref _restoreLogFlushScheduled, 0);
+        if (_restoreLogPending.IsEmpty) return;
+
+        var text = new StringBuilder();
+        while (_restoreLogPending.TryDequeue(out var line)) text.Append(line);
+        _restoreLog.AppendText(text.ToString());
         _restoreLog.SelectionStart = _restoreLog.TextLength;
         _restoreLog.ScrollToCaret();
     }
