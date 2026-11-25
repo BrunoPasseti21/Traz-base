@@ -48,6 +48,9 @@ internal sealed class AppSettings
     public bool MinimizeToTrayOnClose { get; set; }
     public bool StartInBackground { get; set; }
     public bool StartWithWindows { get; set; }
+    /// <summary>Versão cuja instalação foi iniciada; permite avisar o resultado na próxima abertura.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public string? PendingUpdateVersion { get; set; }
     public string? ProtectedFirebirdPassword { get; set; }
     public string? ProtectedSicPassword { get; set; }
     public string? ProtectedSicDynamicPassword { get; set; }

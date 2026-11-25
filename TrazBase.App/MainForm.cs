@@ -99,7 +99,6 @@ internal sealed partial class MainForm : Form
     private readonly ToolTip _menuToolTip = new();
     private bool _downloadingUpdate;
     private bool _updateInstallInProgress;
-    private int _updateProgressMilestone;
     private TableLayoutPanel _transferView = null!;
     private Control _settingsView = null!;
     private ThemedTabControl? _settingsTabs;
@@ -198,7 +197,6 @@ internal sealed partial class MainForm : Form
     private readonly Panel _updateSicProgress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
     private readonly Panel _updateSicProgressFill = new() { Location = new Point(0, 0), Width = 0, Height = 18, BackColor = Color.FromArgb(31, 111, 235) };
     private int _updateSicProgressPercent;
-    private int _updateSicProgressMilestone;
     private long _updateSicBytesDone;
     private long _updateSicTotalBytes;
     private CancellationTokenSource? _restoreCancellation;
@@ -438,6 +436,7 @@ internal sealed partial class MainForm : Form
         Shown += async (_, _) =>
         {
             EnsureTrayIcon();
+            NotifyPendingUpdateResult();
             _sl.Focus(); // ao abrir o sistema, o cursor já fica no campo da SL
 
             var currentVersion = GetCurrentVersion().ToString(3);
@@ -816,6 +815,24 @@ internal sealed partial class MainForm : Form
         }
     }
 
+    /// <summary>Informa na abertura se a atualização iniciada na sessão anterior foi aplicada.</summary>
+    private void NotifyPendingUpdateResult()
+    {
+        var pending = _settings.PendingUpdateVersion;
+        if (string.IsNullOrWhiteSpace(pending)) return;
+        _settings.PendingUpdateVersion = null;
+        try { _settings.Save(); } catch { /* best-effort */ }
+
+        if (Version.TryParse(pending, out var target) && GetCurrentVersion() >= target)
+            ShowBackgroundNotification("Atualização concluída",
+                $"O Traz Base foi atualizado para a versão {GetCurrentVersion().ToString(3)}.",
+                ToastNotifier.NotificationSound.Success);
+        else
+            ShowBackgroundNotification("Falha na atualização",
+                $"Não foi possível concluir a atualização para a versão {pending}. A atualização continua disponível.",
+                ToastNotifier.NotificationSound.Error);
+    }
+
     private async Task InstallUpdateAsync()
     {
         if (_updateButton.Tag is not ReleaseUpdate update) return;
@@ -834,9 +851,9 @@ internal sealed partial class MainForm : Form
         _updateProgress.SetMarquee(true);
         _menuToolTip.SetToolTip(_updateButton, "Baixando a atualização…");
         UpdateDownloadButtonText();
-        _updateProgressMilestone = 0;
         ShowBackgroundNotification("Atualização do Traz Base",
-            $"Baixando a versão {update.Version}…", ToastNotifier.NotificationSound.Info);
+            $"Iniciando a atualização para a versão {update.Version}. O aplicativo será reiniciado ao final.",
+            ToastNotifier.NotificationSound.Info);
         try
         {
             var progress = new Progress<int>(value =>
@@ -844,20 +861,13 @@ internal sealed partial class MainForm : Form
                 if (IsDisposed) return;
                 _updateProgress.SetMarquee(false);
                 _updateProgress.SetValue(value);
-                // Avisa de 25 em 25% para o usuário saber que o download está andando.
-                var milestone = value / 25;
-                if (value < 100 && milestone > 0 && milestone > _updateProgressMilestone)
-                {
-                    _updateProgressMilestone = milestone;
-                    ShowBackgroundNotification("Atualização do Traz Base",
-                        $"Baixando a versão {update.Version}… {milestone * 25}% concluído.",
-                        ToastNotifier.NotificationSound.Info);
-                }
             });
             var installer = await GitHubReleaseUpdater.DownloadInstallerAsync(update.InstallerUri, progress);
-            ShowBackgroundNotification("Atualização do Traz Base",
-                $"Download da versão {update.Version} concluído. Instalando… O aplicativo será reiniciado ao final.",
-                ToastNotifier.NotificationSound.Success);
+
+            // Registrado antes de iniciar o instalador: na próxima abertura o app informa
+            // se a versão foi realmente aplicada ou se a instalação falhou.
+            _settings.PendingUpdateVersion = update.Version;
+            _settings.Save();
 
             // Não fechamos o app aqui: /CLOSEAPPLICATIONS fecha no momento certo da instalação e
             // /RESTARTAPPLICATIONS o reabre com a nova versão ao terminar.
@@ -885,6 +895,8 @@ internal sealed partial class MainForm : Form
         {
             _downloadingUpdate = false;
             _updateInstallInProgress = false;
+            _settings.PendingUpdateVersion = null;
+            try { _settings.Save(); } catch { /* best-effort */ }
             _updateButton.Enabled = true;
             UpdateDownloadButtonText();
             SetUpdateAnimation(null);
@@ -2884,7 +2896,6 @@ internal sealed partial class MainForm : Form
         }
         _updateSicTotalBytes = Math.Max(totalBytes, 1);
         _updateSicBytesDone = 0;
-        _updateSicProgressMilestone = 0;
         ShowUpdateSicProgress(true);
         SetUpdateSicProgress("Preparando a atualização…");
         try
@@ -3108,18 +3119,6 @@ internal sealed partial class MainForm : Form
         _updateSicProgressPercent = _updateSicTotalBytes == 0 ? 100 : (int)Math.Min(100, _updateSicBytesDone * 100d / _updateSicTotalBytes);
         _updateSicProgressStatus.Text = status;
         UpdateUpdateSicProgressFillWidth();
-
-        if (_updateSicRunning && IsAppInBackground() && _updateSicProgressPercent < 100)
-        {
-            var milestone = _updateSicProgressPercent / 25;
-            if (milestone > 0 && milestone > _updateSicProgressMilestone)
-            {
-                _updateSicProgressMilestone = milestone;
-                ShowBackgroundNotification("Atualização de executáveis",
-                    $"Atualizando executáveis… {milestone * 25}% concluído.",
-                    ToastNotifier.NotificationSound.Info);
-            }
-        }
     }
 
     private void ShowUpdateSicProgress(bool show)
@@ -5627,6 +5626,7 @@ internal sealed partial class MainForm : Form
         _ = Handle; // cria o handle: o registro dos hotkeys acontece no HandleCreated
         EnsureTrayIcon();            // janela oculta => o ícone da bandeja fica visível
         RefreshTrayIconVisibility();
+        NotifyPendingUpdateResult();
         ShowBackgroundNotification("Traz Base em segundo plano",
             "O Traz Base abriu na bandeja. Clique nesta notificação ou dê dois cliques no ícone da bandeja para abrir a janela.",
             ToastNotifier.NotificationSound.Info);
