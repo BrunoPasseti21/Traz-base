@@ -927,26 +927,53 @@ internal sealed partial class MainForm : Form
         var panel = new Panel { Dock = DockStyle.Fill };
         panel.Controls.Add(new Label { Text = "TRAZ BASE", Font = UiTypography.BodySemibold(), ForeColor = Color.FromArgb(31, 111, 235), AutoSize = true, Location = new Point(0, 2) });
 
-        var titleLabel = new Label { Text = title, Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 28) };
-        panel.Controls.Add(titleLabel);
-        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 72) });
+        // Título e ícone de ajuda ficam na mesma linha: o TableLayoutPanel centraliza
+        // verticalmente os dois controles na célula, independente da fonte/DPI.
+        var titleRow = new TableLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Location = new Point(0, 28),
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Color.Transparent,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var titleLabel = new Label
+        {
+            Text = title,
+            Font = UiTypography.DisplaySemibold(21),
+            ForeColor = Ink,
+            AutoSize = true,
+            Margin = Padding.Empty,
+            Anchor = AnchorStyles.Left // sem Top/Bottom => centralizado verticalmente na célula
+        };
+        titleRow.Controls.Add(titleLabel, 0, 0);
 
         if (!string.IsNullOrWhiteSpace(helpText))
         {
-            var titleSize = titleLabel.PreferredSize;
             var help = new PictureBox
             {
                 Size = new Size(24, 24),
-                Location = new Point(titleSize.Width + 8, 28 + Math.Max(0, (titleSize.Height - 24) / 2)),
                 SizeMode = PictureBoxSizeMode.Zoom,
                 Image = SvgIconLoader.Load("Ajuda.svg", 24),
                 BackColor = Color.Transparent,
-                Cursor = Cursors.Hand
+                Cursor = Cursors.Hand,
+                Margin = new Padding(8, 0, 0, 0),
+                Anchor = AnchorStyles.Left
             };
             help.MouseEnter += (_, _) => ShowHintPopup(help, helpText!);
             help.MouseLeave += (_, _) => HideHintPopup();
-            panel.Controls.Add(help);
+            titleRow.Controls.Add(help, 1, 0);
         }
+
+        panel.Controls.Add(titleRow);
+        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 72) });
 
         return panel;
     }
