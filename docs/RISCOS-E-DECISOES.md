@@ -17,7 +17,7 @@
 ## Decisões tomadas
 
 1. **Windows somente.** Alvo: Windows 10+ (x64), .NET 10, WinForms, DPI PerMonitorV2.
-2. **Distribuição.** Instalador Inno Setup (`TrazBase-Setup.exe`) publicado como asset de GitHub Release no repositório `BrunoPasseti21/Traz-base`; a aplicação detecta versões mais novas pela API `releases/latest` e instala silenciosamente (com UAC). Bloqueia downgrade; permite reinstalar a mesma versão.
+2. **Distribuição.** Instalador Inno Setup (`SupraKit-Setup.exe`) publicado como asset de GitHub Release no repositório `BrunoPasseti21/Traz-base`; a aplicação detecta versões mais novas pela API `releases/latest` e instala silenciosamente (com UAC). Bloqueia downgrade; permite reinstalar a mesma versão.
 3. **Chave do Registro.** Confirmado `HKCU\SIC\CONEXAO`; valores gravados: `BASE1`–`BASE4` e `EMPRESA` = caminho da pasta da base com barra final, `SERVIDOR=LOCALHOST`, `TEMP=pasta temporária do usuário`. Valores anteriores **não** são salvos (pendente).
 4. **Credenciais.** Sem senha embutida. Senha informada pelo operador; opcionalmente salva com DPAPI (`CurrentUser`). Usuário `SYSDBA` fixo; dialeto 3; charset UTF8; sem pooling. A credencial real varia por ambiente e nunca vai para o repositório.
 5. **Scripts SQL.** Substituídos por **comandos inline** editados no próprio aplicativo (abas ARQEMP/ARQSIST), com realce e salvamento automático. Arquivos `.sql` externos legados foram migrados para o formato inline na primeira execução após a atualização (`CommandScriptsMigrated`); as chaves `ScriptArqEmp`/`ScriptArqSist` foram descontinuadas (mantidas no JSON apenas para a migração).
@@ -28,7 +28,7 @@
 
 ## Riscos em aberto
 
-- **Cobertura parcial de testes:** `TrazBase.Tests` cobre a lógica pura, mas a UI e os fluxos de `MainForm` (cópia, extração, Registro, SQL) não têm cobertura automatizada. Uma regressão em `MainForm.StartFlowAsync`/`ResetBaseAsync` pode apagar dados fora da pasta esperada. Mitigar: ampliar cobertura ou extrair mais lógica pura; cobertura manual com bases descartáveis.
+- **Cobertura parcial de testes:** `SupraKit.Tests` cobre a lógica pura, mas a UI e os fluxos de `MainForm` (cópia, extração, Registro, SQL) não têm cobertura automatizada. Uma regressão em `MainForm.StartFlowAsync`/`ResetBaseAsync` pode apagar dados fora da pasta esperada. Mitigar: ampliar cobertura ou extrair mais lógica pura; cobertura manual com bases descartáveis.
 - **Apagamento irreversível com "Substituir".** A opção não cria cópia; depende de o operador ler e entender o diálogo. Mitigar: manter o texto explicativo atual e considerar desabilitar "Substituir" sem backup no futuro, ou exigir digitação de confirmação.
 - **Backup acumula sem limpeza.** Pastas `.backup-*` crescem sem política de retenção. Mitigar: documentar para o operador ou adicionar limpeza opcional.
 - **Movimentação de `.fdb` para a raiz.** Em colisão de nome, o fluxo falha no meio (após apagar/mover parcialmente). Mitigar: validar colisões **antes** de mover qualquer arquivo.

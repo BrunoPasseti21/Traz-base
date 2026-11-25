@@ -1,6 +1,6 @@
 # Desenvolvimento
 
-Guia para quem compila, publica e mantém o Traz Base.
+Guia para quem compila, publica e mantém o SupraKit.
 
 ## Pré-requisitos
 
@@ -14,46 +14,46 @@ Guia para quem compila, publica e mantém o Traz Base.
 
 ```powershell
 # Restaurar, compilar e rodar em desenvolvimento
-dotnet run --project TrazBase.App/TrazBase.App.csproj
+dotnet run --project SupraKit.App/SupraKit.App.csproj
 
 # Compilar (Debug por padrão; use -c Release)
-dotnet build TrazBase.App/TrazBase.App.csproj -c Release
+dotnet build SupraKit.App/SupraKit.App.csproj -c Release
 
-# Compilar e rodar testes (MSTest; lógica pura de TrazBase.App — ver docs/TESTES.md)
-dotnet test TrazBase.Tests/TrazBase.Tests.csproj
+# Compilar e rodar testes (MSTest; lógica pura de SupraKit.App — ver docs/TESTES.md)
+dotnet test SupraKit.Tests/SupraKit.Tests.csproj
 
 # Publicar pacote autocontido win-x64 em Instalador/Aplicativo
-dotnet publish TrazBase.App/TrazBase.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
+dotnet publish SupraKit.App/SupraKit.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
 
 # Gerar o instalador (exige Inno Setup 6/7; localiza ISCC.exe automaticamente)
 powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1
 ```
 
-`Instalador/Aplicativo/` e `Instalador/TrazBase-Setup.exe` são artefatos locais e estão no `.gitignore`; o instalador distribuído é o asset `TrazBase-Setup.exe` da GitHub Release.
+`Instalador/Aplicativo/` e `Instalador/SupraKit-Setup.exe` são artefatos locais e estão no `.gitignore`; o instalador distribuído é o asset `SupraKit-Setup.exe` da GitHub Release.
 
 ## Lançar uma atualização
 
-1. Incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj`.
-2. Atualize `AppVersion` e `AppFileVersion` em `Instalador/TrazBase.iss` (manter iguais; `AppFileVersion` no formato `X.Y.Z.0`).
+1. Incremente `<Version>` em `SupraKit.App/SupraKit.App.csproj`.
+2. Atualize `AppVersion` e `AppFileVersion` em `Instalador/SupraKit.iss` (manter iguais; `AppFileVersion` no formato `X.Y.Z.0`).
 3. Publique novamente em `Instalador/Aplicativo` (comando acima).
-4. Rode `Instalador/Compilar-Instalador.ps1` para gerar `Instalador/TrazBase-Setup.exe`.
-5. Crie a release no GitHub com tag `vX.Y.Z` e anexe `TrazBase-Setup.exe`.
+4. Rode `Instalador/Compilar-Instalador.ps1` para gerar `Instalador/SupraKit-Setup.exe`.
+5. Crie a release no GitHub com tag `vX.Y.Z` e anexe `SupraKit-Setup.exe`.
 6. O workflow `.github/workflows/atualizar-version-manifest.yml` atualiza automaticamente `version.json` na branch `main` quando a release é publicada. O app consulta esse arquivo via `raw.githubusercontent.com` (sem consumir o limite da API do GitHub); o asset precisa terminar em `Setup.exe` e a URL precisa ser HTTPS.
 7. O instalador bloqueia downgrades e permite reinstalar a mesma versão.
 
 ### Regenerar a mesma versão (republish)
 
-Quando for precisar gerar de novo uma versão já publicada (por exemplo, para corrigir um bug sem mudar `X.Y.Z`), incremente o `<UpdateTag>` em `TrazBase.App/TrazBase.App.csproj` (ex.: `r1` → `r2`) e o campo `tag` de `version.json` com o mesmo valor. A tag fica compilada no executável como metadado de assembly; o app compara as duas e oferece a atualização mesmo com a versão igual. Instalações novas já nascem com a tag correta e não entram em looping. O workflow só apaga a tag quando a versão publicada é diferente da atual.
+Quando for precisar gerar de novo uma versão já publicada (por exemplo, para corrigir um bug sem mudar `X.Y.Z`), incremente o `<UpdateTag>` em `SupraKit.App/SupraKit.App.csproj` (ex.: `r1` → `r2`) e o campo `tag` de `version.json` com o mesmo valor. A tag fica compilada no executável como metadado de assembly; o app compara as duas e oferece a atualização mesmo com a versão igual. Instalações novas já nascem com a tag correta e não entram em looping. O workflow só apaga a tag quando a versão publicada é diferente da atual.
 
 A versão exibida no aplicativo vem do `AssemblyVersion` (`GetName().Version`), no formato `X.Y.Z`.
 
 ## Estrutura do repositório
 
 ```
-TrazBase.App/          Código da aplicação (WinForms, net10.0-windows)
-TrazBase.Tests/        Testes (MSTest; cobre a lógica pura exportada via InternalsVisibleTo)
+SupraKit.App/          Código da aplicação (WinForms, net10.0-windows)
+SupraKit.Tests/        Testes (MSTest; cobre a lógica pura exportada via InternalsVisibleTo)
 Imagens/               SVGs dos ícones, Baixando.gif, icone/icone_supra.ico
-Instalador/            TrazBase.iss, Compilar-Instalador.ps1, Instalar.ps1/.bat, LEIA-ME.txt
+Instalador/            SupraKit.iss, Compilar-Instalador.ps1, Instalar.ps1/.bat, LEIA-ME.txt
 docs/                  Esta documentação
 Traz-base-sl.bat       BAT legado (fora do Git; mantido localmente pelo dono)
 README.md              Visão geral e instruções básicas

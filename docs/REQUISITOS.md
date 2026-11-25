@@ -2,7 +2,7 @@
 
 ## Objetivo do produto
 
-Substituir o fluxo interativo do `Traz-base-sl.bat` por uma aplicação desktop Windows (Traz Base) que ajuda a preparar e selecionar bases de solicitações para uso local com Firebird.
+Substituir o fluxo interativo do `Traz-base-sl.bat` por uma aplicação desktop Windows (SupraKit) que ajuda a preparar e selecionar bases de solicitações para uso local com Firebird.
 
 **Estado:** a aplicação está implementada e publicada na versão **0.3.0**. Este documento lista os requisitos e o status de cada um na versão atual.
 
@@ -23,7 +23,7 @@ Legenda: **OK** implementado · **Parcial** implementado com limitações · **P
 - **RF-02 — OK.** Diretório de bases de apoio configurável (`SupportRoot`), usado para copiar `ARQEMP.FDB`/`ARQOCOR.FDB` ausentes.
 - **RF-03 — Parcial.** Não há diretórios separados de utilitários Firebird: o aplicativo conecta-se ao Firebird pelo serviço local (ADO.NET e serviços de gerenciamento do provider — `FbConnection` e `FbRestore`), sem `isql`/`gbak` externos. O temporário usado no Registro (`TEMP`) pode ser configurado em Configurações (`TempPath`); vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()`.
 - **RF-04 — OK.** Caminho de origem das solicitações na rede configurável (`SolicitationRoot`).
-- **RF-05 — OK.** Configuração persistida em JSON versionável e legível (`%APPDATA%\TrazBase\settings.json`), sem depender de ordem de linhas nem de `Caminhos.txt`.
+- **RF-05 — OK.** Configuração persistida em JSON versionável e legível (`%APPDATA%\SupraKit\settings.json`), sem depender de ordem de linhas nem de `Caminhos.txt`.
 
 ### Operações de base
 
@@ -56,7 +56,7 @@ Legenda: **OK** implementado · **Parcial** implementado com limitações · **P
 ## Fora do escopo inicial
 
 - Alterar os próprios scripts SQL sem decisão explícita do responsável pelo banco (a aplicação edita/executa os comandos configurados, mas não versiona mudanças de conteúdo).
-- Atualização automática do Firebird ou da aplicação alvo (o Traz Base se autoatualiza via GitHub Releases; a aplicação alvo não).
+- Atualização automática do Firebird ou da aplicação alvo (o SupraKit se autoatualiza via GitHub Releases; a aplicação alvo não).
 - Operação remota em outros computadores.
 - Gerenciamento de usuários ou senhas do Firebird (a senha é informada pelo operador; o usuário é sempre `SYSDBA`).
 

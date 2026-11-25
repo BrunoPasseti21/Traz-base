@@ -23,7 +23,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSIO="${TAG#v}"
-          URL="https://github.com/${REPO}/releases/download/${TAG}/TrazBase-Setup.exe"
+          URL="https://github.com/${REPO}/releases/download/${TAG}/SupraKit-Setup.exe"
           # Ao republicar a MESMA versão, preserva a tag de rebuild (r2, r3...) para que
           # o app ofereça a atualização mesmo sem mudança no número da versão.
           OLD_VERSION=$(jq -r '.version // ""' version.json)

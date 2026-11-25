@@ -3,21 +3,21 @@
 ## Plataforma
 
 - C# com .NET **10** (`net10.0-windows`), WinForms, DPI `PerMonitorV2`.
-- Aplicação desktop para Windows 10+, distribuída como executável **self-contained win-x64** dentro de um instalador Inno Setup (`TrazBase-Setup.exe`), com autoatualização via GitHub Releases.
-- `AssemblyName` = `TrazBase`; versão atual **0.9.7** (`TrazBase.App.csproj`), espelhada em `Instalador/TrazBase.iss`.
+- Aplicação desktop para Windows 10+, distribuída como executável **self-contained win-x64** dentro de um instalador Inno Setup (`SupraKit-Setup.exe`), com autoatualização via GitHub Releases.
+- `AssemblyName` = `SupraKit`; versão atual **1.0.0** (`SupraKit.App.csproj`), espelhada em `Instalador/SupraKit.iss`.
 
 ## Organização do código
 
-Solução única, projeto único (`TrazBase.App`); não há separação em assemblies de UI/Application/Infrastructure. As responsabilidades estão separadas por arquivo, e a lógica pura está isolada em classes `internal static` para permitir testes (`InternalsVisibleTo("TrazBase.Tests")`):
+Solução única, projeto único (`SupraKit.App`); não há separação em assemblies de UI/Application/Infrastructure. As responsabilidades estão separadas por arquivo, e a lógica pura está isolada em classes `internal static` para permitir testes (`InternalsVisibleTo("SupraKit.Tests")`):
 
 | Arquivo | Responsabilidade |
 |---|---|
-| `Program.cs` | Ponto de entrada: impõe **instância única** (mutex `Local\TrazBase.SingleInstance`; uma segunda execução sinaliza o evento `Local\TrazBase.ShowWindow` e encerra), carrega `AppSettings`, aplica o modo de cor (claro/escuro) antes de `ApplicationConfiguration.Initialize()` e abre `MainForm`. |
+| `Program.cs` | Ponto de entrada: impõe **instância única** (mutex `Local\SupraKit.SingleInstance`; uma segunda execução sinaliza o evento `Local\SupraKit.ShowWindow` e encerra), carrega `AppSettings`, aplica o modo de cor (claro/escuro) antes de `ApplicationConfiguration.Initialize()` e abre `MainForm`. |
 | `SingleInstance.cs` | Nomes e regras da instância única: mutex que concede a primazia à primeira execução e evento para pedir a ela que venha para frente. |
 | `MainForm.cs` | Janela principal: layout, menu lateral, tema claro/escuro, orquestração dos fluxos (Transferir, Alterar base, Redefinir base, Comandos SQL), cópia/extração, Registro, SQL, versão, atualização. É um arquivo grande (~1 700 linhas) e concentra a UI e o fluxo. |
 | `VpnConnection.cs` | Conexão com a **VPN do Windows** (aba VPN da Configuração), usada pelo fluxo de transferência: enumera conexões existentes (`rasapi32!RasEnumEntries`, mesclando phonebooks por usuário e do sistema), verifica as ativas (`RasEnumConnections`) e conecta/desconecta com `rasdial.exe` (credenciais do perfil do Windows ou informadas manualmente, protegidas por DPAPI).
 | `ThemedTabControl.cs` | `TabControl` com desenho próprio (abas fixas, paleta claro/escuro), usado na tela Configuração (abas Geral/Senhas/VPN). |
-| `AppSettings.cs` | Configuração persistida em JSON (`%APPDATA%\TrazBase\settings.json`), proteção da senha com DPAPI (`CurrentUser`), migração de scripts legados. |
+| `AppSettings.cs` | Configuração persistida em JSON (`%APPDATA%\SupraKit\settings.json`), proteção da senha com DPAPI (`CurrentUser`), migração de scripts legados. |
 | `BaseOperationRules.cs` | Regras puras de operação: resolução do destino local com proteção de path traversal, lista de bases de apoio a copiar (`ARQEMP.FDB`, `ARQOCOR.FDB`), interpretação do diálogo de conflito de destino (`ExistingDestinationAction`). |
 | `ArchivePathSafety` (em `BaseOperationRules.cs`) | Normalização e validação do caminho de saída de entradas de arquivos compactados (rejeita caminhos absolutos e `..`). |
 | `RestoreOperationRules.cs` | Regras puras da restauração: resolução da pasta dos backups (`BKP` quando existe, senão a própria pasta selecionada), reconhecimento do tipo de base pelo nome do arquivo (`ARQEMP`/`ARQOCOR`/`ARQSIST`, sem distinção de maiúsculas/minúsculas), mapeamento para o `.FDB` ao lado do `.FBK`, detecção de destinos duplicados. |
@@ -29,15 +29,15 @@ Solução única, projeto único (`TrazBase.App`); não há separação em assem
 | `ThemedScrollingControls.cs` | Controles com tema próprio: `ThemedProgressBar` (barra/marquee), `ThemedListView`, `ThemedTextBox`, `ThemedRichTextBox`, `PlainNavigationButton` e a interface `IThemedScrollingControl`. |
 | `UiTypography.cs` | Tipografia centralizada (Segoe UI Variable/Segoe UI com fallback), usada por toda a UI. |
 
-Projeto de testes: `TrazBase.Tests` (MSTest 4, `net10.0-windows`, referencia `TrazBase.App`). Cobre a lógica pura: `BaseOperationRules` (resolução de destino, arquivos de apoio, ação de conflito), `ArchivePathSafety` (path traversal), `RestoreOperationRules` (reconhecimento/mapeamento de `.FBK`), `GitHubReleaseUpdater.ParseLatestRelease` e a proteção DPAPI de `AppSettings`. `MainForm` e a UI não têm cobertura. Detalhes em [Testes](TESTES.md).
+Projeto de testes: `SupraKit.Tests` (MSTest 4, `net10.0-windows`, referencia `SupraKit.App`). Cobre a lógica pura: `BaseOperationRules` (resolução de destino, arquivos de apoio, ação de conflito), `ArchivePathSafety` (path traversal), `RestoreOperationRules` (reconhecimento/mapeamento de `.FBK`), `GitHubReleaseUpdater.ParseLatestRelease` e a proteção DPAPI de `AppSettings`. `MainForm` e a UI não têm cobertura. Detalhes em [Testes](TESTES.md).
 
-Recursos: `Imagens/*.svg`, `Imagens/Baixando.gif`, `Imagens/icone/icone_supra.ico` (copiados para a saída). O instalador reside em `Instalador/` (`TrazBase.iss`, `Compilar-Instalador.ps1`, `Instalar.ps1`/`Instalar.bat` para a alternativa ZIP, `LEIA-ME.txt`).
+Recursos: `Imagens/*.svg`, `Imagens/Baixando.gif`, `Imagens/icone/icone_supra.ico` (copiados para a saída). O instalador reside em `Instalador/` (`SupraKit.iss`, `Compilar-Instalador.ps1`, `Instalar.ps1`/`Instalar.bat` para a alternativa ZIP, `LEIA-ME.txt`).
 
 ## Integrações
 
 ### Notificações da bandeja
 
-Com a janela minimizada/oculta, qualquer diálogo que peça atenção dispara sempre (sem configuração) um **toast do Windows** (`ToastNotifier`, via `Windows.UI.Notifications`; marca "Traz Base" pelo AppUserModelID `BrunoPasseti.TrazBase`, com fallback para balão da bandeja se o toast falhar; clique restaura a janela). Notificações em primeiro plano não são exibidas. Falhas no mecanismo de notificação nunca interrompem operações (tudo falha silenciosamente para o usuário).
+Com a janela minimizada/oculta, qualquer diálogo que peça atenção dispara sempre (sem configuração) um **toast do Windows** (`ToastNotifier`, via `Windows.UI.Notifications`; marca "SupraKit" pelo AppUserModelID `BrunoPasseti.SupraKit`, com fallback para balão da bandeja se o toast falhar; clique restaura a janela). Notificações em primeiro plano não são exibidas. Falhas no mecanismo de notificação nunca interrompem operações (tudo falha silenciosamente para o usuário).
 
 ### Processos externos
 
@@ -70,14 +70,14 @@ O único processo iniciado no caminho de negócio é o instalador durante a atua
 
 ### Configuração e segredos
 
-- JSON indentado em `%APPDATA%\TrazBase\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), pasta temporária configurável (`TempPath`), preferência de estrutura (`ForceMultiBase`), quantidade de bases do Registro no modo simples (`BaseCount`), tela inicial (`DefaultScreen`), última novidade exibida (`LastChangelogVersion`), renomeação de diretório com o cliente ARQSIST (`RenameSlFolderToClientName`), configuração própria da ação " (`UpdateSicSingleDestinationEnabled`, `UpdateSicSingleDestinationRoot`, `UpdateSicEntries` — lista de linhas com origem/versão/destino/nome do arquivo/renomeia), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), SQLs salvos para copiar (`SqlShortcuts`, modelo `SqlShortcut.cs`, exibidos também no submenu da bandeja), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`). A base `.FDB` escolhida para testar comandos **não é persistida** (vale só para a sessão).
+- JSON indentado em `%APPDATA%\SupraKit\settings.json`: pastas (`SolicitationRoot`, `BasesRoot`, `SupportRoot`), pasta temporária configurável (`TempPath`), preferência de estrutura (`ForceMultiBase`), quantidade de bases do Registro no modo simples (`BaseCount`), tela inicial (`DefaultScreen`), última novidade exibida (`LastChangelogVersion`), renomeação de diretório com o cliente ARQSIST (`RenameSlFolderToClientName`), configuração própria da ação " (`UpdateSicSingleDestinationEnabled`, `UpdateSicSingleDestinationRoot`, `UpdateSicEntries` — lista de linhas com origem/versão/destino/nome do arquivo/renomeia), comandos SQL inline (`ArqEmpCommands`, `ArqSistCommands`), SQLs salvos para copiar (`SqlShortcuts`, modelo `SqlShortcut.cs`, exibidos também no submenu da bandeja), preferências (`DarkMode`) e senha protegida (`ProtectedFirebirdPassword`). A base `.FDB` escolhida para testar comandos **não é persistida** (vale só para a sessão).
 - Senha opcional ("Salvar senha"): protegida com `ProtectedData` (DPAPI, `DataProtectionScope.CurrentUser`), armazenada em Base64; nunca em texto puro; nunca registrada em log. Se `Unprotect` falhar, o valor é descartado e a opção volta a desmarcada.
 - Migração: chaves antigas `ScriptArqEmp`/`ScriptArqSist` (arquivos `.sql` externos) são incorporadas aos comandos inline na primeira execução após a atualização.
 - Comandos SQL são editados e salvos dentro do aplicativo; nenhum arquivo `.sql` externo é exigido.
 
 ### GitHub Releases (autoatualização)
 
-`GET https://raw.githubusercontent.com/BrunoPasseti21/Traz-base/main/version.json` (manifesto estático atualizado por GitHub Action a cada release) → `version` maior que a versão do assembly → asset cujo nome termina em `Setup.exe` (URL precisa ser HTTPS) → download para `%TEMP%` → execução elevada com `/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS`: sem `/VERYSILENT`, o instalador exibe apenas a janela de progresso quando o app fecha (nenhuma página de wizard nem confirmação), e reinicia a aplicação ao terminar. Como a consulta não usa a API do GitHub, não há limite de requisições; a verificação roda ao abrir a janela **e a cada 1 minuto** (timer sempre ativo, inclusive com a janela na bandeja). O instalador (`TrazBase.iss`) bloqueia versões mais antigas que as já instaladas, permite reinstalar a mesma versão e usa `CloseApplications=force` para encerrar o executável elevado; o próprio app também se fecha logo após iniciar o instalador, caso o Restart Manager não consiga fazê-lo.
+`GET https://raw.githubusercontent.com/BrunoPasseti21/Traz-base/main/version.json` (manifesto estático atualizado por GitHub Action a cada release) → `version` maior que a versão do assembly → asset cujo nome termina em `Setup.exe` (URL precisa ser HTTPS) → download para `%TEMP%` → execução elevada com `/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS`: sem `/VERYSILENT`, o instalador exibe apenas a janela de progresso quando o app fecha (nenhuma página de wizard nem confirmação), e reinicia a aplicação ao terminar. Como a consulta não usa a API do GitHub, não há limite de requisições; a verificação roda ao abrir a janela **e a cada 1 minuto** (timer sempre ativo, inclusive com a janela na bandeja). O instalador (`SupraKit.iss`) bloqueia versões mais antigas que as já instaladas, permite reinstalar a mesma versão e usa `CloseApplications=force` para encerrar o executável elevado; o próprio app também se fecha logo após iniciar o instalador, caso o Restart Manager não consiga fazê-lo.
 
 ## Segurança e integridade operacional
 
@@ -87,14 +87,14 @@ O único processo iniciado no caminho de negócio é o instalador durante a atua
 - Movimentação de `.fdb` para a raiz falha explicitamente em caso de colisão de nomes.
 - Senhas não aparecem em logs, diálogos ou Registro.
 - A aplicação falha fechada: erros de conexão Firebird, Registro ou cópia interrompem o fluxo com mensagem; a etapa seguinte não é executada.
-- Limitações conhecidas: sem verificação de espaço em disco; valores anteriores do Registro não são preservados; senha mantida em memória durante a execução. Erros de operação são registrados em %APPDATA%\TrazBase\logs\TrazBase.log (rotação automática a cada 2 MB); falhas inesperadas também.
+- Limitações conhecidas: sem verificação de espaço em disco; valores anteriores do Registro não são preservados; senha mantida em memória durante a execução. Erros de operação são registrados em %APPDATA%\SupraKit\logs\SupraKit.log (rotação automática a cada 2 MB); falhas inesperadas também.
 
 ## Compilação e distribuição (resumo)
 
 ```powershell
-dotnet build TrazBase.App/TrazBase.App.csproj -c Release
-dotnet publish TrazBase.App/TrazBase.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
-powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1   # gera Instalador/TrazBase-Setup.exe
+dotnet build SupraKit.App/SupraKit.App.csproj -c Release
+dotnet publish SupraKit.App/SupraKit.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
+powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1   # gera Instalador/SupraKit-Setup.exe
 ```
 
-O `.iss` publica em `Program Files\TrazBase` (padrão, exigindo admin/UAC), com ícone e atalho opcional na área de trabalho. Detalhes em [Desenvolvimento](DESENVOLVIMENTO.md).
+O `.iss` publica em `Program Files\SupraKit` (padrão, exigindo admin/UAC), com ícone e atalho opcional na área de trabalho. Detalhes em [Desenvolvimento](DESENVOLVIMENTO.md).

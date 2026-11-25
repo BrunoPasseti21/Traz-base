@@ -1,0 +1,304 @@
+using SupraKit.App;
+
+namespace SupraKit.Tests;
+
+[TestClass]
+public sealed class BaseOperationRulesTests
+{
+    [TestMethod]
+    public void ResolveLocalBaseDirectory_CombinesRootAndSolicitationNumber()
+    {
+        using var temp = new TempDirectory();
+
+        var result = BaseOperationRules.ResolveLocalBaseDirectory(temp.Path, "123456");
+
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "123456")), result);
+    }
+
+    [TestMethod]
+    public void ResolveLocalBaseDirectory_AcceptsRootWithTrailingSeparator()
+    {
+        using var temp = new TempDirectory();
+        var rootWithSeparator = temp.Path.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+
+        var result = BaseOperationRules.ResolveLocalBaseDirectory(rootWithSeparator, "42");
+
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "42")), result);
+    }
+
+    [TestMethod]
+    public void ResolveLocalBaseDirectory_RejectsEmptyBasesRoot()
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => BaseOperationRules.ResolveLocalBaseDirectory("", "123"));
+        Assert.ThrowsExactly<ArgumentException>(() => BaseOperationRules.ResolveLocalBaseDirectory("   ", "123"));
+    }
+
+    [TestMethod]
+    [DataRow("")]
+    [DataRow("   ")]
+    [DataRow("12a3")]
+    [DataRow("12 3")]
+    [DataRow("12-3")]
+    [DataRow("../123")]
+    [DataRow("SLC123")]
+    public void ResolveLocalBaseDirectory_RejectsInvalidSolicitationNumbers(string sl)
+    {
+        Assert.ThrowsExactly<ArgumentException>(() => BaseOperationRules.ResolveLocalBaseDirectory(@"C:\Bases", sl));
+    }
+
+    [TestMethod]
+    public void ResolveLocalBaseDirectory_ResultStaysInsideBasesRoot()
+    {
+        using var temp = new TempDirectory();
+
+        var result = BaseOperationRules.ResolveLocalBaseDirectory(temp.Path, "999");
+
+        var root = Path.GetFullPath(temp.Path).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        Assert.IsTrue(result.StartsWith(root, StringComparison.OrdinalIgnoreCase));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_ReturnsExactWhenItExists()
+    {
+        using var temp = new TempDirectory();
+        var exact = Directory.CreateDirectory(Path.Combine(temp.Path, "123456")).FullName;
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
+
+        Assert.AreEqual(Path.GetFullPath(exact), result);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_AcceptsNameOnlyFolder()
+    {
+        using var temp = new TempDirectory();
+        var exact = Directory.CreateDirectory(Path.Combine(temp.Path, "Teste")).FullName;
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "teste");
+
+        Assert.IsNotNull(result);
+        Assert.AreEqual(Path.GetFullPath(exact), result, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_FallsBackToRenamedFolder()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_123456"));
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
+
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "Teste_123456")), result);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_AcceptsRenamedFolderTypedFully()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_123456"));
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "teste_123456");
+
+        Assert.IsNotNull(result);
+        Assert.AreEqual(Path.GetFullPath(Path.Combine(temp.Path, "Teste_123456")), result, StringComparer.OrdinalIgnoreCase);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_ReturnsNullWhenNothingExists()
+    {
+        using var temp = new TempDirectory();
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
+
+        Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_RejectsSeparatorsAndTraversal()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "123456"));
+
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, @"..\123456"));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, @"pasta\123456"));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "pasta/123456"));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, @"D:123456"));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_RejectsDotDotAndEmpty()
+    {
+        using var temp = new TempDirectory();
+
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, ".."));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, ""));
+        Assert.IsNull(BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "   "));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoryByName_DoesNotMatchPartialSuffix()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_12345")); // não termina em _123456
+
+        var result = BaseOperationRules.FindLocalBaseDirectoryByName(temp.Path, "123456");
+
+        Assert.IsNull(result);
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_ReturnsAllSuffixMatchesOrdered()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TesteB_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TesteA_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Fora"));
+
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
+
+        Assert.AreEqual(2, matches.Count);
+        Assert.AreEqual("TesteA_123456", Path.GetFileName(matches[0])); // ordenadas por nome
+        Assert.AreEqual("TesteB_123456", Path.GetFileName(matches[1]));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_PrefixAndExactBothListed()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Teste_123456"));
+
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
+
+        Assert.AreEqual(2, matches.Count);
+        Assert.AreEqual("123456", Path.GetFileName(matches[0]));
+        Assert.AreEqual("Teste_123456", Path.GetFileName(matches[1]));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_PrefixOfTeListsBothTesteBases()
+    {
+        using var temp = new TempDirectory();
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TESTE"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "TESTE_123456"));
+        Directory.CreateDirectory(Path.Combine(temp.Path, "Fora"));
+
+        // digitar "TE" ou "TESTE" deve listar as duas bases para seleção
+        foreach (var typed in new[] { "TE", "TES", "TEST", "TESTE" })
+        {
+            var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, typed);
+            Assert.AreEqual(2, matches.Count, typed);
+            Assert.AreEqual("TESTE", Path.GetFileName(matches[0]), typed);
+            Assert.AreEqual("TESTE_123456", Path.GetFileName(matches[1]), typed);
+        }
+
+        // digitar a pasta completa resolve direto
+        var exact = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "TESTE_123456");
+        Assert.AreEqual(1, exact.Count);
+        Assert.AreEqual("TESTE_123456", Path.GetFileName(exact[0]));
+
+        // "TESTE_" só lista a que tem o sufixo
+        var withSuffix = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "TESTE_");
+        Assert.AreEqual(1, withSuffix.Count);
+        Assert.AreEqual("TESTE_123456", Path.GetFileName(withSuffix[0]));
+    }
+
+    [TestMethod]
+    public void FindLocalBaseDirectoriesByName_ReturnsEmptyListWhenNothingFound()
+    {
+        using var temp = new TempDirectory();
+
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(temp.Path, "123456");
+
+        Assert.AreEqual(0, matches.Count);
+    }
+
+    [TestMethod]
+    public void GetSupportFilesToCopy_ReturnsBothWhenDestinationIsMissingAndSourceHasBoth()
+    {
+        using var temp = new TempDirectory();
+        var baseDir = Directory.CreateDirectory(Path.Combine(temp.Path, "base")).FullName;
+        var supportDir = Directory.CreateDirectory(Path.Combine(temp.Path, "apoio")).FullName;
+        File.WriteAllText(Path.Combine(supportDir, "ARQEMP.FDB"), "emp");
+        File.WriteAllText(Path.Combine(supportDir, "ARQOCOR.FDB"), "ocor");
+
+        var result = BaseOperationRules.GetSupportFilesToCopy(baseDir, supportDir);
+
+        Assert.HasCount(2, result);
+        CollectionAssert.AreEquivalent(
+            new[] { "ARQEMP.FDB", "ARQOCOR.FDB" },
+            result.Select(item => item.Name).ToArray());
+        foreach (var item in result)
+        {
+            Assert.AreEqual(Path.Combine(supportDir, item.Name), item.Source);
+            Assert.AreEqual(Path.Combine(baseDir, item.Name), item.Destination);
+        }
+    }
+
+    [TestMethod]
+    public void GetSupportFilesToCopy_SkipsFilesThatAlreadyExistInDestination()
+    {
+        using var temp = new TempDirectory();
+        var baseDir = Directory.CreateDirectory(Path.Combine(temp.Path, "base")).FullName;
+        var supportDir = Directory.CreateDirectory(Path.Combine(temp.Path, "apoio")).FullName;
+        File.WriteAllText(Path.Combine(baseDir, "ARQEMP.FDB"), "existente");
+        File.WriteAllText(Path.Combine(supportDir, "ARQEMP.FDB"), "apoio-emp");
+        File.WriteAllText(Path.Combine(supportDir, "ARQOCOR.FDB"), "apoio-ocor");
+
+        var result = BaseOperationRules.GetSupportFilesToCopy(baseDir, supportDir);
+
+        Assert.HasCount(1, result);
+        Assert.AreEqual("ARQOCOR.FDB", result[0].Name);
+    }
+
+    [TestMethod]
+    public void GetSupportFilesToCopy_ReturnsEmptyWhenEverythingExistsLocally()
+    {
+        using var temp = new TempDirectory();
+        var baseDir = Directory.CreateDirectory(Path.Combine(temp.Path, "base")).FullName;
+        var supportDir = Directory.CreateDirectory(Path.Combine(temp.Path, "apoio")).FullName;
+        File.WriteAllText(Path.Combine(baseDir, "ARQEMP.FDB"), "emp");
+        File.WriteAllText(Path.Combine(baseDir, "ARQOCOR.FDB"), "ocor");
+
+        var result = BaseOperationRules.GetSupportFilesToCopy(baseDir, supportDir);
+
+        Assert.IsEmpty(result);
+    }
+
+    [TestMethod]
+    public void GetSupportFilesToCopy_ThrowsWhenFileIsMissingInBothLocations()
+    {
+        using var temp = new TempDirectory();
+        var baseDir = Directory.CreateDirectory(Path.Combine(temp.Path, "base")).FullName;
+        var supportDir = Directory.CreateDirectory(Path.Combine(temp.Path, "apoio")).FullName;
+        File.WriteAllText(Path.Combine(supportDir, "ARQEMP.FDB"), "emp"); // ARQOCOR.FDB falta nos dois lados
+
+        Assert.ThrowsExactly<FileNotFoundException>(() => BaseOperationRules.GetSupportFilesToCopy(baseDir, supportDir));
+    }
+
+    [TestMethod]
+    public void GetDestinationAction_MapsDialogResults()
+    {
+        Assert.AreEqual(ExistingDestinationAction.CreateBackup, BaseOperationRules.GetDestinationAction(System.Windows.Forms.DialogResult.Yes));
+        Assert.AreEqual(ExistingDestinationAction.Replace, BaseOperationRules.GetDestinationAction(System.Windows.Forms.DialogResult.No));
+        Assert.AreEqual(ExistingDestinationAction.Cancel, BaseOperationRules.GetDestinationAction(System.Windows.Forms.DialogResult.Cancel));
+        Assert.AreEqual(ExistingDestinationAction.Cancel, BaseOperationRules.GetDestinationAction(System.Windows.Forms.DialogResult.OK));
+        Assert.AreEqual(ExistingDestinationAction.Cancel, BaseOperationRules.GetDestinationAction(System.Windows.Forms.DialogResult.None));
+    }
+
+    private sealed class TempDirectory : IDisposable
+    {
+        public TempDirectory()
+        {
+            Path = Directory.CreateDirectory(
+                System.IO.Path.Combine(System.IO.Path.GetTempPath(), "SupraKitTests-" + Guid.NewGuid().ToString("N"))).FullName;
+        }
+
+        public string Path { get; }
+
+        public void Dispose()
+        {
+            if (Directory.Exists(Path)) Directory.Delete(Path, recursive: true);
+        }
+    }
+}

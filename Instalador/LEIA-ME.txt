@@ -1,6 +1,6 @@
-Traz Base - Instalador
+SupraKit - Instalador
 
-O arquivo TrazBase-Setup.exe é distribuído separadamente deste ZIP.
+O arquivo SupraKit-Setup.exe é distribuído separadamente deste ZIP.
 
 Alternativa por arquivo ZIP
 1. Extraia o pacote completo para uma pasta local.

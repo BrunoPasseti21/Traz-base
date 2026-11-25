@@ -1,13 +1,13 @@
 # Testes automatizados
 
-O projeto `TrazBase.Tests` (MSTest 4, `net10.0-windows`) cobre a **lógica pura** da aplicação. A UI (`MainForm`) e os efeitos externos (Registro, Firebird, sistema de arquivos de produção, GitHub) não são cobertos — ver *Escopo e limitações*.
+O projeto `SupraKit.Tests` (MSTest 4, `net10.0-windows`) cobre a **lógica pura** da aplicação. A UI (`MainForm`) e os efeitos externos (Registro, Firebird, sistema de arquivos de produção, GitHub) não são cobertos — ver *Escopo e limitações*.
 
 ## Como executar
 
 Na raiz do repositório:
 
 ```powershell
-dotnet test TrazBase.Tests/TrazBase.Tests.csproj
+dotnet test SupraKit.Tests/SupraKit.Tests.csproj
 ```
 
 Saída esperada: `Aprovado! – Com falha: 0, Aprovado: 85, Ignorado: 0`.
@@ -16,20 +16,20 @@ Filtros úteis:
 
 ```powershell
 # Uma classe
-dotnet test TrazBase.Tests/TrazBase.Tests.csproj --filter "ClassName~BaseOperationRulesTests"
+dotnet test SupraKit.Tests/SupraKit.Tests.csproj --filter "ClassName~BaseOperationRulesTests"
 
 # Especificando o projeto e sem recompilar desnecessariamente
-dotnet test TrazBase.Tests/TrazBase.Tests.csproj --no-restore
+dotnet test SupraKit.Tests/SupraKit.Tests.csproj --no-restore
 
 # No Visual Studio / VS Code: painel Test Explorer (ícone de frasco) lista e executa os testes
 ```
 
 ## Estrutura
 
-- `TrazBase.Tests.csproj` referencia `TrazBase.App` (`ProjectReference`). O app expõe seus tipos `internal` à assembly de testes via `<InternalsVisibleTo Include="TrazBase.Tests" />` no `TrazBase.App.csproj`.
+- `SupraKit.Tests.csproj` referencia `SupraKit.App` (`ProjectReference`). O app expõe seus tipos `internal` à assembly de testes via `<InternalsVisibleTo Include="SupraKit.Tests" />` no `SupraKit.App.csproj`.
 - `MSTestSettings.cs` ativa paralelismo no nível de método (`ExecutionScope.MethodLevel`) — cada teste é independente.
-- Testes que precisam de diretórios reais usam pastas temporárias em `%TEMP%` com nome único (`TrazBaseTests-<guid>`), criadas no construtor de um `TempDirectory : IDisposable` e apagadas recursivamente no `Dispose`. Nada é escrito em pastas do usuário.
-- O caminho do `settings.json` real (`%APPDATA%\TrazBase\`) é fixo no código, então os testes de `AppSettings` exercitam apenas a API de senha (em memória), nunca `Save()`/`Load()` — o arquivo real do usuário não é tocado.
+- Testes que precisam de diretórios reais usam pastas temporárias em `%TEMP%` com nome único (`SupraKitTests-<guid>`), criadas no construtor de um `TempDirectory : IDisposable` e apagadas recursivamente no `Dispose`. Nada é escrito em pastas do usuário.
+- O caminho do `settings.json` real (`%APPDATA%\SupraKit\`) é fixo no código, então os testes de `AppSettings` exercitam apenas a API de senha (em memória), nunca `Save()`/`Load()` — o arquivo real do usuário não é tocado.
 - Os testes de senha usam DPAPI de verdade (`DataProtectionScope.CurrentUser`), portanto só passam em Windows com perfil de usuário.
 
 ## Cobertura por arquivo
@@ -133,14 +133,14 @@ Testa `GitHubReleaseUpdater.ParseLatestRelease(json, currentVersion)` (decididor
 
 | Teste | Verifica |
 |---|---|
-| `ParseLatestRelease_ReturnsUpdateWhenNewerVersionHasSetupAsset` | Caso feliz: tag `v0.4.0` + asset `TrazBase-Setup.exe` HTTPS → retorna `ReleaseUpdate` com versão `0.4.0` e URI HTTPS. |
+| `ParseLatestRelease_ReturnsUpdateWhenNewerVersionHasSetupAsset` | Caso feliz: tag `v0.4.0` + asset `SupraKit-Setup.exe` HTTPS → retorna `ReleaseUpdate` com versão `0.4.0` e URI HTTPS. |
 | `ParseLatestRelease_AcceptsTagWithoutVPrefix` | Tag `0.4.0` (sem `v`) também é aceita. |
-| `ParseLatestRelease_MatchesSetupExtensionCaseInsensitively` | `TrazBase-SETUP.EXE` é reconhecido. |
+| `ParseLatestRelease_MatchesSetupExtensionCaseInsensitively` | `SupraKit-SETUP.EXE` é reconhecido. |
 | `ParseLatestRelease_ReturnsNullWhenVersionIsNotNewer` | Tag igual (`v0.3.0`) ou anterior (`v0.2.9`) → `null`. |
 | `ParseLatestRelease_ReturnsNullWhenTagIsMissingOrInvalid` | JSON sem `tag_name` ou com tag não-numérica (`versao-nova`) → `null`. |
 | `ParseLatestRelease_ReturnsNullWhenThereIsNoAssetsArray` | JSON sem `assets` → `null`. |
-| `ParseLatestRelease_ReturnsNullWhenNoAssetIsTheSetupInstaller` | Asset `TrazBase.exe` (não termina em `Setup.exe`) → `null`. |
-| `ParseLatestRelease_RejectsNonHttpsAssetUrl` | Asset `TrazBase-Setup.exe` com URL `http://` → `null`. |
+| `ParseLatestRelease_ReturnsNullWhenNoAssetIsTheSetupInstaller` | Asset `SupraKit.exe` (não termina em `Setup.exe`) → `null`. |
+| `ParseLatestRelease_RejectsNonHttpsAssetUrl` | Asset `SupraKit-Setup.exe` com URL `http://` → `null`. |
 | `ParseLatestRelease_SkipsInvalidUrlsAndKeepsLooking` | URL malformada do primeiro asset é ignorada; o segundo asset válido é escolhido. |
 
 ### `AppSettingsTests.cs` — 6 testes
@@ -165,8 +165,8 @@ Testa a proteção DPAPI da senha Firebird em `AppSettings` (sem tocar em disco)
 
 ## Convenções ao adicionar testes novos
 
-1. Teste lógica pura; se a lógica estiver presa a `MainForm`, extraia-a primeiro para `internal static` (como `BaseOperationRules`) e mantenha `InternalsVisibleTo("TrazBase.Tests")`.
-2. Nunca escreva em `%APPDATA%\TrazBase` ou no Registro real — use `%TEMP%` com nome único e `IDisposable` para limpeza.
+1. Teste lógica pura; se a lógica estiver presa a `MainForm`, extraia-a primeiro para `internal static` (como `BaseOperationRules`) e mantenha `InternalsVisibleTo("SupraKit.Tests")`.
+2. Nunca escreva em `%APPDATA%\SupraKit` ou no Registro real — use `%TEMP%` com nome único e `IDisposable` para limpeza.
 3. Prefira `Assert.ThrowsExactly<T>` (comportamento exibido na suíte atual) a capturar exceções manualmente.
 4. Evite depender de `CultureInfo`/fuso horário: strings esperadas devem ser independentes de cultura local.
 5. Rode `dotnet test` antes de commitar; os analyzers MSTEST rodam junto com o build (são eles que sugerem `Assert.HasCount`/`Assert.IsEmpty`).

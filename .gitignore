@@ -14,7 +14,9 @@
 
 # Publish output and downloadable release package (attach these to a GitHub Release).
 /Instalador/Aplicativo/
-/TrazBase-Instalador.zip
+/SupraKit-Instalador.zip
+/Instalador/SupraKit-Setup.exe
+# Instalador antigo (Traz Base) pode existir localmente após a atualização
 /Instalador/TrazBase-Setup.exe
 /Instalador/tools/
 

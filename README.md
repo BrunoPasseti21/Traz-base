@@ -1,4 +1,4 @@
-﻿# Traz Base
+# SupraKit
 
 Aplicação desktop para Windows que copia arquivos de solicitações, extrai pacotes e prepara bases Firebird por uma interface visual.
 
@@ -14,22 +14,22 @@ O instalador autocontido para Windows x64 inclui o runtime do .NET e não exige 
 ## Executar durante o desenvolvimento
 
 ```powershell
-dotnet run --project TrazBase.App/TrazBase.App.csproj
+dotnet run --project SupraKit.App/SupraKit.App.csproj
 ```
 
 ## Compilar
 
 ```powershell
-dotnet build TrazBase.App/TrazBase.App.csproj -c Release
+dotnet build SupraKit.App/SupraKit.App.csproj -c Release
 ```
 
 Para gerar o pacote autocontido para Windows x64:
 
 ```powershell
-dotnet publish TrazBase.App/TrazBase.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
+dotnet publish SupraKit.App/SupraKit.App.csproj -c Release -r win-x64 --self-contained true -o Instalador/Aplicativo
 ```
 
-O conteúdo de `Instalador/Aplicativo` e os instaladores são artefatos de distribuição e ficam fora do Git. Publique `TrazBase-Setup.exe` como asset de uma GitHub Release para que a aplicação detecte e instale automaticamente a versão mais recente.
+O conteúdo de `Instalador/Aplicativo` e os instaladores são artefatos de distribuição e ficam fora do Git. Publique `SupraKit-Setup.exe` como asset de uma GitHub Release para que a aplicação detecte e instale automaticamente a versão mais recente.
 
 Para criar o instalador executável com o Inno Setup instalado, execute no Windows:
 
@@ -37,15 +37,15 @@ Para criar o instalador executável com o Inno Setup instalado, execute no Windo
 powershell -ExecutionPolicy Bypass -File Instalador/Compilar-Instalador.ps1
 ```
 
-O script usa `Instalador/TrazBase.iss` e gera `Instalador/TrazBase-Setup.exe`. O destino padrão é `C:\Program Files\TrazBase`; o instalador solicita privilégios de administrador e permite escolher outra pasta.
+O script usa `Instalador/SupraKit.iss` e gera `Instalador/SupraKit-Setup.exe`. O destino padrão é `C:\Program Files\SupraKit`; o instalador solicita privilégios de administrador e permite escolher outra pasta.
 
 As atualizações iniciadas pela aplicação executam o instalador em modo silencioso, sem telas de instalação. O Windows ainda solicita autorização do UAC para atualizar arquivos em `Program Files`.
 
-Para lançar uma atualização, incremente `<Version>` em `TrazBase.App/TrazBase.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/TrazBase.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões antigas, mas permite reinstalar a versão atual para aplicar correções sem mudar o número da versão. Os arquivos da aplicação são substituídos; arquivos sem versão (JSON, PDB, SVG, PNG e ícones) são atualizados quando o horário de modificação muda.
+Para lançar uma atualização, incremente `<Version>` em `SupraKit.App/SupraKit.App.csproj` e `AppVersion`/`AppFileVersion` em `Instalador/SupraKit.iss`, publique novamente em `Instalador/Aplicativo` e recompile o instalador. Ao executar sobre uma instalação existente, o setup bloqueia versões antigas, mas permite reinstalar a versão atual para aplicar correções sem mudar o número da versão. Os arquivos da aplicação são substituídos; arquivos sem versão (JSON, PDB, SVG, PNG e ícones) são atualizados quando o horário de modificação muda.
 
 ## Configuração e privacidade
 
-Configure a pasta de solicitações, as pastas locais e a senha Firebird na própria aplicação. Não há caminhos de rede da empresa definidos como padrão. As preferências e os comandos SQL ficam no perfil local do usuário em `%APPDATA%\TrazBase`; quando solicitada, a senha é protegida pelo DPAPI do Windows para a conta atual.
+Configure a pasta de solicitações, as pastas locais e a senha Firebird na própria aplicação. Não há caminhos de rede da empresa definidos como padrão. As preferências e os comandos SQL ficam no perfil local do usuário em `%APPDATA%\SupraKit`; quando solicitada, a senha é protegida pelo DPAPI do Windows para a conta atual.
 
 O script operacional legado foi excluído deste repositório porque contém credenciais e referências internas. Não o force para o Git nem publique cópias desse arquivo.
 

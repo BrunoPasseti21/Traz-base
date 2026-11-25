@@ -1,13 +1,13 @@
 # Configuração e dados locais
 
-Onde o Traz Base guarda preferências, comandos SQL e credenciais.
+Onde o SupraKit guarda preferências, comandos SQL e credenciais.
 
 ## Local dos dados
 
 Tudo fica no perfil do usuário atual:
 
 ```
-%APPDATA%\TrazBase\settings.json
+%APPDATA%\SupraKit\settings.json
 ```
 
 ## Logs de erro
@@ -15,12 +15,12 @@ Tudo fica no perfil do usuário atual:
 Erros de operação (e falhas inesperadas da aplicação) são gravados no arquivo:
 
 ```
-%APPDATA%\TrazBase\logs\TrazBase.log
+%APPDATA%\SupraKit\logs\SupraKit.log
 ```
 
-Cada linha tem data/hora, contexto, mensagem e o stack trace da exceção. O arquivo cresce até **2 MB** e, ao atingir esse limite, é renomeado para `TrazBase-yyyyMMdd-HHmmss.log` e um novo é iniciado. A caixa de erro exibida ao operador também indica o caminho do arquivo para facilitar o chamado para o suporte.
+Cada linha tem data/hora, contexto, mensagem e o stack trace da exceção. O arquivo cresce até **2 MB** e, ao atingir esse limite, é renomeado para `SupraKit-yyyyMMdd-HHmmss.log` e um novo é iniciado. A caixa de erro exibida ao operador também indica o caminho do arquivo para facilitar o chamado para o suporte.
 
-Ex.: `C:\Users\<usuário>\AppData\Roaming\TrazBase\settings.json`. O arquivo é JSON indentado, legível e editável manualmente (com o aplicativo fechado). Não há arquivo de log ainda; os logs ficam apenas na tela.
+Ex.: `C:\Users\<usuário>\AppData\Roaming\SupraKit\settings.json`. O arquivo é JSON indentado, legível e editável manualmente (com o aplicativo fechado). Não há arquivo de log ainda; os logs ficam apenas na tela.
 
 ## Chaves do `settings.json`
 
@@ -40,8 +40,8 @@ A tela **Configuração** é dividida em três abas: **Geral** (pastas e comport
 | `CommandScriptsMigrated` | bool | `false` | `true` após a migração automática dos scripts legados para os comandos inline. |
 | `DarkMode` | bool | `false` | Preferência de tema escuro (reaplicada a cada início). |
 | `MinimizeToTrayOnClose` | bool | `false` | Fechar a janela minimiza para a bandeja do Windows (segundo plano) em vez de encerrar o aplicativo. Sem essa opção, × / Alt+F4 perguntam "Deseja realmente fechar a aplicação?" antes de encerrar (botão padrão Não). "Fechar" no menu da bandeja encerra de verdade, sem perguntar. |
-| `StartInBackground` | bool | `false` | **Iniciar o TrazBase em segundo plano (na bandeja)** — ao abrir o aplicativo, a janela não é exibida e o TrazBase inicia escondido na bandeja do Windows. Os atalhos **Ctrl+Alt+C** e **Ctrl+Alt+X**, o menu da bandeja e a verificação silenciosa de atualização continuam funcionando. A janela pode ser restaurada com o duplo clique no ícone da bandeja ou pelo menu (Transferir, etc.). Padrão: desmarcada. |
-| `StartWithWindows` | bool | `false` | **Iniciar o TrazBase com o Windows** — o aplicativo é aberto automaticamente no login do Windows (chave `TrazBase` em `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, com o caminho do executável entre aspas). No arranque, a chave é reparada com o caminho atual caso o executável tenha mudado de pasta. Pode ser combinada com `StartInBackground` para iniciar já na bandeja. Padrão: desmarcada. |
+| `StartInBackground` | bool | `false` | **Iniciar o SupraKit em segundo plano (na bandeja)** — ao abrir o aplicativo, a janela não é exibida e o SupraKit inicia escondido na bandeja do Windows. Os atalhos **Ctrl+Alt+C** e **Ctrl+Alt+X**, o menu da bandeja e a verificação silenciosa de atualização continuam funcionando. A janela pode ser restaurada com o duplo clique no ícone da bandeja ou pelo menu (Transferir, etc.). Padrão: desmarcada. |
+| `StartWithWindows` | bool | `false` | **Iniciar o SupraKit com o Windows** — o aplicativo é aberto automaticamente no login do Windows (chave `SupraKit` em `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`, com o caminho do executável entre aspas). No arranque, a chave é reparada com o caminho atual caso o executável tenha mudado de pasta. Pode ser combinada com `StartInBackground` para iniciar já na bandeja. Padrão: desmarcada. |
 | `TempPath` | string | `""` | Pasta temporária usada no Registro (`TEMP`) — sempre gravada com barra final. Vazio → `HKCU\SIC\CONEXAO\TEMP` se existir, senão `Path.GetTempPath()` do Windows. |
 | `UpdateSicSourceRoot` / `UpdateSicDestinationRoot` / `UpdateSicSicVersion` | legado | `""` | Configuração legada da ação " (pasta-base, destino e versão). Usada apenas para migrar para `UpdateSicEntries` na primeira abertura após a atualização |
 | `UpdateSicSingleDestinationEnabled` | bool | `false` | Se `true`, todos os executáveis vão para o mesmo destino (campo `UpdateSicSingleDestinationRoot`); a coluna `Destino` da tabela fica oculta |
@@ -111,8 +111,8 @@ Versões anteriores permitiam apontar para arquivos `.sql` externos (`ScriptArqE
 
 ## Restaurar a configuração padrão
 
-1. Feche o Traz Base.
-2. Apague `%APPDATA%\TrazBase\settings.json` (ou apenas as chaves desejadas).
+1. Feche o SupraKit.
+2. Apague `%APPDATA%\SupraKit\settings.json` (ou apenas as chaves desejadas).
 3. Abra novamente: o aplicativo recria o arquivo com os padrões (tudo vazio; tema claro).
 4. O Registro gravado anteriormente (`HKCU\SIC\CONEXAO`) não é restaurado — ajuste-o pela própria aplicação (altere para qualquer base) ou manualmente.
 

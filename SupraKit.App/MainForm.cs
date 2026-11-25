@@ -1,0 +1,6705 @@
+using System.Collections.Concurrent;
+using System.Diagnostics;
+using Microsoft.Win32;
+using System.Globalization;
+using System.IO.Compression;
+using FirebirdSql.Data.FirebirdClient;
+using FirebirdSql.Data.Isql;
+using FirebirdSql.Data.Services;
+using SharpCompress.Common;
+using SharpCompress.Readers;
+using System.Text.RegularExpressions;
+using System.Runtime.InteropServices;
+using System.ComponentModel;
+using System.Text;
+
+namespace SupraKit.App;
+
+internal sealed partial class MainForm : Form
+{
+    private readonly AppSettings _settings = AppSettings.Load();
+    private readonly Dictionary<string, TextBox> _fields = new();
+    private readonly Dictionary<string, RoundedButton> _browseButtons = new();
+    private readonly UnthemedTextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly UnthemedTextBox _sicDynamicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
+    private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _saveSicDynamicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly RoundedButton _passwordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly RoundedButton _sicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly RoundedButton _sicDynamicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Teste_123456')", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _startInBackground = new() { Text = "Iniciar o SupraKit em segundo plano (na bandeja)", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _startWithWindows = new() { Text = "Iniciar o SupraKit com o Windows", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _useSupportAsCompany = new() { Text = "Apontar a EMPRESA do Regedit para a pasta de bases de apoio", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private NotifyIcon? _notifyIcon;
+    private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private static readonly (StartScreen Value, string Text)[] StartScreenItems =
+    [
+        (StartScreen.Atalhos, "Atalhos de pasta"),
+        (StartScreen.AtualizarSic, "Atualização de executáveis"),
+        (StartScreen.Transferir, "Buscar base"),
+        (StartScreen.ConfigurarSic, "Configurar caminhos"),
+        (StartScreen.CopiarSql, "Copiar SQL"),
+        (StartScreen.Inicio, "Início"),
+        (StartScreen.RedefinirBase, "Redefinir base"),
+        (StartScreen.RestaurarBase, "Restaurar base"),
+        (StartScreen.AlterarBase, "Trocar base")
+    ];
+    private readonly ComboBox _defaultScreen = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 280, Height = 30 };
+    private readonly UnthemedTextBox _sl = new() { Width = 180, PlaceholderText = "Ex.: 123456" };
+    private readonly ThemedTextBox _log = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private readonly Label _status = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132) };
+    private readonly Label _versionLabel = new() { Text = "", AutoSize = true, Visible = false, ForeColor = Color.FromArgb(0, 120, 255), Font = UiTypography.Body(14f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+    private readonly Label _changeBaseVersionLabel = new() { Text = "", AutoSize = true, Visible = false, ForeColor = Color.FromArgb(0, 120, 255), Font = UiTypography.Body(12f), Anchor = AnchorStyles.Top | AnchorStyles.Right };
+    private readonly Panel _progress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
+    private readonly Panel _progressFill = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(31, 111, 235), Location = new Point(0, 0), Width = 0, Height = 18 };
+    private int _progressPercent;
+    private string? _trayShortStatus;
+    private readonly RoundedButton _start = new() { Text = "Trazer e preparar base", Width = 220, Height = 42, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _cancel = new() { Text = "Cancelar", Width = 100, Height = 42, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Panel _progressFooter = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly TableLayoutPanel _shell = new() { Dock = DockStyle.Fill, ColumnCount = 2, RowCount = 1 };
+    private readonly Panel _contentHost = new() { Dock = DockStyle.Fill };
+    private readonly Panel _sidebar = new() { Dock = DockStyle.Fill, BackColor = Color.White };
+    private readonly ThemedPanel _sidebarScroll = new() { Dock = DockStyle.Fill, AutoScroll = true, BackColor = Color.White };
+    private readonly PlainNavigationButton _menuToggle = new() { Text = "", Image = SvgIconLoader.Load("menu.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 54, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _transferNav = new() { Text = "", Image = SvgIconLoader.Load("Transferir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _changeBaseNav = new() { Text = "", Image = SvgIconLoader.Load("Trocar-Base.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _resetNav = new() { Text = "", Image = SvgIconLoader.Load("Redefinir.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _restoreNav = new() { Text = "", Image = SvgIconLoader.Load("Restaurar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _updateSicNav = new() { Text = "", Image = SvgIconLoader.Load("Atualizar.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _configureSicNav = new() { Text = "", Image = SvgIconLoader.Load("Configuração de atalhos.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _settingsNav = new() { Text = "", Image = SvgIconLoader.Load("Configuracao.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _arqEmpNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _arqSistNav = new() { Text = "", Image = SvgIconLoader.Load("SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _folderShortcutsNav = new() { Text = "", Image = SvgIconLoader.Load("Atalho.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PlainNavigationButton _copySqlNav = new() { Text = "", Image = SvgIconLoader.Load("Copiar-SQL.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly Panel _menuFooter = new() { Dock = DockStyle.Bottom, Height = 70, Padding = new Padding(6, 4, 6, 6) };
+    private readonly Label _appVersionLabel = new() { Dock = DockStyle.Top, Height = 30, AutoEllipsis = true, TextAlign = ContentAlignment.MiddleCenter, BackColor = Color.FromArgb(38, 50, 68), ForeColor = Color.FromArgb(190, 208, 230), Font = UiTypography.BodySemibold(9f) };
+    private readonly Label _creatorLabel = new() { Dock = DockStyle.Top, Height = 24, AutoEllipsis = true, Text = "Criado por Bruno Passeti", TextAlign = ContentAlignment.MiddleCenter, Font = UiTypography.Body(8.5f) };
+    private readonly Panel _updateRow = new() { Dock = DockStyle.Top, Height = 34, Visible = false };
+    private readonly Panel _themeToggleRow = new() { Dock = DockStyle.Bottom, Height = 40, Padding = new Padding(0, 6, 0, 6) };
+    private readonly ThemeToggle _themeToggle = new();
+    private TextBox? _traySlBox;
+    private TextBox? _trayChangeBaseBox;
+    private TextBox? _trayTicketBox;
+    private readonly EventWaitHandle _showEvent = new(false, EventResetMode.AutoReset, SingleInstance.ShowEventName);
+    private volatile bool _showWindowRequested;
+    // true quando o fluxo foi iniciado pela bandeja: a janela não abre e o resultado vai por balão.
+    private bool _backgroundTrayRun;
+    private bool _exitRequested;
+    private bool _trayHintShown;
+    private readonly PictureBox _updateAnimation = new() { Dock = DockStyle.Fill, SizeMode = PictureBoxSizeMode.StretchImage, Visible = false, BackColor = Color.Transparent };
+    private readonly ThemedProgressBar _updateProgress = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly RoundedButton _updateButton = new() { Dock = DockStyle.Fill, Image = SvgIconLoader.Load("Atualizar.svg", 16), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Text = "", FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly ToolTip _menuToolTip = new();
+    private bool _downloadingUpdate;
+    private bool _updateInstallInProgress;
+    private TableLayoutPanel _transferView = null!;
+    private Control _settingsView = null!;
+    private ThemedTabControl? _settingsTabs;
+    private RoundedButton? _tutorialButton;
+    private Control _changeBaseView = null!;
+    private Control _resetView = null!;
+    private Control _restoreView = null!;
+    private Control _updateSicView = null!;
+    private Control _configureSicView = null!;
+    private readonly Label _updateSicSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) };
+    private Control _arqEmpView = null!;
+    private readonly ThemedListView _folderShortcutList = new() { View = View.Details, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false, ShowItemToolTips = true, GridLines = false };
+    private readonly UnthemedTextBox _folderShortcutName = new() { PlaceholderText = "Ex.: Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _folderShortcutPath = new() { PlaceholderText = "Ex.: C:\\SupraSys\\SIC\\Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly RoundedButton _folderShortcutBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly ThemedCheckBox _folderShortcutShowExe = new() { Text = "Apenas .exe", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _folderShortcutShowBat = new() { Text = "Apenas .bat", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _folderShortcutShowAll = new() { Text = "Todos os arquivos", AutoSize = true, Anchor = AnchorStyles.Left, Checked = true };
+    private readonly RoundedButton _folderShortcutAddUpdate = new() { Text = "Adicionar / atualizar", Width = 172, Height = 32, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _folderShortcutRemove = new() { Text = "Remover", Width = 112, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly Label _folderShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
+
+    // Tela "Início": logo em destaque e busca de chamado (mesmo fluxo da linha da bandeja).
+    private Control _homeView = null!;
+    private readonly PlainNavigationButton _homeNav = new() { Text = "", Image = SvgIconLoader.Load("Inicio.svg"), ImageAlign = ContentAlignment.MiddleCenter, TextImageRelation = TextImageRelation.ImageBeforeText, Dock = DockStyle.Top, Height = 50, FlatStyle = FlatStyle.Flat, ForeColor = Color.FromArgb(29, 42, 61), BackColor = Color.White, Font = UiTypography.Body(12) };
+    private readonly PictureBox _homeLogo = new() { Size = new Size(600, 400), SizeMode = PictureBoxSizeMode.Zoom, BackColor = Color.Transparent, Anchor = AnchorStyles.None };
+    private const string HomeTicketHintText = "Digite o número do chamado para buscar.";
+    private readonly Label _homeTicketTitle = new() { Text = "Buscar chamado", AutoSize = true, Font = UiTypography.BodySemibold(12), ForeColor = Ink, Location = new Point(18, 15) };
+    private readonly UnthemedTextBox _homeTicketBox = new() { PlaceholderText = "Nº do chamado (até 12 dígitos)", Height = 38, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly RoundedButton _homeTicketButton = new() { Text = "Buscar", Width = 200, Height = 34, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    // Uma única linha de texto serve como dica e, quando há erro, como mensagem vermelha.
+    private readonly Label _homeTicketError = new() { Text = HomeTicketHintText, AutoSize = false, Size = new Size(408, 30), ForeColor = Muted, Font = UiTypography.Body(9f), TextAlign = ContentAlignment.MiddleLeft };
+    private bool _homeTicketErrorShown;
+
+    // Tela "Copiar SQL": lista filtrável + editor SQL (o mesmo componente das telas ARQEMP/ARQSIST).
+    private Control _copySqlView = null!;
+    private readonly ThemedListView _sqlShortcutList = new() { View = View.Details, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false, ShowItemToolTips = true, GridLines = false };
+    private readonly UnthemedTextBox _sqlShortcutSearch = new() { PlaceholderText = "Filtrar comandos...", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _sqlShortcutTitle = new() { PlaceholderText = "Ex.: Clientes ativos", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly RichTextBox _sqlShortcutEditor = CreateSqlEditor();
+    private readonly RoundedButton _sqlShortcutSave = new() { Text = "Salvar", Width = 120, Height = 34, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutCopy = new() { Text = "Copiar", Width = 100, Height = 34, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutDelete = new() { Text = "Excluir", Width = 100, Height = 34, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly Label _sqlShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
+    private bool _loadingSqlShortcuts;
+    private string? _editingSqlShortcutId;
+
+    private Control _arqSistView = null!;
+    private Control _folderShortcutsView = null!;
+    private Panel _generalSettingsHost = null!;
+    private ThemedPanel _generalSettingsScroller = null!;
+    private Panel _passwordsSettingsHost = null!;
+    private Panel _vpnSettingsHost = null!;
+    // VPN: opção de conectar a uma VPN do Windows antes de transferir as bases.
+    private readonly ThemedCheckBox _useVpn = new() { Text = "Usar VPN para transferir bases", AutoSize = false, Height = 26, Width = 260, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ComboBox _vpnConnectionName = new() { DropDownStyle = ComboBoxStyle.DropDown, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 300, Height = 30 };
+    private readonly ThemedCheckBox _vpnUseManualCredentials = new() { Text = "Informar usuário e senha manualmente", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly UnthemedTextBox _vpnUsername = new() { Width = 260, Height = 30, PlaceholderText = "Usuário", BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
+    private readonly UnthemedTextBox _vpnPassword = new() { UseSystemPasswordChar = true, Width = 260, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), PlaceholderText = "Senha" };
+    private readonly ThemedCheckBox _saveVpnPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly RoundedButton _vpnPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
+    private readonly RoundedButton _vpnRefreshList = new() { Text = "Atualizar lista", Size = new Size(132, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly NumericUpDown _vpnReconnectAttempts = new() { Minimum = 1, Maximum = 10, Value = 3, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _vpnRunConnectScript = new() { Text = "Executar script ao conectar a VPN", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedRichTextBox _vpnConnectScript = new() { Size = new Size(760, 130), Multiline = true, WordWrap = false, ScrollBars = RichTextBoxScrollBars.Both, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private bool _vpnConnectedByApp;
+    private readonly Label _vpnHint = new() { AutoSize = false, Size = new Size(620, 54), ForeColor = Color.FromArgb(97, 113, 134), Font = UiTypography.Body(9f), TextAlign = ContentAlignment.TopLeft };
+    private readonly ThemedListView _baseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly ComboBox _baseSort = new() { DropDownStyle = ComboBoxStyle.DropDownList, FlatStyle = FlatStyle.Flat, Font = UiTypography.Body(9f), Width = 196, Height = 30 };
+    private string? _lastSelectedBaseFolder;
+    private Panel _changeBaseListCard = null!;
+    private Panel _resetBaseListCard = null!;
+    private readonly Label _baseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
+    private readonly UnthemedTextBox _selectedBasePath = new() { BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Dock = DockStyle.Fill };
+    private readonly ThemedListView _resetBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly ThemedListView _restoreBaseFolders = new() { Dock = DockStyle.Fill, View = View.List, BorderStyle = BorderStyle.None, FullRowSelect = true, HideSelection = false, MultiSelect = false };
+    private readonly Label _restoreBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
+    private Panel? _restoreBaseListCard;
+    private readonly Label _resetBaseFoldersRootLabel = new() { Dock = DockStyle.Fill, AutoEllipsis = true, ForeColor = Muted, TextAlign = ContentAlignment.MiddleLeft };
+    private bool _syncingResetSlFromList;
+    private readonly RoundedButton _changeBaseButton = new() { Text = "Trocar base", Width = 118, Height = 30, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _openBaseFolderButton = new() { Text = "Abrir pasta", Width = 118, Height = 30, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly UnthemedTextBox _resetSl = new() { Width = 180, PlaceholderText = "Ex.: 123456 ou Teste_123456" };
+    private readonly RoundedButton _resetButton = new() { Text = "Redefinir base", Width = 150, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _resetCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly Label _resetRootLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(600, 48), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedTextBox _resetLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private CancellationTokenSource? _resetCancellation;
+    private bool _resetRunning;
+    private readonly UnthemedTextBox _restoreFolder = new() { Width = 420, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right };
+    private readonly RoundedButton _restoreBrowseButton = new() { Text = "Procurar", Size = new Size(110, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _restoreButton = new() { Text = "Restaurar bases", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _restoreCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly ThemedTextBox _restoreLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private readonly Panel _updateSicProgressRow = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly Label _updateSicProgressStatus = new() { Text = "", AutoSize = true, ForeColor = Color.FromArgb(91, 110, 132), Visible = false, Location = new Point(2, 0) };
+    private readonly Panel _updateSicProgress = new() { Dock = DockStyle.None, BackColor = Color.FromArgb(222, 228, 237), BorderStyle = BorderStyle.FixedSingle, Visible = false, Width = 650, Height = 20 };
+    private readonly Panel _updateSicProgressFill = new() { Location = new Point(0, 0), Width = 0, Height = 18, BackColor = Color.FromArgb(31, 111, 235) };
+    private int _updateSicProgressPercent;
+    private long _updateSicBytesDone;
+    private long _updateSicTotalBytes;
+    private CancellationTokenSource? _restoreCancellation;
+    private bool _restoreRunning;
+    // Pergunta sobre o Registro que ficou pendente porque o app estava em segundo plano
+    // quando a restauração terminou; é respondida assim que a janela volta a ser ativada.
+    private string? _pendingRestoreRegistryFolder;
+    private readonly TabControl _restoreLogTabs = new() { Dock = DockStyle.Fill, Visible = false };
+    private readonly object _restoreLogTargetsLock = new();
+    private readonly List<RestoreLogTarget> _restoreLogTargets = new();
+
+    /// <summary>Cada base restaurada tem seu próprio destino de log (e aba, quando há mais de uma).</summary>
+    private sealed class RestoreLogTarget
+    {
+        public RestorePlanItem? Item { get; init; }
+        public required ThemedTextBox Box { get; init; }
+        // A saída do gbak gera milhares de linhas: agrupa e descarrega na UI de uma vez,
+        // em vez de agendar um BeginInvoke por linha (isso travava a interface).
+        public ConcurrentQueue<string> Pending { get; } = new();
+        public int FlushScheduled;
+    }
+    private readonly CheckBox _updateSicSingleDestinationCheck = new() { Text = "Usar o mesmo destino para todos os executáveis", AutoSize = true, Font = UiTypography.Body(9f), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly UnthemedTextBox _updateSicSingleDestination = new() { Width = 760, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), Enabled = false };
+    private readonly RoundedButton _updateSicSingleDestinationBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f), Enabled = false };
+    private readonly DataGridView _updateSicGrid = CreateUpdateSicGrid();
+    private readonly BindingList<UpdateSicEntry> _updateSicRows = new();
+    private readonly RoundedButton _updateSicAddRow = new() { Text = "Adicionar executável", Size = new Size(150, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _updateSicRemoveRow = new() { Text = "Remover selecionado", Size = new Size(165, 32), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
+
+    private readonly RoundedButton _updateSicButton = new() { Text = "Atualizar executáveis", Width = 170, Height = 36, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly RoundedButton _updateSicCancelButton = new() { Text = "Cancelar", Width = 100, Height = 36, Visible = false, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+    private readonly ThemedTextBox _updateSicLog = new() { Multiline = true, ReadOnly = true, ScrollBars = ScrollBars.Vertical, Dock = DockStyle.Fill, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
+    private CancellationTokenSource? _updateSicCancellation;
+    private bool _updateSicRunning;
+    private readonly UnthemedTextBox _arqEmpDatabase = new();
+    private readonly UnthemedTextBox _arqSistDatabase = new();
+    private RoundedButton? _arqEmpTestButton;
+    private RoundedButton? _arqSistTestButton;
+    private RoundedButton? _arqEmpBrowseButton;
+    private RoundedButton? _arqSistBrowseButton;
+    private readonly RichTextBox _arqEmpEditor = CreateSqlEditor();
+    private readonly RichTextBox _arqSistEditor = CreateSqlEditor();
+    private readonly RichTextBox _arqEmpOutput = CreateSqlOutput();
+    private readonly RichTextBox _arqSistOutput = CreateSqlOutput();
+    private readonly System.Windows.Forms.Timer _commandSaveTimer = new() { Interval = 700 };
+    private readonly System.Windows.Forms.Timer _settingsSaveTimer = new() { Interval = 700 };
+    // Consulta um arquivo estático em raw.githubusercontent.com, sem consumir o limite da API
+    // do GitHub; por isso pode verificar a cada 1 minuto sem parar de avisar atualizações.
+    private readonly System.Windows.Forms.Timer _updateCheckTimer = new() { Interval = 60_000 };
+    private string? _updateNotifiedVersion; // versão já notificada nesta sessão (evita toast repetido a cada minuto)
+    private bool _updateCheckRunning;
+    private bool _menuExpanded;
+    private Form? _hintPopup;
+
+    private static readonly Color Ink = Color.FromArgb(29, 42, 61);
+    private static readonly Color DarkMemo = Color.FromArgb(23, 23, 23);
+    private static readonly Color DarkMemoText = Color.FromArgb(220, 229, 242);
+    private static readonly Color Muted = Color.FromArgb(97, 113, 134);
+    private static readonly Color Surface = Color.White;
+
+    public MainForm()
+    {
+        _lastSelectedBaseFolder = _settings.LastSelectedBaseFolder;
+        MigrateLegacySqlScripts();
+        Text = "SupraKit | Solicitações";
+        Icon = new Icon(Path.Combine(AppContext.BaseDirectory, "Imagens", "icone", "icone_supra.ico"));
+        MinimumSize = new Size(1020, 760);
+        Size = new Size(1180, 900);
+        StartPosition = FormStartPosition.CenterScreen;
+        BackColor = Color.FromArgb(244, 247, 251);
+        Font = UiTypography.Body();
+
+        _shell.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 68));
+        _shell.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        _shell.Controls.Add(_sidebar, 0, 0);
+        _shell.Controls.Add(_contentHost, 1, 0);
+        // Painel rolável dos itens do menu: a barra só aparece quando o conteúdo não cabe.
+        _sidebar.Controls.Add(_sidebarScroll);
+        _sidebarScroll.Resize += (_, _) => RefreshSidebarScroll();
+
+        _themeToggleRow.Controls.Add(_themeToggle);
+        _themeToggleRow.Resize += (_, _) => CenterThemeToggle();
+        _sidebar.Controls.Add(_themeToggleRow); // rodapé fixo na borda inferior
+        _updateRow.Controls.Add(_updateButton);
+        _updateRow.Controls.Add(_updateProgress);
+        _updateRow.Controls.Add(_updateAnimation);
+        _menuFooter.Controls.Add(_updateRow);
+        _menuFooter.Controls.Add(_creatorLabel);
+        _menuFooter.Controls.Add(_appVersionLabel);
+        _sidebar.Controls.Add(_menuFooter); // rodapé fixo na borda inferior
+        _sidebarScroll.Controls.Add(_arqSistNav);
+        _sidebarScroll.Controls.Add(_arqEmpNav);
+        _sidebarScroll.Controls.Add(_settingsNav);
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Configurações"
+        _sidebarScroll.Controls.Add(_copySqlNav); // abaixo de "Atalhos de pasta"
+        _sidebarScroll.Controls.Add(_folderShortcutsNav);
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atalhos de pasta"
+        _sidebarScroll.Controls.Add(_configureSicNav); // adicionado antes => fica abaixo de "Atualização de executáveis"
+        _sidebarScroll.Controls.Add(_updateSicNav);
+        _sidebarScroll.Controls.Add(CreateSidebarSeparator()); // grupo "Atualização"
+        _sidebarScroll.Controls.Add(_restoreNav);
+        _sidebarScroll.Controls.Add(_resetNav);
+        _sidebarScroll.Controls.Add(_changeBaseNav);
+        _sidebarScroll.Controls.Add(_transferNav);
+        _sidebarScroll.Controls.Add(_homeNav); // adicionado depois do Transferir para ficar acima dele (Dock.Top)
+        _sidebarScroll.Controls.Add(_menuToggle);
+        RefreshSidebarScroll();
+        _homeView = BuildHomeView();
+        _transferView = BuildTransferView();
+        _settingsView = BuildSettingsView();
+        _changeBaseView = BuildChangeBaseView();
+        _resetView = BuildResetView();
+        _restoreView = BuildRestoreView();
+        _updateSicView = BuildUpdateSicView();
+        _configureSicView = BuildConfigureSicView();
+        _updateSicSingleDestinationCheck.Checked = _settings.UpdateSicSingleDestinationEnabled;
+        _updateSicSingleDestination.Text = _settings.UpdateSicSingleDestinationRoot;
+        LoadUpdateSicRowsFromSettings();
+        RefreshUpdateSicSummary();
+        UpdateUpdateSicSingleDestinationUI(focus: false); // aplica o estado inicial das colunas de destino
+        _arqEmpView = BuildCommandView("Comandos ARQEMP", _arqEmpDatabase, _arqEmpEditor, _arqEmpOutput, "ARQEMP");
+        _arqSistView = BuildCommandView("Comandos ARQSIST", _arqSistDatabase, _arqSistEditor, _arqSistOutput, "ARQSIST");
+        _folderShortcutsView = BuildFolderShortcutsView();
+        _copySqlView = BuildCopySqlView();
+        ThemeState.IsDark = _settings.DarkMode;
+        // A base selecionada (.FDB) NÃO é persistida: fica apenas na sessão atual.
+        _arqEmpEditor.Text = _settings.ArqEmpCommands;
+        _arqSistEditor.Text = _settings.ArqSistCommands;
+        HighlightSql(_arqEmpEditor);
+        HighlightSql(_arqSistEditor);
+        HighlightSql(_sqlShortcutEditor);
+        _contentHost.Controls.Add(_settingsView);
+        _contentHost.Controls.Add(_changeBaseView);
+        _contentHost.Controls.Add(_resetView);
+        _contentHost.Controls.Add(_restoreView);
+        _contentHost.Controls.Add(_updateSicView);
+        _contentHost.Controls.Add(_configureSicView);
+        _contentHost.Controls.Add(_arqEmpView);
+        _contentHost.Controls.Add(_arqSistView);
+        _contentHost.Controls.Add(_folderShortcutsView);
+        _contentHost.Controls.Add(_copySqlView);
+        _contentHost.Controls.Add(_transferView);
+        _contentHost.Controls.Add(_homeView);
+        Controls.Add(_shell);
+        WireEnterNavigation([_sl], _start);
+        WireEnterNavigation([_selectedBasePath], _changeBaseButton);
+        WireEnterNavigation([_resetSl], _resetButton);
+        WireEnterNavigation([_restoreFolder], _restoreButton);
+        WireEnterNavigation([_updateSicSingleDestination], _updateSicButton);
+        WireEnterNavigation([
+            _fields[nameof(AppSettings.SolicitationRoot)],
+            _fields[nameof(AppSettings.BasesRoot)],
+            _fields[nameof(AppSettings.SupportRoot)],
+            _fields[nameof(AppSettings.TempPath)]],
+            _baseCount);
+        WireEnterNavigation([_password, _sicPassword, _sicDynamicPassword], _savePassword);
+        WireEnterNavigation([_vpnUsername, _vpnPassword], _vpnReconnectAttempts);
+        WireEnterNavigation([_sicPassword], _saveSicPassword);
+        WireEnterNavigation([_sicDynamicPassword], _saveSicDynamicPassword);
+        WireEnterNavigation([_arqEmpDatabase], _arqEmpEditor);
+        WireEnterNavigation([_arqSistDatabase], _arqSistEditor);
+        SetMenuExpanded(false);
+        ShowStartScreen();
+        _themeToggle.DarkMode = _settings.DarkMode;
+        _themeToggle.Toggled += (_, _) => ApplyDarkMode(_themeToggle.DarkMode);
+        _menuToolTip.SetToolTip(_themeToggle, "Alternar entre tema claro e escuro");
+        HandleCreated += (_, _) =>
+        {
+            ApplyTitleBarTheme();
+            RegisterSicPasswordHotKey();
+            if (_showWindowRequested)
+            {
+                _showWindowRequested = false;
+                BeginInvoke(new Action(RestoreFromMinimized));
+            }
+        };
+        var singleInstanceWatcher = new Thread(ShowWindowRequestedLoop) { IsBackground = true, Name = "SupraKitSingleInstance" };
+        singleInstanceWatcher.Start();
+        ApplyTheme();
+        _forceMultiBase.Checked = _settings.ForceMultiBase;
+        _forceMultiBase.CheckedChanged += (_, _) =>
+        {
+            _settings.ForceMultiBase = _forceMultiBase.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de estrutura: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _renameSl.Checked = _settings.RenameSlFolderToClientName;
+        _renameSl.CheckedChanged += (_, _) =>
+        {
+            _settings.RenameSlFolderToClientName = _renameSl.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de renomeação: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _useSupportAsCompany.Checked = _settings.UseSupportRootAsCompany;
+        _useSupportAsCompany.CheckedChanged += (_, _) =>
+        {
+            _settings.UseSupportRootAsCompany = _useSupportAsCompany.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de EMPRESA: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _minimizeToTray.Checked = _settings.MinimizeToTrayOnClose;
+        _minimizeToTray.CheckedChanged += (_, _) =>
+        {
+            _settings.MinimizeToTrayOnClose = _minimizeToTray.Checked;
+            EnsureTrayIcon(); // ao ligar o modo, cria o ícone da bandeja já de saída
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de bandeja: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _startInBackground.Checked = _settings.StartInBackground;
+        _startInBackground.CheckedChanged += (_, _) =>
+        {
+            _settings.StartInBackground = _startInBackground.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de segundo plano: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _startWithWindows.Checked = _settings.StartWithWindows;
+        _startWithWindows.CheckedChanged += (_, _) =>
+        {
+            _settings.StartWithWindows = _startWithWindows.Checked;
+            try { SetStartWithWindowsRegistry(_startWithWindows.Checked); PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de iniciar com o Windows: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        SetStartWithWindowsRegistry(_settings.StartWithWindows); // settings.json é a fonte da verdade: com a opção ligada, cria/repara a chave com o caminho atual; desligada, garante a remoção
+        AppMessageBox.DialogShown += (caption, body) => NotifyIfMinimized(caption, body);
+        Activated += (_, _) => FlushPendingRestorePrompt();
+        _baseCount.Value = Math.Clamp(_settings.BaseCount, 1, 99);
+        _baseCount.ValueChanged += (_, _) =>
+        {
+            _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a quantidade de bases: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _appVersionLabel.Text = GetCurrentVersion().ToString(3);
+        _appVersionLabel.Cursor = Cursors.Hand;
+        _menuToolTip.SetToolTip(_appVersionLabel, "Clique para ver as novidades desta versão");
+        _appVersionLabel.Click += (_, _) => ShowChangelogDialog();
+        Shown += async (_, _) =>
+        {
+            EnsureTrayIcon();
+            NotifyPendingUpdateResult();
+            _sl.Focus(); // ao abrir o sistema, o cursor já fica no campo da SL
+
+            var currentVersion = GetCurrentVersion().ToString(3);
+            var shouldShowTutorial = _settings.ShouldShowTutorial(GetCurrentVersion());
+
+            if (shouldShowTutorial)
+            {
+                // Evita o popup de "Novidades" junto com o tutorial na mesma abertura.
+                // Não gravamos aqui: se o app fechar antes de concluir, a próxima abertura ainda é "primeira instalação".
+                _settings.LastChangelogVersion = currentVersion;
+
+                // 1) garante a tela Início; 2) notificação de boas-vindas; 3) inicia o tour.
+                ShowHomeView();
+                ToastNotifier.TryShow(
+                    "Bem-vindo ao SupraKit",
+                    "Vamos fazer um tour rápido pelas telas principais. Você pode pular quando quiser.",
+                    onActivated: null);
+                _ = ShowTutorialAfterWelcomeAsync();
+            }
+            else
+            {
+                MaybeShowChangelogOnStartup();
+            }
+
+            await CheckForUpdatesAsync();
+        };
+        _password.Text = _settings.GetFirebirdPassword() ?? "";
+        _savePassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedFirebirdPassword);
+        _savePassword.CheckedChanged += (_, _) => SavePasswordPreference();
+        _password.Leave += (_, _) => { if (_savePassword.Checked) SavePasswordPreference(); };
+
+        _sicPassword.Text = _settings.GetSicPassword() ?? "";
+
+        _saveSicPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
+        _saveSicPassword.CheckedChanged += (_, _) => SaveSicPasswordPreference();
+        _sicPassword.Leave += (_, _) => { if (_saveSicPassword.Checked) SaveSicPasswordPreference(); };
+        var sicPasswordTip = new ToolTip();
+        sicPasswordTip.SetToolTip(_saveSicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
+        var sicDynamicPasswordTip = new ToolTip();
+        sicDynamicPasswordTip.SetToolTip(_saveSicDynamicPassword, "A senha será protegida pelo Windows para sua conta de usuário.");
+
+        _sicDynamicPassword.Text = _settings.GetSicDynamicPassword() ?? "";
+        _saveSicDynamicPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedSicDynamicPassword);
+        _saveSicDynamicPassword.CheckedChanged += (_, _) => SaveSicDynamicPasswordPreference();
+        _sicDynamicPassword.Leave += (_, _) => { if (_saveSicDynamicPassword.Checked) SaveSicDynamicPasswordPreference(); };
+        var sicDynamicPasswordTip2 = new ToolTip();
+        sicDynamicPasswordTip2.SetToolTip(_sicDynamicPassword, "Senha do sistema Empresa. Copie com o atalho Ctrl+Alt+X. Ao copiar: o valor informado + (hora × dia × 13).");
+        WirePasswordToggle(_password, _passwordVisibilityToggle);
+        WirePasswordToggle(_sicPassword, _sicPasswordVisibilityToggle);
+        WirePasswordToggle(_sicDynamicPassword, _sicDynamicPasswordVisibilityToggle);
+        WirePasswordToggle(_vpnPassword, _vpnPasswordVisibilityToggle);
+        _vpnConnectionName.Text = _settings.VpnConnectionName;
+        _useVpn.Checked = _settings.UseVpn;
+        _vpnUseManualCredentials.Checked = _settings.VpnUseManualCredentials;
+        _vpnUsername.Text = _settings.VpnUsername;
+        _vpnPassword.Text = _settings.GetVpnPassword() ?? "";
+        _saveVpnPassword.Checked = !string.IsNullOrWhiteSpace(_settings.ProtectedVpnPassword);
+        _saveVpnPassword.CheckedChanged += (_, _) => SaveVpnPasswordPreference();
+        _vpnPassword.Leave += (_, _) => { if (_saveVpnPassword.Checked) SaveVpnPasswordPreference(); };
+        _vpnReconnectAttempts.Value = Math.Clamp(_settings.VpnReconnectAttempts, 1, 10);
+        _vpnReconnectAttempts.ValueChanged += (_, _) =>
+        {
+            _settings.VpnReconnectAttempts = Math.Clamp((int)_vpnReconnectAttempts.Value, 1, 10);
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a quantidade de tentativas: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnConnectionName.TextChanged += (_, _) => QueueSettingsSave();
+        _vpnUsername.TextChanged += (_, _) => QueueSettingsSave();
+        _useVpn.CheckedChanged += (_, _) =>
+        {
+            _settings.UseVpn = _useVpn.Checked;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de VPN: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnUseManualCredentials.CheckedChanged += (_, _) =>
+        {
+            _settings.VpnUseManualCredentials = _vpnUseManualCredentials.Checked;
+            UpdateVpnCredentialsEnabled();
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de credenciais: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnRefreshList.FlatAppearance.BorderSize = 0;
+        _vpnRefreshList.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        _vpnRefreshList.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        _vpnRefreshList.Click += async (_, _) => await LoadVpnConnectionListAsync();
+        _vpnRunConnectScript.Checked = _settings.VpnConnectScriptEnabled;
+        _vpnConnectScript.Text = _settings.VpnConnectScript;
+        _vpnRunConnectScript.Enabled = true;
+        UpdateVpnConnectScriptEnabled();
+        _vpnRunConnectScript.CheckedChanged += (_, _) =>
+        {
+            _settings.VpnConnectScriptEnabled = _vpnRunConnectScript.Checked;
+            UpdateVpnConnectScriptEnabled();
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência do script: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        _vpnConnectScript.TextChanged += (_, _) => QueueSettingsSave();
+        UpdateVpnCredentialsEnabled();
+        _ = LoadVpnConnectionListAsync();
+        if (!_homeView.Visible) AcceptButton = _start; // na tela Início, Enter deve chamar "Buscar"
+        var passwordTip = new ToolTip();
+        passwordTip.SetToolTip(_savePassword, "A senha será protegida pelo Windows para sua conta de usuário.");
+        _start.Click += async (_, _) => await StartFlowAsync();
+        _cancel.Click += (_, _) => { if (_running) { _runCancellation?.Cancel(); _cancel.Enabled = false; _status.Text = "Cancelando…"; } };
+        _menuToggle.Click += (_, _) => SetMenuExpanded(!_menuExpanded);
+        _menuAnimationTimer.Tick += OnMenuAnimationTick;
+        _updateButton.Click += async (_, _) => await InstallUpdateAsync();
+        _menuToolTip.SetToolTip(_updateButton, "Baixar e instalar a atualização disponível");
+        _homeNav.Click += (_, _) => ShowHomeView();
+        _homeTicketButton.Click += (_, _) => OpenTicketFromHome();
+        _homeTicketBox.TextChanged += (_, _) => ResetHomeTicketHint();
+        _transferNav.Click += (_, _) => ShowView(settings: false);
+        _settingsNav.Click += (_, _) => ShowView(settings: true);
+        _changeBaseNav.Click += (_, _) => ShowChangeBaseView();
+        _resetNav.Click += (_, _) => ShowResetView();
+        _restoreNav.Click += (_, _) => ShowRestoreView();
+        _updateSicNav.Click += (_, _) => ShowUpdateSicView();
+        _configureSicNav.Click += (_, _) => ShowConfigureSicView();
+        _folderShortcutsNav.Click += (_, _) => ShowFolderShortcutsView();
+        _copySqlNav.Click += (_, _) => ShowCopySqlView();
+        _updateSicButton.Click += async (_, _) => await UpdateSicAsync();
+        _updateSicCancelButton.Click += (_, _) => _updateSicCancellation?.Cancel();
+        _updateSicSingleDestinationBrowse.Click += (_, _) => BrowseUpdateSicFolder("singleDestination");
+        _updateSicSingleDestinationCheck.CheckedChanged += (_, _) =>
+        {
+            _settings.UpdateSicSingleDestinationEnabled = _updateSicSingleDestinationCheck.Checked;
+            UpdateUpdateSicSingleDestinationUI();
+            QueueSettingsSave();
+        };
+        _updateSicSingleDestination.TextChanged += (_, _) => { _settings.UpdateSicSingleDestinationRoot = _updateSicSingleDestination.Text.Trim(); QueueSettingsSave(); };
+        _updateSicAddRow.Click += (_, _) => AddUpdateSicRow();
+        _updateSicRemoveRow.Click += (_, _) => RemoveSelectedUpdateSicRows();
+        _updateSicGrid.DataError += (_, _) => { /* coleções do GridType já validam; evita popup nativo com recortes estriduais */ };
+        _updateSicGrid.CellValueChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellInEditMode) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); SyncUpdateSicEntriesFromGrid(); RefreshUpdateSicSummary(); QueueSettingsSave(); };
+        _updateSicGrid.CurrentCellDirtyStateChanged += (_, _) => { if (_updateSicGrid.IsCurrentCellDirty) _updateSicGrid.CommitEdit(DataGridViewDataErrorContexts.Commit); };
+        _restoreButton.Click += async (_, _) => await RestoreBaseAsync();
+        _restoreCancelButton.Click += (_, _) => _restoreCancellation?.Cancel();
+        _resetButton.Click += async (_, _) => await ResetBaseAsync();
+        _resetCancelButton.Click += (_, _) => _resetCancellation?.Cancel();
+        _baseFolders.SelectedIndexChanged += (_, _) =>
+        {
+            _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+            if (_baseFolders.SelectedItems.Count > 0)
+            {
+                _lastSelectedBaseFolder = _baseFolders.SelectedItems[0].Tag as string;
+                _settings.LastSelectedBaseFolder = _lastSelectedBaseFolder;
+                QueueSettingsSave();
+            }
+            _ = UpdateChangeBaseVersionAsync(_selectedBasePath.Text);
+        };
+        _resetBaseFolders.SelectedIndexChanged += (_, _) =>
+        {
+            if (_resetBaseFolders.SelectedItems.Count == 0)
+            {
+                _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
+                return;
+            }
+            if (_resetBaseFolders.SelectedItems[0].Tag is not string folder) return;
+            var name = Path.GetFileName(folder);
+            // O campo aceita texto livre: o nome da pasta selecionada sempre preenche a SL.
+            _syncingResetSlFromList = true;
+            _resetSl.Text = name;
+            _syncingResetSlFromList = false;
+            _resetRootLabel.Text = "Selecionada: " + folder;
+        };
+        _resetSl.TextChanged += (_, _) =>
+        {
+            if (_syncingResetSlFromList) return;
+            // Edição manual devolve o usuário ao modo "digitar a SL"; a seleção da lista sai.
+            for (var i = 0; i < _resetBaseFolders.Items.Count; i++) _resetBaseFolders.Items[i].Selected = false;
+        };
+        _baseFolders.DoubleClick += async (_, _) => await ChangeSelectedBaseAsync();
+        _resetBaseFolders.DoubleClick += async (_, _) => await ResetBaseAsync();
+        _changeBaseButton.Click += async (_, _) => await ChangeSelectedBaseAsync();
+        _openBaseFolderButton.Click += (_, _) => OpenSelectedBaseFolder();
+        _arqEmpNav.Click += (_, _) => ShowCommandView(arqEmp: true);
+        _arqSistNav.Click += (_, _) => ShowCommandView(arqEmp: false);
+        _commandSaveTimer.Tick += (_, _) =>
+        {
+            _commandSaveTimer.Stop();
+            SaveCommandSettings();
+        };
+        _settingsSaveTimer.Tick += (_, _) =>
+        {
+            _settingsSaveTimer.Stop();
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        };
+        Deactivate += (_, _) => HideHintPopup();
+        _updateCheckTimer.Tick += async (_, _) =>
+        {
+            if (_updateCheckRunning) return;
+            _updateCheckRunning = true;
+            try { await CheckForUpdatesAsync(); }
+            finally { _updateCheckRunning = false; }
+        };
+        _updateCheckTimer.Start();
+        FormClosing += (sender, e) =>
+        {
+            _menuAnimationTimer.Stop();
+            _menuAnimationClock.Stop();
+            HideHintPopup();
+
+            // O Inno Setup está fechando o app para substituir os arquivos: encerra sem
+            // confirmação, sem minimizar para a bandeja e sem qualquer outro bloqueio
+            // (tour, operação em andamento ou confirmação de saída), e deixa ele reabrir ao final.
+            if (_updateInstallInProgress)
+            {
+                _exitRequested = true;
+                e.Cancel = false;
+                return;
+            }
+
+            // Não permitir fechar o aplicativo enquanto o tour guiado estiver ativo.
+            if (IsTutorialActive && e.CloseReason == CloseReason.UserClosing && !_exitRequested)
+            {
+                e.Cancel = true;
+                return;
+            }
+
+            if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
+            {
+                e.Cancel = true;
+                if (_settings.MinimizeToTrayOnClose && !_exitRequested)
+                {
+                    // Modo "segundo plano": fechar durante um processo apenas esconde a janela; a operação continua em segundo plano.
+                    Hide();
+                    EnsureTrayIcon(); // janela oculta => o ícone da bandeja aparece
+                    RefreshTrayIconVisibility();
+                    NotifyTrayHiddenOnce();
+                    return;
+                }
+                if (_running) _runCancellation?.Cancel();
+                if (_resetRunning) _resetCancellation?.Cancel();
+                if (_restoreRunning) _restoreCancellation?.Cancel();
+                if (_updateSicRunning) _updateSicCancellation?.Cancel();
+                RestoreFromMinimized(); // garante a janela visível para o aviso
+                MessageBox.Show(this, "A operação foi cancelada. Aguarde o encerramento da etapa atual antes de fechar.", "Operação em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            }
+            else if (!_exitRequested && _settings.MinimizeToTrayOnClose && e.CloseReason == CloseReason.UserClosing)
+            {
+                // Modo "segundo plano": fechar a janela apenas a esconde; a aplicação continua na bandeja.
+                e.Cancel = true;
+                Hide();
+                EnsureTrayIcon(); // janela oculta => o ícone da bandeja aparece
+                RefreshTrayIconVisibility();
+                NotifyTrayHiddenOnce();
+            }
+            else
+            {
+                if (!_exitRequested
+                    && e.CloseReason == CloseReason.UserClosing
+                    && !_settings.MinimizeToTrayOnClose
+                    && MessageBox.Show(this, "Deseja realmente fechar a aplicação?", "Fechar aplicação", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+                {
+                    e.Cancel = true; // o usuário desistiu de fechar
+                    return;
+                }
+                _commandSaveTimer.Stop();
+                _settingsSaveTimer.Stop();
+                _updateCheckTimer.Stop();
+                UnregisterSicPasswordHotKey();
+                _notifyIcon?.Visible = false;
+                try
+                {
+                    PersistSettings();
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+            }
+        };
+    }
+
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        RefreshTrayIconVisibility();
+        RefreshSidebarScroll();
+    }
+
+    protected override void WndProc(ref Message m)
+    {
+        if (m.Msg == WmHotKey && m.WParam.ToInt32() == HotKeyIdCopySicPassword)
+        {
+            TrayCopySicPassword();
+            return;
+        }
+        if (m.Msg == WmHotKey && m.WParam.ToInt32() == HotKeyIdCopySicDynamicPassword)
+        {
+            TrayCopySicDynamicPassword();
+            return;
+        }
+        base.WndProc(ref m);
+    }
+
+    private void RegisterSicPasswordHotKey()
+    {
+        if (!IsHandleCreated) return;
+        RegisterHotKey(Handle, HotKeyIdCopySicPassword, ModControl | ModAlt | ModNoRepeat, VkC);
+        RegisterHotKey(Handle, HotKeyIdCopySicDynamicPassword, ModControl | ModAlt | ModNoRepeat, VkX);
+    }
+
+    private void UnregisterSicPasswordHotKey()
+    {
+        if (!IsHandleCreated) return;
+        UnregisterHotKey(Handle, HotKeyIdCopySicPassword);
+        UnregisterHotKey(Handle, HotKeyIdCopySicDynamicPassword);
+    }
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool SetForegroundWindow(IntPtr hWnd);
+
+    [System.Runtime.InteropServices.DllImport("user32.dll", SetLastError = true)]
+    private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+
+    private void CenterThemeToggle() =>
+        _themeToggle.Location = new Point(
+            Math.Max(0, (_themeToggleRow.Width - _themeToggle.Width) / 2),
+            Math.Max(0, (_themeToggleRow.Height - _themeToggle.Height) / 2));
+
+    private void ApplyDarkMode(bool dark)
+    {
+        _settings.DarkMode = dark;
+        _themeToggle.DarkMode = dark;
+        Application.SetColorMode(dark ? SystemColorMode.Dark : SystemColorMode.Classic);
+        RefreshNativeScrollingThemes();
+        ApplyTheme();
+        RefreshTrayMenuTheme();
+        try { PersistSettings(); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a preferência de tema: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
+    // Garante que a janela caiba na área útil do monitor, evitando que o rodapé fique cortado
+    // em telas menores (por exemplo, segundo monitor com altura reduzida).
+    protected override void OnLoad(EventArgs e)
+    {
+        base.OnLoad(e);
+        var screen = Screen.FromHandle(Handle);
+        var workArea = screen.WorkingArea;
+        if (Width <= workArea.Width && Height <= workArea.Height) return;
+        var size = new Size(Math.Min(Width, workArea.Width), Math.Min(Height, workArea.Height));
+        var x = Math.Max(workArea.Left, Math.Min(Left, workArea.Right - size.Width));
+        var y = Math.Max(workArea.Top, Math.Min(Top, workArea.Bottom - size.Height));
+        Size = size;
+        Location = new Point(x, y);
+    }
+
+    private bool _running;
+    private CancellationTokenSource? _runCancellation;
+
+    private static Version GetCurrentVersion() => typeof(MainForm).Assembly.GetName().Version ?? new Version(0, 0);
+
+    private async Task CheckForUpdatesAsync()
+    {
+        try
+        {
+            var update = await GitHubReleaseUpdater.CheckAsync(GetCurrentVersion(), GitHubReleaseUpdater.GetCurrentUpdateTag());
+            if (update is null || IsDisposed) return;
+            if (_updateButton.Tag is ReleaseUpdate shown && shown.Version == update.Version) return; // já exibida; sem piscar a UI
+            _updateButton.Text = $"Atualização disponível · v{update.Version}";
+            _updateButton.Tag = update;
+            _updateRow.Visible = true;
+            _menuToolTip.SetToolTip(_updateButton, $"Atualização disponível: versão {update.Version}. Clique para instalar.");
+            SetMenuExpanded(_menuExpanded);
+            if (!string.Equals(_updateNotifiedVersion, update.Version, StringComparison.OrdinalIgnoreCase))
+            {
+                _updateNotifiedVersion = update.Version;
+                ShowBackgroundNotification("Atualização disponível", $"A versão {update.Version} está pronta para download.\n(Clique aqui para abrir o SupraKit e atualizar).");
+            }
+        }
+        catch
+        {
+            // A indisponibilidade do GitHub não interfere no uso normal da aplicação.
+        }
+    }
+
+    /// <summary>Traz a janela do instalador ao primeiro plano uma vez, sem mantê-la sempre no topo.</summary>
+    private static async Task BringInstallerToFrontAsync(System.Diagnostics.Process process)
+    {
+        try
+        {
+            for (var attempt = 0; attempt < 20 && !process.HasExited; attempt++)
+            {
+                process.Refresh();
+                var handle = process.MainWindowHandle;
+                if (handle != IntPtr.Zero)
+                {
+                    ShowWindow(handle, 9); // SW_RESTORE
+                    SetForegroundWindow(handle);
+                    return;
+                }
+                await Task.Delay(100);
+            }
+        }
+        catch { /* best-effort: a janela do instalador aparece pelo próprio Windows */ }
+    }
+
+    /// <summary>Informa na abertura se a atualização iniciada na sessão anterior foi aplicada.</summary>
+    private void NotifyPendingUpdateResult()
+    {
+        var pending = _settings.PendingUpdateVersion;
+        if (string.IsNullOrWhiteSpace(pending)) return;
+        _settings.PendingUpdateVersion = null;
+        try { _settings.Save(); } catch { /* best-effort */ }
+
+        if (Version.TryParse(pending, out var target) && GetCurrentVersion() >= target)
+            ShowBackgroundNotification("Atualização concluída",
+                $"O SupraKit foi atualizado para a versão {GetCurrentVersion().ToString(3)}.",
+                ToastNotifier.NotificationSound.Success);
+        else
+            ShowBackgroundNotification("Falha na atualização",
+                $"Não foi possível concluir a atualização para a versão {pending}. A atualização continua disponível.",
+                ToastNotifier.NotificationSound.Error);
+    }
+
+    private async Task InstallUpdateAsync()
+    {
+        if (_updateButton.Tag is not ReleaseUpdate update) return;
+        if (_running)
+        {
+            MessageBox.Show(this, "Há uma transferência de base em andamento. Aguarde a transferência terminar antes de atualizar a aplicação.", "Transferência em andamento", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        var answer = MessageBox.Show(this,
+            $"A versão {update.Version} está disponível. Deseja baixar e iniciar a atualização agora? A aplicação será fechada para instalar a nova versão e reaberta automaticamente ao final.",
+            "Atualização do SupraKit", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
+        if (answer != DialogResult.Yes) return;
+
+        _downloadingUpdate = true;
+        _updateProgress.SetValue(0);
+        _updateProgress.SetMarquee(true);
+        _menuToolTip.SetToolTip(_updateButton, "Baixando a atualização…");
+        UpdateDownloadButtonText();
+        try
+        {
+            var progress = new Progress<int>(value =>
+            {
+                if (IsDisposed) return;
+                _updateProgress.SetMarquee(false);
+                _updateProgress.SetValue(value);
+            });
+            var installer = await GitHubReleaseUpdater.DownloadInstallerAsync(update.InstallerUri, progress);
+
+            // Registrado antes de iniciar o instalador: na próxima abertura o app informa
+            // se a versão foi realmente aplicada ou se a instalação falhou.
+            _settings.PendingUpdateVersion = update.Version;
+            _settings.Save();
+
+            // Não fechamos o app aqui: /CLOSEAPPLICATIONS fecha no momento certo da instalação e
+            // /RESTARTAPPLICATIONS o reabre com a nova versão ao terminar.
+            _updateInstallInProgress = true;
+            var installerProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installer)
+            {
+                UseShellExecute = true,
+                Verb = "runas",
+                // /SILENT mantém a janela de progresso visível (sem páginas de wizard) enquanto o
+                // app fecha — mesma experiência dos atualizadores do OpenCode/Notepad++.
+                // /SP- remove a confirmação inicial; sem /SUPPRESSMSGBOXES, erros aparecem.
+                Arguments = "/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+            });
+            _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
+
+            // Traz a janela do instalador para o primeiro plano uma única vez, para o usuário
+            // enxergar o progresso. Não usa TopMost: ela continua atrás/na frente como qualquer janela.
+            if (installerProcess is not null) _ = BringInstallerToFrontAsync(installerProcess);
+
+            // O Restart Manager do Inno Setup normalmente encerra o app por nós. Caso ele
+            // não consiga (por exemplo, diferença de integridade com o executável elevado),
+            // garantimos a saída limpa. A pequena espera dá tempo ao instalador de registrar
+            // o aplicativo para que /RESTARTAPPLICATIONS possa reabri-lo ao final.
+            await Task.Delay(1500);
+            if (!IsDisposed)
+            {
+                try { Close(); Application.Exit(); }
+                catch { /* o instalador encerra o processo se ele ainda estiver aberto */ }
+            }
+        }
+        catch (Exception ex)
+        {
+            _downloadingUpdate = false;
+            _updateInstallInProgress = false;
+            _settings.PendingUpdateVersion = null;
+            try { _settings.Save(); } catch { /* best-effort */ }
+            _updateButton.Enabled = true;
+            UpdateDownloadButtonText();
+            SetUpdateAnimation(null);
+            _updateAnimation.Visible = false;
+            _updateButton.Visible = true;
+            _menuToolTip.SetToolTip(_updateButton, $"Atualização disponível: versão {update.Version}. Clique para instalar.");
+            ShowBackgroundNotification("Falha na atualização",
+                $"Não foi possível baixar/iniciar a versão {update.Version}: {ex.Message}\nA notificação de atualização continua disponível.",
+                ToastNotifier.NotificationSound.Error);
+            MessageBox.Show(this, $"Não foi possível iniciar a atualização. A notificação continuará disponível.\n\n{ex.Message}", "Falha na atualização", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private void UpdateDownloadButtonText()
+    {
+        if (_updateButton.Tag is not ReleaseUpdate update) return;
+        _updateRow.Visible = true;
+        if (_downloadingUpdate)
+        {
+            _updateButton.Image?.Dispose();
+            _updateButton.Image = null;
+        }
+        else if (_updateButton.Image is null)
+        {
+            _updateButton.Image = SvgIconLoader.Load("Atualizar.svg", 16);
+        }
+        _updateAnimation.Visible = _downloadingUpdate && !_menuExpanded;
+        _updateProgress.Visible = _downloadingUpdate && _menuExpanded;
+        _updateButton.Visible = !_downloadingUpdate;
+        if (_downloadingUpdate && !_menuExpanded)
+        {
+            SetUpdateAnimation("Baixando.gif");
+            _updateAnimation.BringToFront();
+        }
+        _updateButton.Text = _downloadingUpdate ? "" : (_menuExpanded ? $"Atualização disponível · v{update.Version}" : "");
+    }
+
+    private void SetUpdateAnimation(string? fileName)
+    {
+        var previous = _updateAnimation.Image;
+        _updateAnimation.Image = fileName is null
+            ? null
+            : Image.FromFile(Path.Combine(AppContext.BaseDirectory, "Imagens", fileName));
+        previous?.Dispose();
+    }
+
+    private Control BuildHeader()
+    {
+        var panel = new Panel { Dock = DockStyle.Fill };
+        panel.Controls.Add(new Label { Text = "Preparar base por solicitação", Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 2) });
+        panel.Controls.Add(new Label { Text = "Cópia, extração e configuração Firebird em um único fluxo", Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 46) });
+        return panel;
+    }
+
+    private Control BuildHeader(string title, string subtitle) => BuildHeader(title, subtitle, null);
+
+    private Control BuildHeader(string title, string subtitle, string? helpText)
+    {
+        var panel = new Panel { Dock = DockStyle.Fill };
+
+        // Título e ícone de ajuda ficam na mesma linha: o TableLayoutPanel centraliza
+        // verticalmente os dois controles na célula, independente da fonte/DPI.
+        var titleRow = new TableLayoutPanel
+        {
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Location = new Point(0, 2),
+            ColumnCount = 2,
+            RowCount = 1,
+            BackColor = Color.Transparent,
+            Margin = Padding.Empty,
+            Padding = Padding.Empty
+        };
+        titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleRow.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        titleRow.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        var titleLabel = new Label
+        {
+            Text = title,
+            Font = UiTypography.DisplaySemibold(21),
+            ForeColor = Ink,
+            AutoSize = true,
+            Margin = Padding.Empty,
+            Anchor = AnchorStyles.Left // sem Top/Bottom => centralizado verticalmente na célula
+        };
+        titleRow.Controls.Add(titleLabel, 0, 0);
+
+        if (!string.IsNullOrWhiteSpace(helpText))
+        {
+            var help = new PictureBox
+            {
+                Size = new Size(24, 24),
+                SizeMode = PictureBoxSizeMode.Zoom,
+                Image = SvgIconLoader.Load("Ajuda.svg", 24),
+                BackColor = Color.Transparent,
+                Cursor = Cursors.Hand,
+                Margin = new Padding(8, 3, 0, 0),
+                Anchor = AnchorStyles.Left
+            };
+            help.MouseEnter += (_, _) => ShowHintPopup(help, helpText!);
+            help.MouseLeave += (_, _) => HideHintPopup();
+            titleRow.Controls.Add(help, 1, 0);
+        }
+
+        panel.Controls.Add(titleRow);
+        panel.Controls.Add(new Label { Text = subtitle, Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 46) });
+
+        return panel;
+    }
+
+    private Control BuildHomeView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
+        page.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 420)); // logo no topo
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 116)); // card de busca
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // espaço livre abaixo
+
+        _homeLogo.Image = LoadHomeLogo();
+        page.Controls.Add(_homeLogo, 0, 0);
+
+        var card = Card();
+        card.Dock = DockStyle.None;
+        card.Size = new Size(440, 116);
+        card.Anchor = AnchorStyles.None; // centraliza o card na célula
+        _homeTicketTitle.Location = new Point(16, 12);
+        card.Controls.Add(_homeTicketTitle);
+        _homeTicketError.Location = new Point(16, 32);
+        card.Controls.Add(_homeTicketError);
+
+        // Campo e botão com exatamente o mesmo tamanho (200 × 36), centralizados como um único grupo.
+        // Margem inferior (12 px) igual à superior. Sem painel intermediário escuro atrás deles.
+        const int controlWidth = 200;
+        const int gap = 10;
+        const int rowX = (440 - controlWidth * 2 - gap) / 2;
+        _homeTicketBox.Location = new Point(rowX, 68);
+        _homeTicketBox.Width = controlWidth;
+        _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 68);
+        card.Controls.Add(_homeTicketBox);
+        card.Controls.Add(_homeTicketButton);
+
+        page.Controls.Add(card, 0, 1);
+        return page;
+    }
+
+    /// <summary>Carrega o logo em tamanho grande. O bitmap é uma cópia: o arquivo é liberado antes do uso.</summary>
+    private static Image LoadHomeLogo()
+    {
+        using var source = Image.FromFile(Path.Combine(AppContext.BaseDirectory, "Imagens", "Logo.png"));
+        return new Bitmap(source, new Size(600, 400));
+    }
+
+    private TableLayoutPanel BuildTransferView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 92));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+        page.Controls.Add(BuildHeader("Buscar base", "Cópia, extração e configuração Firebird em um único fluxo"), 0, 0);
+        page.Controls.Add(BuildActionPanel(), 0, 1);
+        page.Controls.Add(BuildLogPanel(), 0, 2);
+        page.Controls.Add(BuildProgressFooter(), 0, 3);
+        return page;
+    }
+
+    private Control BuildSettingsView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Configurações", "Pastas, senhas, VPN e comportamento do aplicativo"), 0, 0);
+        page.Controls.Add(BuildSettingsTabs(), 0, 1);
+        return page;
+    }
+
+    private Control BuildSettingsTabs()
+    {
+        var tabs = _settingsTabs = new ThemedTabControl { Dock = DockStyle.Fill };
+        var generalPage = new TabPage("Geral") { BackColor = Surface, Padding = new Padding(0) };
+        var passwordsPage = new TabPage("Senhas") { BackColor = Surface, Padding = new Padding(0) };
+        var vpnPage = new TabPage("VPN") { BackColor = Surface, Padding = new Padding(0) };
+        generalPage.Controls.Add(BuildGeneralSettingsPanel());
+        passwordsPage.Controls.Add(BuildPasswordsSettingsPanel());
+        vpnPage.Controls.Add(BuildVpnSettingsPanel());
+        tabs.TabPages.Add(generalPage);
+        tabs.TabPages.Add(passwordsPage);
+        tabs.TabPages.Add(vpnPage);
+        return tabs;
+    }
+
+    private Control BuildFolderShortcutsView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, AutoScroll = true, Padding = new Padding(26, 10, 26, 10) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 46));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 54));
+        page.Controls.Add(BuildHeader("Atalhos de pasta", "Atalhos para as pastas que você usa no dia a dia, com filtro por tipo de arquivo"), 0, 0);
+
+        var listCard = Card();
+        listCard.MinimumSize = new Size(0, 200);
+        listCard.Controls.Add(new Label { Text = "PASTAS CADASTRADAS", Font = UiTypography.BodySemibold(9f), ForeColor = Muted, AutoSize = true, Location = new Point(18, 14) });
+        _folderShortcutList.Columns.Clear();
+        _folderShortcutList.Columns.Add("Nome", 220);
+        _folderShortcutList.Columns.Add("Caminho", 360);
+        _folderShortcutList.Columns.Add("Filtro", 130);
+        _folderShortcutList.Location = new Point(18, 46);
+        _folderShortcutList.Size = new Size(900, 140);
+        listCard.Controls.Add(_folderShortcutList);
+        _folderShortcutSummaryLabel.AutoSize = false;
+        _folderShortcutSummaryLabel.Size = new Size(700, 20);
+        listCard.Controls.Add(_folderShortcutSummaryLabel);
+        listCard.Resize += (_, _) =>
+        {
+            _folderShortcutList.Location = new Point(18, 46);
+            _folderShortcutList.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), Math.Max(72, listCard.ClientSize.Height - 46 - 34));
+            if (_folderShortcutList.Columns.Count == 3)
+            {
+                var nomeWidth = 220;
+                var filtroWidth = 130;
+                _folderShortcutList.Columns[0].Width = nomeWidth;
+                _folderShortcutList.Columns[2].Width = filtroWidth;
+                _folderShortcutList.Columns[1].Width = Math.Max(80, listCard.ClientSize.Width - 36 - nomeWidth - filtroWidth - 4);
+            }
+            _folderShortcutSummaryLabel.Location = new Point(18, listCard.ClientSize.Height - 24);
+            _folderShortcutSummaryLabel.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), 18);
+        };
+        page.Controls.Add(listCard, 0, 1);
+
+        var editor = Card();
+        editor.MinimumSize = new Size(0, 300);
+        editor.Controls.Add(new Label { Text = "Adicionar / editar atalho", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 13) });
+        editor.Controls.Add(new Label { Text = "Nome", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 47) });
+        _folderShortcutName.Location = new Point(18, 67);
+        _folderShortcutName.Width = 320;
+        _folderShortcutName.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        editor.Controls.Add(_folderShortcutName);
+        editor.Controls.Add(new Label { Text = "Caminho da pasta", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 107) });
+        _folderShortcutPath.Location = new Point(18, 127);
+        editor.Controls.Add(_folderShortcutPath);
+        _folderShortcutBrowse.Location = new Point(0, 122);
+        _folderShortcutBrowse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        editor.Controls.Add(_folderShortcutBrowse);
+        editor.Controls.Add(new Label { Text = "Mostrar na lista", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 169) });
+        editor.Controls.Add(_folderShortcutShowAll);
+        editor.Controls.Add(_folderShortcutShowExe);
+        editor.Controls.Add(_folderShortcutShowBat);
+        editor.Controls.Add(_folderShortcutAddUpdate);
+        editor.Controls.Add(_folderShortcutRemove);
+        void Layout()
+        {
+            var width = editor.ClientSize.Width;
+            _folderShortcutPath.Width = Math.Max(120, width - 36 - 130);
+            _folderShortcutBrowse.Location = new Point(width - 18 - 110, 124);
+            _folderShortcutShowExe.Location = new Point(18, 190);
+            _folderShortcutShowBat.Location = new Point(_folderShortcutShowExe.Right + 16, 193);
+            _folderShortcutShowAll.Location = new Point(_folderShortcutShowBat.Right + 16, 193);
+            // Botões sempre abaixo das caixas de seleção, sem sobreposição em telas menores.
+            _folderShortcutAddUpdate.Location = new Point(18, 244);
+            _folderShortcutRemove.Location = new Point(_folderShortcutAddUpdate.Right + 12, 244);
+        }
+        editor.Resize += (_, _) => Layout();
+        Layout();
+        page.Controls.Add(editor, 0, 2);
+
+        _folderShortcutBrowse.Click += (_, _) => BrowseFolderShortcutFolder();
+        _folderShortcutAddUpdate.Click += (_, _) => AddOrUpdateFolderShortcut();
+        _folderShortcutRemove.Click += (_, _) => RemoveSelectedFolderShortcut();
+        _folderShortcutShowAll.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("all");
+        _folderShortcutShowExe.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("exe");
+        _folderShortcutShowBat.CheckedChanged += (_, _) => OnFolderShortcutFilterChanged("bat");
+        _folderShortcutList.SelectedIndexChanged += (_, _) => OnFolderShortcutSelectionChanged();
+        _folderShortcutList.DoubleClick += (_, _) => OpenSelectedFolderShortcut();
+        LoadFolderShortcutsFromSettings();
+        return page;
+    }
+
+    private void LoadFolderShortcutsFromSettings()
+    {
+        if (_loadingFolderShortcuts) return;
+        _loadingFolderShortcuts = true;
+        try
+        {
+            RefreshFolderShortcutList();
+            ClearFolderShortcutsEditor();
+        }
+        finally { _loadingFolderShortcuts = false; }
+    }
+
+    private void ClearFolderShortcutsEditor()
+    {
+        _folderShortcutName.Text = "";
+        _folderShortcutPath.Text = "";
+        _folderShortcutSettingFilters = true;
+        _folderShortcutShowAll.Checked = true;
+        _folderShortcutShowExe.Checked = false;
+        _folderShortcutShowBat.Checked = false;
+        _folderShortcutSettingFilters = false;
+        _folderShortcutList.SelectedItems.Clear();
+        UpdateFolderShortcutSummary();
+        _folderShortcutName.Focus();
+    }
+
+    private void RefreshFolderShortcutList()
+    {
+        _loadingFolderShortcuts = true;
+        try
+        {
+            _folderShortcutList.BeginUpdate();
+            _folderShortcutList.Items.Clear();
+            var index = 0;
+            foreach (var folder in _settings.FolderShortcuts)
+            {
+                var item = new ListViewItem(new[] { SafeListColumn(folder.Name), SafeListColumn(folder.Path), SafeListColumn(folder.FilterLabel) }) { Tag = index++ };
+                _folderShortcutList.Items.Add(item);
+            }
+            _folderShortcutList.EndUpdate();
+        }
+        finally { _loadingFolderShortcuts = false; }
+        UpdateFolderShortcutSummary();
+    }
+
+    private void UpdateFolderShortcutSummary()
+    {
+        _folderShortcutSummaryLabel.Text = _settings.FolderShortcuts.Count == 0
+            ? "Nenhuma pasta cadastrada. Use o formulário abaixo."
+            : $"{_settings.FolderShortcuts.Count} pasta(s) cadastrada(s). Duplo clique abre no Explorer.";
+    }
+
+    private void OnFolderShortcutFilterChanged(string source)
+    {
+        if (_folderShortcutSettingFilters) return;
+        _folderShortcutSettingFilters = true;
+        try
+        {
+            switch (source)
+            {
+                case "all":
+                    if (_folderShortcutShowAll.Checked) { _folderShortcutShowExe.Checked = false; _folderShortcutShowBat.Checked = false; }
+                    else if (!_folderShortcutShowExe.Checked && !_folderShortcutShowBat.Checked) _folderShortcutShowExe.Checked = true;
+                    break;
+                case "exe":
+                    if (_folderShortcutShowExe.Checked) _folderShortcutShowAll.Checked = false;
+                    else if (!_folderShortcutShowBat.Checked) _folderShortcutShowAll.Checked = true;
+                    break;
+                case "bat":
+                    if (_folderShortcutShowBat.Checked) _folderShortcutShowAll.Checked = false;
+                    else if (!_folderShortcutShowExe.Checked) _folderShortcutShowAll.Checked = true;
+                    break;
+            }
+        }
+        finally { _folderShortcutSettingFilters = false; }
+    }
+
+    private void OnFolderShortcutSelectionChanged()
+    {
+        if (_loadingFolderShortcuts) return;
+        if (_folderShortcutList.SelectedItems.Count == 0) { ClearFolderShortcutsEditor(); return; }
+        var tag = _folderShortcutList.SelectedItems[0].Tag;
+        if (tag is not int index || index < 0 || index >= _settings.FolderShortcuts.Count) return;
+        var folder = _settings.FolderShortcuts[index];
+        _folderShortcutName.Text = folder.Name;
+        _folderShortcutPath.Text = folder.Path;
+        _folderShortcutSettingFilters = true;
+        _folderShortcutShowAll.Checked = folder.ShowAllFiles;
+        _folderShortcutShowExe.Checked = !folder.ShowAllFiles && folder.ShowExeFiles;
+        _folderShortcutShowBat.Checked = !folder.ShowAllFiles && folder.ShowBatFiles;
+        _folderShortcutSettingFilters = false;
+    }
+
+    private void BrowseFolderShortcutFolder()
+    {
+        using var dialog = new FolderBrowserDialog { Description = "Selecione a pasta para o atalho", ShowNewFolderButton = false, SelectedPath = _folderShortcutPath.Text.Trim() };
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _folderShortcutPath.Text = dialog.SelectedPath;
+            if (string.IsNullOrWhiteSpace(_folderShortcutName.Text))
+                _folderShortcutName.Text = Path.GetFileName(dialog.SelectedPath.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        }
+    }
+
+    private void AddOrUpdateFolderShortcut()
+    {
+        var name = _folderShortcutName.Text.Trim();
+        var path = _folderShortcutPath.Text.Trim();
+        if (string.IsNullOrWhiteSpace(name) || string.IsNullOrWhiteSpace(path))
+        {
+            MessageBox.Show(this, "Informe o nome e o caminho da pasta.", "Atalho inválido", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        var showAll = _folderShortcutShowAll.Checked;
+        var showExe = !showAll && _folderShortcutShowExe.Checked;
+        var showBat = !showAll && _folderShortcutShowBat.Checked;
+
+        var editingIndex = GetSelectedFolderShortcutIndex();
+        var folder = editingIndex >= 0 ? _settings.FolderShortcuts[editingIndex] : new FolderShortcut();
+        folder.Name = name;
+        folder.Path = path;
+        folder.ShowAllFiles = showAll;
+        folder.ShowExeFiles = showExe;
+        folder.ShowBatFiles = showBat;
+        if (editingIndex < 0) _settings.FolderShortcuts.Add(folder);
+        PersistFolderShortcuts();
+        var newIndex = editingIndex >= 0 ? editingIndex : _settings.FolderShortcuts.Count - 1;
+        RefreshFolderShortcutList();
+        SelectFolderShortcut(newIndex);
+        ClearFolderShortcutsEditor(); // limpa o formulário para o próximo cadastro (equivalente a "Novo")
+    }
+
+    private void RemoveSelectedFolderShortcut()
+    {
+        var index = GetSelectedFolderShortcutIndex();
+        if (index < 0 || index >= _settings.FolderShortcuts.Count) return;
+        _settings.FolderShortcuts.RemoveAt(index);
+        PersistFolderShortcuts();
+        RefreshFolderShortcutList();
+        ClearFolderShortcutsEditor();
+    }
+
+    private int GetSelectedFolderShortcutIndex()
+    {
+        if (_folderShortcutList.SelectedItems.Count == 0) return -1;
+        var tag = _folderShortcutList.SelectedItems[0].Tag;
+        return tag is int index ? index : -1;
+    }
+
+    private void SelectFolderShortcut(int index)
+    {
+        _loadingFolderShortcuts = true;
+        try
+        {
+            foreach (ListViewItem item in _folderShortcutList.Items)
+            {
+                if (item.Tag is int i && i == index) { item.Selected = true; item.Focused = true; item.EnsureVisible(); break; }
+            }
+        }
+        finally { _loadingFolderShortcuts = false; }
+        OnFolderShortcutSelectionChanged();
+    }
+
+    private void OpenSelectedFolderShortcut()
+    {
+        var index = GetSelectedFolderShortcutIndex();
+        if (index < 0 || index >= _settings.FolderShortcuts.Count) return;
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = _settings.FolderShortcuts[index].Path, UseShellExecute = true }); }
+        catch (Exception ex) { AppLogger.Error("Abrir pasta", ex.Message, ex); MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private bool PersistFolderShortcuts()
+    {
+        try { PersistSettings(); return true; }
+        catch (Exception ex)
+        {
+            MessageBox.Show(this, $"Não foi possível salvar os atalhos de pasta:\n\n{ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return false;
+        }
+    }
+
+    private static string SafeListColumn(string value) => value.Contains('\t') || value.Contains('\n') ? value.Replace('\t', ' ').Replace('\r', ' ').Replace('\n', ' ') : value;
+    private bool _loadingFolderShortcuts;
+    private bool _folderShortcutSettingFilters;
+
+    private Control BuildCopySqlView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, AutoScroll = true, Padding = new Padding(26, 10, 26, 10) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 96));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        page.Controls.Add(BuildHeader("Copiar SQL", "Monte, salve e copie os comandos SQL que você usa no dia a dia"), 0, 0);
+
+        var listCard = Card();
+        listCard.MinimumSize = new Size(0, 200);
+        listCard.Controls.Add(new Label { Text = "SQLS SALVOS", Font = UiTypography.BodySemibold(9f), ForeColor = Muted, AutoSize = true, Location = new Point(18, 14) });
+        _sqlShortcutSearch.Location = new Point(18, 40);
+        _sqlShortcutSearch.Width = 320;
+        _sqlShortcutSearch.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        listCard.Controls.Add(_sqlShortcutSearch);
+        _sqlShortcutList.Columns.Clear();
+        _sqlShortcutList.Columns.Add("Nome", 220);
+        _sqlShortcutList.Columns.Add("Comando", 360);
+        _sqlShortcutList.Location = new Point(18, 78);
+        _sqlShortcutList.Size = new Size(900, 140);
+        listCard.Controls.Add(_sqlShortcutList);
+        _sqlShortcutSummaryLabel.AutoSize = false;
+        _sqlShortcutSummaryLabel.Size = new Size(700, 20);
+        listCard.Controls.Add(_sqlShortcutSummaryLabel);
+        listCard.Resize += (_, _) =>
+        {
+            _sqlShortcutList.Location = new Point(18, 78);
+            _sqlShortcutList.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), Math.Max(72, listCard.ClientSize.Height - 78 - 34));
+            if (_sqlShortcutList.Columns.Count == 2)
+                _sqlShortcutList.Columns[1].Width = Math.Max(80, listCard.ClientSize.Width - 36 - _sqlShortcutList.Columns[0].Width - 4);
+            _sqlShortcutSummaryLabel.Location = new Point(18, listCard.ClientSize.Height - 24);
+            _sqlShortcutSummaryLabel.Size = new Size(Math.Max(80, listCard.ClientSize.Width - 36), 18);
+        };
+        page.Controls.Add(listCard, 0, 1);
+
+        var editorHost = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 2, Margin = Padding.Empty };
+        editorHost.RowStyles.Add(new RowStyle(SizeType.Absolute, 84));
+        editorHost.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        var formCard = Card();
+        formCard.Controls.Add(new Label { Text = "Nome do comando", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 10) });
+        _sqlShortcutTitle.Location = new Point(18, 32);
+        _sqlShortcutTitle.Width = 360;
+        formCard.Controls.Add(_sqlShortcutTitle);
+        foreach (var button in new[] { _sqlShortcutSave, _sqlShortcutCopy, _sqlShortcutDelete })
+        {
+            button.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            formCard.Controls.Add(button);
+        }
+        void LayoutButtons()
+        {
+            var right = Math.Max(520, formCard.ClientSize.Width - 18);
+            _sqlShortcutDelete.Location = new Point(right - _sqlShortcutDelete.Width, 32);
+            _sqlShortcutCopy.Location = new Point(_sqlShortcutDelete.Left - 12 - _sqlShortcutCopy.Width, 32);
+            _sqlShortcutSave.Location = new Point(_sqlShortcutCopy.Left - 12 - _sqlShortcutSave.Width, 32);
+            _sqlShortcutTitle.Width = Math.Max(140, Math.Min(360, _sqlShortcutSave.Left - 18 - 16));
+        }
+        formCard.Resize += (_, _) => LayoutButtons();
+        LayoutButtons();
+        editorHost.Controls.Add(formCard, 0, 0);
+        editorHost.Controls.Add(BuildEditorCard("Comando SQL", _sqlShortcutEditor), 0, 1);
+        page.Controls.Add(editorHost, 0, 2);
+
+        _sqlShortcutSearch.TextChanged += (_, _) => RefreshSqlShortcutList();
+        _sqlShortcutList.SelectedIndexChanged += (_, _) => OnSqlShortcutSelectionChanged();
+        _sqlShortcutList.DoubleClick += (_, _) => CopySqlToClipboard(GetSelectedSqlShortcut(), fromTray: false);
+        _sqlShortcutEditor.TextChanged += (_, _) => HighlightSql(_sqlShortcutEditor);
+        _sqlShortcutSave.Click += (_, _) => SaveSqlShortcut();
+        _sqlShortcutCopy.Click += (_, _) => CopySqlToClipboard(GetSelectedSqlShortcut(), fromTray: false);
+        _sqlShortcutDelete.Click += (_, _) => DeleteSelectedSqlShortcut();
+        RefreshSqlShortcutList();
+        ClearSqlShortcutEditor();
+        return page;
+    }
+
+    private void RefreshSqlShortcutList()
+    {
+        _loadingSqlShortcuts = true;
+        try
+        {
+            var query = _sqlShortcutSearch.Text.Trim();
+            _sqlShortcutList.BeginUpdate();
+            _sqlShortcutList.Items.Clear();
+            foreach (var sql in _settings.SqlShortcuts)
+            {
+                if (query.Length > 0 &&
+                    !sql.Title.Contains(query, StringComparison.OrdinalIgnoreCase) &&
+                    !sql.Content.Contains(query, StringComparison.OrdinalIgnoreCase)) continue;
+                var item = new ListViewItem(new[] { SafeListColumn(sql.Title), SafeListColumn(SqlPreview(sql.Content)) }) { Tag = sql.Id };
+                _sqlShortcutList.Items.Add(item);
+            }
+            _sqlShortcutList.EndUpdate();
+        }
+        finally { _loadingSqlShortcuts = false; }
+        UpdateSqlShortcutSummary();
+    }
+
+    private static string SqlPreview(string content)
+    {
+        var preview = content.Replace("\r", "").Replace("\n", "  ↵  ").Replace('\t', ' ');
+        return preview.Length > 200 ? preview[..200] + "…" : preview;
+    }
+
+    private void UpdateSqlShortcutSummary()
+    {
+        var total = _settings.SqlShortcuts.Count;
+        var filtered = _sqlShortcutList.Items.Count != total ? $", {_sqlShortcutList.Items.Count} exibido(s) pelo filtro" : "";
+        _sqlShortcutSummaryLabel.Text = total == 0
+            ? "Nenhum SQL salvo. Monte o comando abaixo e clique em Salvar."
+            : $"{total} SQL(s) salvo(s){filtered}. Duplo clique copia o SQL.";
+    }
+
+    private SqlShortcut? GetSelectedSqlShortcut()
+    {
+        if (_sqlShortcutList.SelectedItems.Count == 0) return null;
+        return _sqlShortcutList.SelectedItems[0].Tag is string id
+            ? _settings.SqlShortcuts.FirstOrDefault(sql => sql.Id == id)
+            : null;
+    }
+
+    private void OnSqlShortcutSelectionChanged()
+    {
+        if (_loadingSqlShortcuts) return;
+        var sql = GetSelectedSqlShortcut();
+        if (sql is null) { _editingSqlShortcutId = null; return; }
+        _editingSqlShortcutId = sql.Id;
+        _sqlShortcutTitle.Text = sql.Title;
+        _sqlShortcutEditor.Text = sql.Content;
+        HighlightSql(_sqlShortcutEditor);
+    }
+
+    private void ClearSqlShortcutEditor()
+    {
+        _editingSqlShortcutId = null;
+        _sqlShortcutTitle.Clear();
+        _sqlShortcutEditor.Clear();
+        _loadingSqlShortcuts = true;
+        try
+        {
+            foreach (ListViewItem item in _sqlShortcutList.Items) item.Selected = false;
+        }
+        finally { _loadingSqlShortcuts = false; }
+        UpdateSqlShortcutSummary();
+        _sqlShortcutTitle.Focus();
+    }
+
+    private void SaveSqlShortcut()
+    {
+        var title = _sqlShortcutTitle.Text.Trim();
+        var content = _sqlShortcutEditor.Text;
+        if (title.Length == 0)
+        {
+            MessageBox.Show(this, "Dê um nome ao seu comando SQL.", "Copiar SQL", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _sqlShortcutTitle.Focus();
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            MessageBox.Show(this, "Informe o comando SQL que será copiado.", "Copiar SQL", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            _sqlShortcutEditor.Focus();
+            return;
+        }
+
+        var sql = _settings.SqlShortcuts.FirstOrDefault(item => item.Id == _editingSqlShortcutId);
+        if (sql is null)
+        {
+            sql = new SqlShortcut();
+            _settings.SqlShortcuts.Add(sql);
+        }
+        sql.Title = title;
+        sql.Content = content;
+        try { PersistSettings(); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Salvar SQL", ex.Message, ex);
+            MessageBox.Show(this, $"Não foi possível salvar o comando SQL:\n\n{ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        RefreshSqlShortcutList();
+        ClearSqlShortcutEditor(); // equivalente ao antigo botão "Novo": limpa o formulário para o próximo SQL
+    }
+
+    private void DeleteSelectedSqlShortcut()
+    {
+        var sql = GetSelectedSqlShortcut();
+        if (sql is null)
+        {
+            MessageBox.Show(this, "Selecione o comando SQL que deseja excluir.", "Excluir SQL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        if (MessageBox.Show(this, $"Excluir o comando SQL \"{sql.Title}\"?", "Excluir SQL", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2) != DialogResult.Yes) return;
+        _settings.SqlShortcuts.Remove(sql);
+        try { PersistSettings(); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Excluir SQL", ex.Message, ex);
+            MessageBox.Show(this, $"Não foi possível excluir o comando SQL:\n\n{ex.Message}", "Erro ao excluir", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        ClearSqlShortcutEditor();
+        RefreshSqlShortcutList();
+    }
+
+    private void CopySqlToClipboard(SqlShortcut? sql, bool fromTray)
+    {
+        if (sql is null)
+        {
+            if (fromTray) ShowBackgroundNotification("Copiar SQL", "Nenhum SQL cadastrado. Cadastre um em \"Copiar SQL\" na janela do aplicativo.");
+            else MessageBox.Show(this, "Selecione um comando SQL da lista para copiar.", "Copiar SQL", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        try
+        {
+            Clipboard.SetText(sql.Content);
+            if (fromTray)
+                ShowBackgroundNotification("Copiar SQL", $"\"{sql.Title}\" copiado para a área de transferência.");
+            else
+                _sqlShortcutSummaryLabel.Text = $"Comando \"{sql.Title}\" copiado para a área de transferência.";
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Copiar SQL", ex.Message, ex);
+            if (fromTray) ShowBackgroundNotification("Copiar SQL", "Não foi possível copiar: " + ex.Message);
+            else MessageBox.Show(this, $"Não foi possível copiar o comando SQL:\n{ex.Message}", "Erro ao copiar", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    private Control BuildChangeBaseView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 42));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 48));
+        var header = new Panel { Dock = DockStyle.Fill };
+        header.Controls.Add(new Label { Text = "Trocar base", Font = UiTypography.DisplaySemibold(21), ForeColor = Ink, AutoSize = true, Location = new Point(0, 2) });
+        header.Controls.Add(new Label { Text = "Selecione uma pasta para apontar o Registro para essa base", Font = UiTypography.Body(), ForeColor = Muted, AutoSize = true, Location = new Point(1, 46) });
+        _changeBaseVersionLabel.Location = new Point(0, 4);
+        header.Controls.Add(_changeBaseVersionLabel);
+        header.Resize += (_, _) => _changeBaseVersionLabel.Left = header.ClientSize.Width - _changeBaseVersionLabel.Width - 18;
+        page.Controls.Add(header, 0, 0);
+
+        var rootRow = new Panel { Dock = DockStyle.Fill };
+        _baseSort.Items.Add("Ordem alfabética");
+        _baseSort.Items.Add("Data de modificação");
+        _baseSort.SelectedIndex = (int)_settings.ChangeBaseSortOrder;
+        _baseSort.Dock = DockStyle.Right;
+        _baseSort.SelectionChangeCommitted += (_, _) =>
+        {
+            _settings.ChangeBaseSortOrder = (BaseFolderSortOrder)_baseSort.SelectedIndex;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a ordenação: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            RefreshBaseFolders();
+        };
+        _baseFoldersRootLabel.Dock = DockStyle.Fill;
+        rootRow.Controls.Add(_baseFoldersRootLabel);
+        rootRow.Controls.Add(_baseSort);
+        page.Controls.Add(rootRow, 0, 1);
+
+        var listCard = Card();
+        _changeBaseListCard = listCard;
+        _baseFolders.Font = UiTypography.Body(11f);
+        _baseFolders.ItemSelectionChanged += (_, _) =>
+        {
+            _selectedBasePath.Text = _baseFolders.SelectedItems.Count == 0 ? "" : _baseFolders.SelectedItems[0].Tag as string ?? "";
+            if (_baseFolders.SelectedItems.Count > 0)
+            {
+                _lastSelectedBaseFolder = _baseFolders.SelectedItems[0].Tag as string;
+                _settings.LastSelectedBaseFolder = _lastSelectedBaseFolder;
+                QueueSettingsSave();
+            }
+        };
+        listCard.Controls.Add(_baseFolders);
+        page.Controls.Add(listCard, 0, 2);
+
+        var bottom = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 3, RowCount = 1, Padding = new Padding(0, 8, 0, 0) };
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+        bottom.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute, 128));
+        bottom.Controls.Add(_selectedBasePath, 0, 0);
+        _changeBaseButton.FlatAppearance.BorderSize = 0;
+        _openBaseFolderButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _openBaseFolderButton.FlatAppearance.BorderSize = 1;
+        bottom.Controls.Add(_changeBaseButton, 1, 0);
+        bottom.Controls.Add(_openBaseFolderButton, 2, 0);
+        page.Controls.Add(bottom, 0, 3);
+        RefreshBaseFolders();
+        return page;
+    }
+
+    private Control BuildResetView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 104));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 58));
+        page.Controls.Add(BuildHeader("Redefinir base", "Valide e prepare uma base local existente para a SL informada",
+            "• Usa a pasta local das bases escolhida no menu de configurações.\r\n" +
+            "• Selecione a base na lista, ou digite a SL/nome da pasta (ex.: 123456 ou Teste_123456).\r\n" +
+            "• Em pastas renomeadas (<nome>_<SL>), a SL é preenchida sozinha.\r\n" +
+            "• Valida a existência da ARQEMP e ARQOCOR na pasta; caso não existam, copia da pasta de apoio.\r\n" +
+            "• Executa os scripts na ARQEMP e ARQSIST.\r\n" +
+            "• Atualiza o Registro.\r\n" +
+            "• A redefinição não copia nem substitui a pasta inteira da base."), 0, 0);
+
+        page.Controls.Add(_resetBaseFoldersRootLabel, 0, 1);
+        var listCard = Card();
+        _resetBaseListCard = listCard;
+        _resetBaseFolders.Font = UiTypography.Body(11f);
+        listCard.Controls.Add(_resetBaseFolders);
+        page.Controls.Add(listCard, 0, 2);
+
+        var action = Card();
+        action.Controls.Add(new Label { Text = "SL ou nome da pasta", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
+        _resetSl.Location = new Point(18, 42);
+        _resetSl.Width = 250;
+        _resetSl.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _resetButton.Location = new Point(284, 38);
+        _resetButton.Size = new Size(190, 36);
+        _resetButton.FlatAppearance.BorderSize = 0;
+        _resetCancelButton.Location = new Point(484, 38);
+        _resetCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _resetCancelButton.FlatAppearance.BorderSize = 1;
+        action.Controls.Add(_resetSl);
+        action.Controls.Add(_resetButton);
+        action.Controls.Add(_resetCancelButton);
+        _resetRootLabel.Location = new Point(600, 48);
+        _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
+        action.Controls.Add(_resetRootLabel);
+        action.Resize += (_, _) => _resetRootLabel.MaximumSize = new Size(Math.Max(100, action.ClientSize.Width - _resetRootLabel.Left - 18), 0);
+        page.Controls.Add(action, 0, 3);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da redefinição", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _resetLog.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_resetLog);
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 4);
+        return page;
+    }
+
+    private static Control CreateSidebarSeparator() =>
+        new Panel { Dock = DockStyle.Top, Height = 3, Tag = "sidebarSeparator", BackColor = Color.FromArgb(208, 217, 230) };
+
+    private Control BuildRestoreView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 5, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 34));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 42));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 124));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Restaurar base", "Restaure os .FBK da pasta selecionada (ou da subpasta BKP, se existir) para .FDB ao lado deles",
+            "• Selecione a pasta; os arquivos .FBK são procurados na subpasta BKP — se ela não existir, na própria pasta selecionada.\r\n" +
+            "• Arquivos com ARQEMP, ARQOCOR ou ARQSIST no nome viram ARQEMP.FDB, ARQOCOR.FDB ou ARQSIST.FDB na mesma pasta do .FBK.\r\n" +
+            "• Arquivos .FBK sem nome conhecido pedem a escolha do destino; \"Pular\" ignora o arquivo.\r\n" +
+            "• As restaurações rodam em paralelo e um .FDB existente é substituído somente após confirmação.\r\n" +
+            "• Com mais de um .FBK, cada base ganha uma aba de log; em estruturas multi-base a aba é \"ARQ## - BASE\".\r\n" +
+            "• Ao final, você escolhe se deseja apontar o Registro para a pasta restaurada."), 0, 0);
+
+        page.Controls.Add(_restoreBaseFoldersRootLabel, 0, 1);
+        var listCard = Card();
+        _restoreBaseListCard = listCard;
+        _restoreBaseFolders.Font = UiTypography.Body(11f);
+        _restoreBaseFolders.ItemSelectionChanged += (_, _) =>
+        {
+            if (_restoreBaseFolders.SelectedItems.Count == 0) return;
+            if (_restoreBaseFolders.SelectedItems[0].Tag is string folder)
+                _restoreFolder.Text = folder;
+        };
+        listCard.Controls.Add(_restoreBaseFolders);
+        page.Controls.Add(listCard, 0, 2);
+
+        var action = Card();
+        action.Controls.Add(new Label { Text = "Pasta da base", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
+        _restoreFolder.Location = new Point(18, 38);
+        action.Resize += (_, _) => _restoreFolder.Width = Math.Max(120, action.ClientSize.Width - 18 - _restoreBrowseButton.Width - 24);
+        action.Controls.Add(_restoreFolder);
+        _restoreBrowseButton.Location = new Point(0, 37);
+        _restoreBrowseButton.FlatAppearance.BorderSize = 0;
+        _restoreBrowseButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        _restoreBrowseButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        action.Resize += (_, _) => _restoreBrowseButton.Left = action.ClientSize.Width - _restoreBrowseButton.Width - 18;
+        _restoreBrowseButton.Click += (_, _) => BrowseRestoreFolder();
+        action.Controls.Add(_restoreBrowseButton);
+        _restoreButton.Location = new Point(18, 74);
+        _restoreButton.FlatAppearance.BorderSize = 0;
+        action.Controls.Add(_restoreButton);
+        _restoreCancelButton.Location = new Point(204, 74);
+        _restoreCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _restoreCancelButton.FlatAppearance.BorderSize = 1;
+        action.Controls.Add(_restoreCancelButton);
+        _restoreFolder.Width = 600;
+        page.Controls.Add(action, 0, 3);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da restauração", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => ClearRestoreLogs();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_restoreLogTabs);
+        logCard.Controls.Add(_restoreLog);
+        _restoreLog.BringToFront();
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 4);
+        return page;
+    }
+
+    private void BrowseRestoreFolder()
+    {
+        var seed = _restoreFolder.Text.Trim();
+        if (string.IsNullOrWhiteSpace(seed)) seed = _settings.BasesRoot;
+        using var dialog = new FolderBrowserDialog { Description = "Selecione a pasta da base (com subpasta BKP) ou a pasta com os .FBK", ShowNewFolderButton = false, SelectedPath = seed };
+        if (dialog.ShowDialog(this) == DialogResult.OK) _restoreFolder.Text = dialog.SelectedPath;
+    }
+
+    private void RefreshBaseFolders()
+    {
+        _baseFolders.Items.Clear();
+        _resetBaseFolders.Items.Clear();
+        _restoreBaseFolders.Items.Clear();
+        var root = _settings.BasesRoot?.Trim();
+        var rootText = "Pastas encontradas em: " + (string.IsNullOrWhiteSpace(root) ? "(pasta local não configurada)" : root);
+        _baseFoldersRootLabel.Text = rootText;
+        _resetBaseFoldersRootLabel.Text = rootText;
+        _restoreBaseFoldersRootLabel.Text = rootText;
+        if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) return;
+
+        var directories = Directory.GetDirectories(root);
+        IEnumerable<string> ordered = _settings.ChangeBaseSortOrder == BaseFolderSortOrder.DataModificacao
+            ? directories.OrderByDescending(GetFolderLastWriteTimeSafe)
+                         .ThenBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase)
+            : directories.OrderBy(folder => Path.GetFileName(folder), StringComparer.CurrentCultureIgnoreCase);
+
+        foreach (var folder in ordered)
+        {
+            var name = Path.GetFileName(folder);
+            _baseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
+            _resetBaseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
+            _restoreBaseFolders.Items.Add(new ListViewItem(name) { Tag = folder });
+        }
+
+        // Mantém selecionada a última pasta escolhida pelo usuário, mesmo após reordenar/recarregar.
+        if (!string.IsNullOrWhiteSpace(_lastSelectedBaseFolder))
+        {
+            foreach (ListViewItem item in _baseFolders.Items)
+            {
+                if (!string.Equals(item.Tag as string, _lastSelectedBaseFolder, StringComparison.OrdinalIgnoreCase)) continue;
+                item.Selected = true;
+                item.EnsureVisible();
+                break;
+            }
+        }
+    }
+
+    private static DateTime GetFolderLastWriteTimeSafe(string folder)
+    {
+        try { return Directory.GetLastWriteTime(folder); }
+        catch { return DateTime.MinValue; }
+    }
+
+    private static string? FindRegistryBasePath()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SIC\CONEXAO", writable: false);
+            var baseValue = key?.GetValue("BASE1") as string;
+            if (string.IsNullOrWhiteSpace(baseValue)) return null;
+            return Path.GetFullPath(baseValue.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+        }
+        catch { return null; }
+    }
+
+    private static bool BaseMatchesRegistry(string folder, string normalizedRegistryPath)
+    {
+        try
+        {
+            var full = Path.GetFullPath(folder).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (string.Equals(full, normalizedRegistryPath, StringComparison.OrdinalIgnoreCase)) return true;
+            // Estrutura multi-base: o Registro aponta para uma pasta ARQ## dentro da base; a base que a contém corresponde.
+            foreach (var sub in MultiBaseOperationRules.FindDatabaseFolders(full))
+            {
+                var subPath = Path.GetFullPath(sub.DirectoryPath).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                if (string.Equals(subPath, normalizedRegistryPath, StringComparison.OrdinalIgnoreCase)) return true;
+            }
+            return false;
+        }
+        catch { return false; }
+    }
+
+    private static void SelectMatchingRegistryEntry(ThemedListView list, Action<string> onSelected)
+    {
+        var normalized = FindRegistryBasePath();
+        if (normalized is null) return;
+        try
+        {
+            for (var i = 0; i < list.Items.Count; i++)
+            {
+                var folder = list.Items[i].Tag as string;
+                if (folder is not null && BaseMatchesRegistry(folder, normalized))
+                {
+                    list.Items[i].Selected = true;
+                    list.EnsureVisible(i);
+                    onSelected(folder);
+                    break;
+                }
+            }
+        }
+        catch { /* destaque best-effort; a lista funciona sem ele */ }
+    }
+
+    private void SelectBaseMatchingRegistry() =>
+        SelectMatchingRegistryEntry(_baseFolders, folder => _selectedBasePath.Text = folder);
+
+    private void SelectResetBaseMatchingRegistry() =>
+        SelectMatchingRegistryEntry(_resetBaseFolders, _ => { }); // SL preenchida pelo SelectedIndexChanged
+
+    private async Task ChangeSelectedBaseAsync()
+    {
+        var folder = _selectedBasePath.Text.Trim();
+        if (folder.Length == 0 || !Directory.Exists(folder))
+        {
+            MessageBox.Show(this, "Selecione uma pasta de base existente na lista.", "Base não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        _changeBaseButton.Enabled = false;
+        try
+        {
+            var multiBase = MultiBaseOperationRules.IsMultiBase(folder);
+            if (multiBase && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(folder)))
+            {
+                MessageBox.Show(this, $"A pasta selecionada tem a estrutura multi-base (pastas ARQ##), mas a pasta ARQ00 não existe:\n{MultiBaseOperationRules.GetCompanyDirectory(folder)}\n\nSem a ARQ00 o sistema não teria para onde apontar a EMPRESA. Nenhuma alteração foi feita no Registro.", "Estrutura multi-base incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            await UpdateRegistryForFolderAsync(folder);
+            _status.Text = "Base alterada para: " + folder;
+            _ = UpdateChangeBaseVersionAsync(folder);
+            MessageBox.Show(this, $"O Registro foi atualizado para a base:\n{folder}", "Base alterada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Registro - Trocar base", ex.Message, ex);
+            MessageBox.Show(this, $"Não foi possível alterar a base no Registro:\n{ex.Message}", "Falha ao alterar base", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally { _changeBaseButton.Enabled = true; }
+    }
+
+    private async Task ResetBaseAsync()
+    {
+        if (_resetRunning) return;
+        ReadFields();
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot))
+        {
+            MessageBox.Show(this, "Configure a pasta local das bases e a pasta de bases de apoio.", "Configuração incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot))
+        {
+            MessageBox.Show(this, "A pasta local das bases e a pasta de apoio precisam existir e estar acessíveis.", "Pastas indisponíveis", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de redefinir a base.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var selectedFolder = _resetBaseFolders.SelectedItems.Count > 0 ? _resetBaseFolders.SelectedItems[0].Tag as string : null;
+        string target;
+        string sl;
+        if (selectedFolder is not null)
+        {
+            // A redefinição atua sobre a pasta escolhida na lista, mesmo sem SL no nome.
+            if (!Directory.Exists(selectedFolder))
+            {
+                MessageBox.Show(this, $"A pasta selecionada na lista não existe mais:\n{selectedFolder}", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            target = Path.GetFullPath(selectedFolder);
+            sl = Path.GetFileName(target)!;
+        }
+        else
+        {
+            sl = _resetSl.Text.Trim();
+            if (sl.Length == 0)
+            {
+                MessageBox.Show(this, "Selecione uma base na lista ou digite a SL/nome da pasta (ex.: 123456 ou Teste_123456).", "SL inválida", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            string? resolved;
+            try
+            {
+                var (chosen, cancelled) = ResolveBaseChoice(_settings.BasesRoot, sl);
+                if (cancelled)
+                {
+                    MessageBox.Show(this, "Seleção cancelada. A base não foi alterada.", "Seleção cancelada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    return;
+                }
+                resolved = chosen;
+            }
+            catch (Exception ex)
+            {
+                AppLogger.Error("Nome inválido", ex.Message, ex);
+                MessageBox.Show(this, ex.Message, "Nome inválido", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+            if (resolved is null)
+            {
+                var root = Path.GetFullPath(_settings.BasesRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                var tail = sl.Split('_', StringSplitOptions.RemoveEmptyEntries);
+                var suffixNote = tail.Length > 0 && tail[^1].All(char.IsAsciiDigit)
+                    ? $" ou por subpastas terminadas em \"_{tail[^1]}\""
+                    : string.Empty;
+                MessageBox.Show(this, $"Nenhuma pasta encontrada em:\n{root}\n\nBuscou por \"{sl.Trim()}\" (exato){suffixNote}.", "Base não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+            target = resolved;
+            sl = Path.GetFileName(target)!;
+        }
+
+        if (!File.Exists(Path.Combine(target, "ARQSIST.FDB")))
+        {
+            MessageBox.Show(this, "A base ARQSIST.FDB não foi encontrada na pasta local da SL. A redefinição exige essa base para executar os scripts.", "ARQSIST não encontrada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        _resetRunning = true;
+        _resetCancellation = new CancellationTokenSource();
+        _resetSl.Enabled = false;
+        _resetButton.Enabled = false;
+        _resetCancelButton.Visible = true;
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = false;
+        _resetLog.Clear();
+        var token = _resetCancellation.Token;
+        try
+        {
+            AppendResetLog($"Iniciando redefinição da base \"{sl}\" em {target}");
+            foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(target, _settings.SupportRoot))
+            {
+                token.ThrowIfCancellationRequested();
+                await CopyFileAsync(supportFile.Source, supportFile.Destination, token);
+                AppendResetLog($"Arquivo copiado da pasta de apoio: {supportFile.Name}");
+            }
+            foreach (var databaseName in new[] { "ARQEMP.FDB", "ARQOCOR.FDB" })
+                if (File.Exists(Path.Combine(target, databaseName))) AppendResetLog($"Arquivo validado: {databaseName}");
+
+            token.ThrowIfCancellationRequested();
+            await RunSqlIfConfiguredAsync(_arqEmpEditor.Text, Path.Combine(target, "ARQEMP.FDB"), "Comandos ARQEMP", token, AppendResetLog);
+            await RunSqlIfConfiguredAsync(_arqSistEditor.Text, Path.Combine(target, "ARQSIST.FDB"), "Comandos ARQSIST", token, AppendResetLog);
+            token.ThrowIfCancellationRequested();
+            await UpdateRegistryAsync(target, AppendResetLog);
+            AppendResetLog("Redefinição concluída com sucesso.");
+            MessageBox.Show(this, $"A base \"{sl}\" foi validada e selecionada no Registro.", "Redefinição concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (OperationCanceledException)
+        {
+            AppendResetLog("Redefinição cancelada.");
+        }
+        catch (Exception ex)
+        {
+            AppendResetLog("ERRO: " + ex.Message);
+            AppLogger.Error("Redefinir base", ex.Message, ex);
+            MessageBox.Show(this, ex.Message, "Falha ao redefinir a base", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _resetCancellation.Dispose();
+            _resetCancellation = null;
+            _resetRunning = false;
+            RefreshTrayTooltip();
+            _resetSl.Enabled = true;
+            _resetButton.Enabled = true;
+            _resetCancelButton.Visible = false;
+            foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = true;
+        }
+    }
+
+    private void AppendResetLog(string message)
+    {
+        _resetLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _resetLog.SelectionStart = _resetLog.TextLength;
+        _resetLog.ScrollToCaret();
+    }
+
+    private async Task RestoreBaseAsync()
+    {
+        if (_restoreRunning) return;
+        ReadFields();
+        var folder = _restoreFolder.Text.Trim();
+        if (folder.Length == 0 || !Directory.Exists(folder))
+        {
+            MessageBox.Show(this, "Selecione uma pasta de base existente.", "Pasta não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var backupDirectory = RestoreOperationRules.ResolveBackupDirectory(folder);
+        if (!Directory.Exists(backupDirectory))
+        {
+            MessageBox.Show(this, $"A pasta não foi encontrada:\n{folder}", "Pasta indisponível", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var fbkFiles = RestoreOperationRules.FindFbkFiles(folder, backupDirectory);
+        if (fbkFiles.Count == 0)
+        {
+            MessageBox.Show(this, $"Nenhum arquivo .FBK foi encontrado em:\n{backupDirectory}", "Nada para restaurar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de restaurar.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var plan = new List<RestorePlanItem>(RestoreOperationRules.BuildPlan(fbkFiles));
+        var skipped = new List<string>();
+        for (var i = 0; i < plan.Count; i++)
+        {
+            if (plan[i].Database is not null) continue;
+            var fileName = Path.GetFileName(plan[i].FbkPath);
+            var choice = AppMessageBox.ShowRestoreDestinationChoice(this, fileName);
+            if (choice is null) { skipped.Add(fileName); plan.RemoveAt(i); i--; continue; }
+            plan[i] = new RestorePlanItem(plan[i].FbkPath, choice, RestoreOperationRules.GetDestinationPath(plan[i].FbkPath, choice));
+        }
+
+        if (plan.Count == 0)
+        {
+            MessageBox.Show(this, "Nenhum arquivo .FBK foi selecionado para restauração.", "Nada para restaurar", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        var duplicates = RestoreOperationRules.GetDuplicateDestinations(plan);
+        if (duplicates.Count > 0)
+        {
+            MessageBox.Show(this,
+                "Mais de um .FBK será restaurado para o mesmo destino:\n\n" + string.Join("\n", duplicates) + "\n\nRenomeie os arquivos ou ajuste a escolha e tente novamente.",
+                "Destino duplicado", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+
+        var existing = plan.Select(item => item.DestinationPath).Where(File.Exists).ToList();
+        if (existing.Count > 0)
+        {
+            var answer = MessageBox.Show(this,
+                "Os arquivos .FDB já existem e serão substituídos:\n\n" + string.Join("\n", existing) + "\n\nDeseja continuar?",
+                "Confirmar substituição", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2);
+            if (answer != DialogResult.Yes) return;
+        }
+
+        _restoreRunning = true;
+        _restoreCancellation = new CancellationTokenSource();
+        _pendingRestoreRegistryFolder = null;
+        _restoreFolder.Enabled = false;
+        _restoreBrowseButton.Enabled = false;
+        _restoreButton.Enabled = false;
+        _restoreCancelButton.Visible = true;
+        PrepareRestoreLogs(plan, folder);
+        if (IsAppInBackground())
+            ShowBackgroundNotification("Restauração iniciada", $"Restaurando {plan.Count} base(s) em segundo plano…");
+        var token = _restoreCancellation.Token;
+        try
+        {
+            AppendRestoreLog($"Iniciando restauração de {plan.Count} base(s) a partir de {backupDirectory}");
+            if (string.Equals(backupDirectory, folder, StringComparison.OrdinalIgnoreCase))
+                AppendRestoreLog("Subpasta BKP não encontrada; usando a pasta selecionada.");
+            if (skipped.Count > 0) AppendRestoreLog("Ignorados: " + string.Join(", ", skipped));
+            var hasArqFbk = plan.Any(item => RestoreOperationRules.FindArqFolderName(item.FbkPath, folder) is not null);
+            if (hasArqFbk)
+                AppendRestoreLog("Estrutura multi-base detectada nas pastas ARQ##; cada aba identifica a pasta da base.");
+            else if (MultiBaseOperationRules.IsMultiBase(folder))
+                AppendRestoreLog("Atenção: a pasta tem ARQ##, mas nenhum .FBK foi encontrado dentro dessas pastas; os .FDB serão criados ao lado dos .FBK.");
+
+            var tasks = plan.Select(async item =>
+            {
+                void ItemLog(string message) => AppendRestoreLog(item, message);
+                ItemLog($"Restaurando {Path.GetFileName(item.FbkPath)} → {item.DestinationPath}");
+                try
+                {
+                    await RestoreDatabaseAsync(item, token, ItemLog, _password.Text);
+                    ItemLog($"{item.Database}: restauração concluída.");
+                    return (Item: item, Error: (string?)null);
+                }
+                catch (Exception ex) when (ex is OperationCanceledException)
+                {
+                    ItemLog($"{item.Database}: cancelada.");
+                    return (Item: item, Error: "cancelada");
+                }
+                catch (Exception ex)
+                {
+                    ItemLog($"{item.Database}: ERRO — {ex.Message}");
+                    return (Item: item, Error: ex.Message);
+                }
+            }).ToList();
+
+            var results = await Task.WhenAll(tasks);
+            await CompleteRestoreAsync(plan, results, token.IsCancellationRequested, folder);
+        }
+        catch (Exception ex)
+        {
+            AppendRestoreLog("ERRO: " + ex.Message);
+            AppLogger.Error("Restauração", ex.Message, ex);
+            if (IsAppInBackground())
+                ShowBackgroundNotification("Falha na restauração", "Não foi possível concluir a restauração: " + ex.Message + "\nAbra o SupraKit para ver o log.", ToastNotifier.NotificationSound.Error);
+            else
+                MessageBox.Show(this, ex.Message, "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+        finally
+        {
+            _restoreCancellation?.Dispose();
+            _restoreCancellation = null;
+            _restoreRunning = false;
+            RefreshTrayTooltip();
+            _restoreFolder.Enabled = true;
+            _restoreBrowseButton.Enabled = true;
+            _restoreButton.Enabled = true;
+            _restoreCancelButton.Visible = false;
+        }
+    }
+
+    /// <summary>
+    /// Finaliza a restauração: em segundo plano notifica sucesso/erro e guarda a pergunta do
+    /// Registro para quando a janela voltar; com a janela aberta, mantém os diálogos normais.
+    /// </summary>
+    private async Task CompleteRestoreAsync(
+        IReadOnlyList<RestorePlanItem> plan,
+        (RestorePlanItem Item, string? Error)[] results,
+        bool cancelled,
+        string folder)
+    {
+        var failures = results.Where(result => result.Error is not null).ToList();
+        var succeeded = results.Length - failures.Count;
+        var inBackground = IsAppInBackground();
+
+        if (cancelled)
+            AppendRestoreLog("Restauração cancelada.");
+        else if (failures.Count == 0)
+            AppendRestoreLog("Restauração concluída com sucesso.");
+        else
+            AppendRestoreLog($"Restauração concluída com {failures.Count} falha(s): " + string.Join(", ", failures.Select(failure => failure.Item.Database)));
+
+        string? restoredFolder = null;
+        string? structureWarning = null;
+        if (!cancelled && succeeded > 0)
+        {
+            var multiBase = MultiBaseOperationRules.IsMultiBase(folder);
+            // No multi-base o Registro aponta para a raiz da SL (igual à tela Alterar base),
+            // nunca para a pasta ARQ## onde estava o .FBK.
+            restoredFolder = multiBase
+                ? Path.GetFullPath(folder)
+                : Path.GetDirectoryName(plan[0].DestinationPath)!;
+
+            if (multiBase && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)))
+            {
+                structureWarning = $"A pasta tem a estrutura multi-base (pastas ARQ##), mas a pasta ARQ00 não existe:\n{MultiBaseOperationRules.GetCompanyDirectory(restoredFolder)}\n\nSem a ARQ00 o sistema não teria para onde apontar a EMPRESA. O Registro não foi alterado.";
+                AppendRestoreLog("Atenção: " + structureWarning.Replace("\n", " "));
+                restoredFolder = null;
+            }
+        }
+
+        if (inBackground)
+        {
+            if (cancelled)
+                ShowBackgroundNotification("Restauração cancelada", "A restauração foi cancelada. Abra o SupraKit para ver o log.", ToastNotifier.NotificationSound.Error);
+            else if (succeeded == 0)
+                ShowBackgroundNotification("Falha na restauração", $"Nenhuma base foi restaurada ({failures.Count} falha(s)). Abra o SupraKit para ver o log.", ToastNotifier.NotificationSound.Error);
+            else if (structureWarning is not null)
+                ShowBackgroundNotification("Estrutura multi-base incompleta", "A pasta ARQ00 não existe; o Registro não foi alterado. Abra o SupraKit para ver o log.", ToastNotifier.NotificationSound.Error);
+            else
+            {
+                _pendingRestoreRegistryFolder = restoredFolder;
+                var detail = failures.Count == 0
+                    ? $"{succeeded} base(s) restaurada(s) com sucesso."
+                    : $"{succeeded} base(s) restaurada(s), {failures.Count} falha(s).";
+                ShowBackgroundNotification("Restauração concluída", detail + "\nAbra o SupraKit para decidir se quer apontar o Registro para a pasta.",
+                    failures.Count == 0 ? ToastNotifier.NotificationSound.Success : ToastNotifier.NotificationSound.Error);
+            }
+            return;
+        }
+
+        if (structureWarning is not null)
+            MessageBox.Show(this, structureWarning, "Estrutura multi-base incompleta", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        else if (restoredFolder is not null)
+        {
+            var answer = MessageBox.Show(this,
+                $"Restauração concluída.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{restoredFolder}?",
+                "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+            if (answer == DialogResult.Yes) await UpdateRegistryForFolderAsync(restoredFolder, AppendRestoreLog);
+        }
+
+        if (cancelled)
+        {
+            // O cancelamento já foi registrado no log; nenhum diálogo adicional.
+        }
+        else if (failures.Count == 0)
+        {
+            MessageBox.Show(this, $"{results.Length} base(s) restaurada(s) com sucesso.", "Restauração concluída", MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        else
+        {
+            MessageBox.Show(this, "A restauração terminou com falhas. Veja o log para detalhes.", "Falha na restauração", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+        }
+    }
+
+    /// <summary>Responde, ao reabrir a janela, à pergunta do Registro que ficou pendente em segundo plano.</summary>
+    private async void FlushPendingRestorePrompt()
+    {
+        var folder = _pendingRestoreRegistryFolder;
+        if (string.IsNullOrWhiteSpace(folder) || IsAppInBackground() || IsDisposed || !IsHandleCreated) return;
+        _pendingRestoreRegistryFolder = null;
+
+        var answer = MessageBox.Show(this,
+            $"A restauração terminou em segundo plano.\n\nDeseja atualizar o Registro para apontar para a pasta:\n{folder}?",
+            "Apontar Registro", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        if (answer != DialogResult.Yes) return;
+
+        try
+        {
+            await UpdateRegistryForFolderAsync(folder, AppendRestoreLog);
+        }
+        catch (Exception ex)
+        {
+            AppendRestoreLog("ERRO ao atualizar o Registro: " + ex.Message);
+            MessageBox.Show(this, $"Não foi possível alterar a base no Registro:\n{ex.Message}", "Falha ao alterar base", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private async Task RestoreDatabaseAsync(RestorePlanItem item, CancellationToken token, Action<string> log, string password)
+    {
+        var connectionString = BuildFirebirdServiceConnectionString(item.DestinationPath, password);
+        var replace = File.Exists(item.DestinationPath);
+        var backupFile = new FbBackupFile(Path.GetFullPath(item.FbkPath), null);
+
+        // Executa o gbak em uma thread de worker: nem a conexão com o serviço Firebird,
+        // nem o processamento das mensagens de saída rodam na thread da interface.
+        await Task.Run(async () =>
+        {
+            var restore = new FbRestore(connectionString)
+            {
+                Options = replace ? FbRestoreFlags.Replace : FbRestoreFlags.Create,
+                Verbose = true
+            };
+            restore.ServiceOutput += (_, args) => log(args.Message);
+            restore.BackupFiles.Add(backupFile);
+            await restore.ExecuteAsync(token).ConfigureAwait(false);
+        }, token).ConfigureAwait(false);
+    }
+
+    private string BuildFirebirdServiceConnectionString(string databasePath, string password)
+    {
+        var builder = new FbConnectionStringBuilder
+        {
+            DataSource = "localhost",
+            Database = Path.GetFullPath(databasePath),
+            UserID = "SYSDBA",
+            Password = password,
+            Charset = "UTF8",
+            Pooling = false,
+            ServerType = FbServerType.Default
+        };
+        return builder.ToString();
+    }
+
+    private void AppendRestoreLog(string message) => AppendToRestoreLogs(null, message);
+
+    private void AppendRestoreLog(RestorePlanItem item, string message) => AppendToRestoreLogs(item, message);
+
+    /// <summary>Sem item, a mensagem vai para todos os logs; com item, só para a aba daquela base.</summary>
+    private void AppendToRestoreLogs(RestorePlanItem? item, string message)
+    {
+        var line = $"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}";
+        RestoreLogTarget[] targets;
+        lock (_restoreLogTargetsLock)
+        {
+            targets = item is null
+                ? _restoreLogTargets.ToArray()
+                : _restoreLogTargets.Where(target => ReferenceEquals(target.Item, item)).ToArray();
+        }
+        if (targets.Length == 0) return;
+        foreach (var target in targets) EnqueueRestoreLog(target, line);
+    }
+
+    private void EnqueueRestoreLog(RestoreLogTarget target, string line)
+    {
+        if (target.Box.IsDisposed) return;
+        if (!target.Box.InvokeRequired)
+        {
+            FlushRestoreLog(target);
+            target.Box.AppendText(line);
+            return;
+        }
+
+        target.Pending.Enqueue(line);
+        if (Interlocked.Exchange(ref target.FlushScheduled, 1) != 0) return;
+        try { target.Box.BeginInvoke(new Action(() => FlushRestoreLog(target))); }
+        catch { Interlocked.Exchange(ref target.FlushScheduled, 0); }
+    }
+
+    /// <summary>Descarrega as linhas pendentes de um log de uma só vez na thread da UI.</summary>
+    private void FlushRestoreLog(RestoreLogTarget target)
+    {
+        Interlocked.Exchange(ref target.FlushScheduled, 0);
+        if (target.Box.IsDisposed || target.Pending.IsEmpty) return;
+
+        var text = new StringBuilder();
+        while (target.Pending.TryDequeue(out var line)) text.Append(line);
+        target.Box.AppendText(text.ToString());
+        target.Box.SelectionStart = target.Box.TextLength;
+        target.Box.ScrollToCaret();
+    }
+
+    /// <summary>
+    /// Prepara os logs para uma nova restauração: com um único .FBK mantém o log simples;
+    /// com vários, cria uma aba por base ("ARQSIST", "ARQEMP"...; no multi-base "ARQ## - BASE").
+    /// </summary>
+    private void PrepareRestoreLogs(IReadOnlyList<RestorePlanItem> plan, string root)
+    {
+        ClearRestoreLogs();
+        lock (_restoreLogTargetsLock)
+        {
+            _restoreLogTargets.Clear();
+            var oldPages = new List<TabPage>();
+            foreach (TabPage page in _restoreLogTabs.TabPages) oldPages.Add(page);
+            foreach (var page in oldPages) page.Dispose();
+            _restoreLogTabs.TabPages.Clear();
+
+            if (plan.Count <= 1)
+            {
+                _restoreLogTargets.Add(new RestoreLogTarget { Item = plan.FirstOrDefault(), Box = _restoreLog });
+                _restoreLogTabs.Visible = false;
+                _restoreLog.Visible = true;
+                _restoreLog.BringToFront();
+                return;
+            }
+
+            var used = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var item in plan)
+            {
+                var name = RestoreOperationRules.GetTabName(item, root);
+                if (!used.Add(name))
+                {
+                    var suffix = 2;
+                    while (!used.Add($"{name} ({suffix})")) suffix++;
+                    name = $"{name} ({suffix})";
+                }
+                var page = new TabPage(name) { BackColor = _settings.DarkMode ? Color.FromArgb(34, 42, 55) : Color.White };
+                var box = CreateRestoreLogBox();
+                page.Controls.Add(box);
+                _restoreLogTabs.TabPages.Add(page);
+                _restoreLogTargets.Add(new RestoreLogTarget { Item = item, Box = box });
+            }
+            _restoreLog.Visible = false;
+            _restoreLogTabs.Visible = true;
+            _restoreLogTabs.SelectedIndex = 0;
+            _restoreLogTabs.BringToFront();
+        }
+    }
+
+    private ThemedTextBox CreateRestoreLogBox()
+    {
+        var dark = _settings.DarkMode;
+        return new ThemedTextBox
+        {
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Vertical,
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.None,
+            BackColor = dark ? DarkMemo : Color.White,
+            ForeColor = dark ? DarkMemoText : Ink,
+            Font = new Font("Consolas", 10f)
+        };
+    }
+
+    private void ClearRestoreLogs()
+    {
+        RestoreLogTarget[] targets;
+        lock (_restoreLogTargetsLock) targets = _restoreLogTargets.ToArray();
+        foreach (var target in targets)
+        {
+            while (target.Pending.TryDequeue(out _)) { }
+            if (target.Box.IsDisposed) continue;
+            if (target.Box.InvokeRequired)
+            {
+                try { target.Box.BeginInvoke(new Action(() => target.Box.Clear())); }
+                catch { /* controle já descartado */ }
+            }
+            else target.Box.Clear();
+        }
+        if (_restoreLogTargets.Count == 0) _restoreLog.Clear();
+    }
+
+    private static DataGridView CreateUpdateSicGrid()
+    {
+        var grid = new DataGridView
+        {
+            Dock = DockStyle.Fill,
+            BorderStyle = BorderStyle.FixedSingle,
+            RowHeadersVisible = false,
+            AllowUserToAddRows = false,
+            AllowUserToDeleteRows = false,
+            AllowUserToResizeRows = false,
+            MultiSelect = false,
+            SelectionMode = DataGridViewSelectionMode.FullRowSelect,
+            AutoGenerateColumns = false,
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            RowTemplate = new DataGridViewRow { Height = 30 }
+        };
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Source", HeaderText = "Caminho de sincronização", DataPropertyName = nameof(UpdateSicEntry.SourceRoot), FillWeight = 34, MinimumWidth = 180 });
+        grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseSource", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Version", HeaderText = "Versão/Nome da pasta", DataPropertyName = nameof(UpdateSicEntry.Version), FillWeight = 14, MinimumWidth = 110 });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "Destination", HeaderText = "Destino", DataPropertyName = nameof(UpdateSicEntry.DestinationRoot), FillWeight = 34, MinimumWidth = 180 });
+        grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseDestination", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
+        grid.Columns.Add(new DataGridViewTextBoxColumn { Name = "FileName", HeaderText = "nome arquivo", DataPropertyName = nameof(UpdateSicEntry.FileName), FillWeight = 28, MinimumWidth = 150 });
+        grid.Columns.Add(new DataGridViewButtonColumn { Name = "BrowseFileName", HeaderText = "…", FillWeight = 4, MinimumWidth = 32, FlatStyle = FlatStyle.Flat, UseColumnTextForButtonValue = true, Text = "…" });
+        grid.Columns.Add(new DataGridViewCheckBoxColumn { Name = "RenameWithVersion", HeaderText = "Renomeia com a versão", DataPropertyName = nameof(UpdateSicEntry.RenameWithVersion), FillWeight = 14, MinimumWidth = 110, FlatStyle = FlatStyle.Flat, ThreeState = false });
+        // Cabeçalho em várias linhas (sem cortar), semibold, aplicado no tema
+        grid.ColumnHeadersHeightSizeMode = DataGridViewColumnHeadersHeightSizeMode.AutoSize;
+        foreach (DataGridViewColumn column in grid.Columns)
+        {
+            column.HeaderCell.Style.WrapMode = DataGridViewTriState.True;
+            column.HeaderCell.Style.Alignment = DataGridViewContentAlignment.MiddleLeft;
+            column.HeaderCell.Style.Padding = new Padding(4, 2, 4, 2);
+        }
+        return grid;
+    }
+
+    private Control BuildUpdateSicView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 4, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 78));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 0));
+        page.Controls.Add(BuildHeader("Atualização de executáveis", "Baixe, extraia e aplique os executáveis configurados",
+            "• Cada executável configurado na tela de caminhos é baixado e extraído na origem informada.\r\n" +
+            "• Clique em Atualizar executáveis para rodar todas as linhas da configuração.\r\n" +
+            "• Para gerenciar a lista, abra Atualização > Configurar caminhos."), 0, 0);
+
+        var summaryCard = Card();
+        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s)";
+        _updateSicSummaryLabel.Location = new Point(18, 0);
+        _updateSicSummaryLabel.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _updateSicSummaryLabel.AutoSize = true;
+        summaryCard.Controls.Add(_updateSicSummaryLabel);
+
+        _updateSicButton.Size = new Size(220, 32);
+        _updateSicButton.Location = new Point(18, 22);
+        _updateSicButton.FlatAppearance.BorderSize = 0;
+        _updateSicButton.Font = UiTypography.BodySemibold(9f);
+        summaryCard.Controls.Add(_updateSicButton);
+        page.Controls.Add(summaryCard, 0, 1);
+
+        var logCard = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da atualização", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _updateSicLog.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        logCard.Controls.Add(_updateSicLog);
+        logCard.Controls.Add(heading);
+        page.Controls.Add(logCard, 0, 2);
+
+        _updateSicProgressStatus.Location = new Point(2, 0);
+        _updateSicProgress.Location = new Point(2, 24);
+        _updateSicProgress.Controls.Add(_updateSicProgressFill);
+        _updateSicProgress.Resize += (_, _) => UpdateUpdateSicProgressFillWidth();
+        _updateSicProgressRow.Resize += (_, _) => _updateSicProgress.Width = Math.Max(100, _updateSicProgressRow.ClientSize.Width - 4);
+        _updateSicProgressRow.Controls.Add(_updateSicProgressStatus);
+        _updateSicProgressRow.Controls.Add(_updateSicProgress);
+        page.Controls.Add(_updateSicProgressRow, 0, 3);
+
+        return page;
+    }
+
+    private static string StripKnownExtensions(string fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return string.Empty;
+
+        var stem = fullName;
+        for (var i = 0; i < 8; i++)
+        {
+            var ext = Path.GetExtension(stem);
+            if (ext.Length == 0) break;
+            if (!IsKnownFileExtension(ext)) break;
+            stem = Path.GetFileNameWithoutExtension(stem);
+        }
+        return stem;
+
+        static bool IsKnownFileExtension(string ext) =>
+            ext.Equals(".exe", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".zip", StringComparison.OrdinalIgnoreCase)
+            || ext.Equals(".rar", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RefreshUpdateSicSummary()
+    {
+        _updateSicSummaryLabel.Text = $"{_updateSicRows.Count} executável(is) configurado(s) — gerencie em Atualização › Configurar caminhos";
+    }
+
+    private Control BuildConfigureSicView()
+    {
+        var page = new TableLayoutPanel { Dock = DockStyle.Fill, ColumnCount = 1, RowCount = 3, Padding = new Padding(26, 20, 26, 20) };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 85));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+        page.Controls.Add(BuildHeader("Configurar caminhos", "Gerencie os executáveis baixados e extraídos pela tela de atualização",
+            "• Toda linha da tabela é um executável a baixar e atualizar com o botão Atualização de executáveis.\r\n" +
+            "• Use os botões com três pontos (…) ao lado de Origem/Destino para escolher a pasta, ou o botão ao lado de nome arquivo para escolher qualquer arquivo.\r\n" +
+            "• Ao escolher o arquivo, apenas o nome do arquivo fica na coluna, sem a extensão (ex.: SIC.exe → SIC).\r\n" +
+            "• Clique com o botão direito na grade para marcar/desmarcar Renomeia com a versão em lote.\r\n" +
+            "• Marque a checkbox no topo para usar um destino único; quando isso acontece, a coluna Destino some."), 0, 0);
+
+        var singleDestCard = Card();
+        _updateSicSingleDestinationCheck.Text = "Usar um único destino para todos os executáveis";
+        _updateSicSingleDestinationCheck.Location = new Point(18, 10);
+        _updateSicSingleDestinationCheck.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+        _updateSicSingleDestination.Location = new Point(18, 36);
+        _updateSicSingleDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        _updateSicSingleDestination.Height = 28;
+        _updateSicSingleDestinationBrowse.Location = new Point(0, 35);
+        singleDestCard.Controls.Add(_updateSicSingleDestinationCheck);
+        singleDestCard.Controls.Add(_updateSicSingleDestination);
+        singleDestCard.Controls.Add(_updateSicSingleDestinationBrowse);
+
+        void LayoutSingleDest()
+        {
+            var available = Math.Max(120, singleDestCard.ClientSize.Width - 18 - _updateSicSingleDestinationBrowse.Width - 24);
+            _updateSicSingleDestination.Width = available;
+            _updateSicSingleDestinationBrowse.Left = singleDestCard.ClientSize.Width - _updateSicSingleDestinationBrowse.Width - 18;
+        }
+        singleDestCard.Resize += (_, _) => LayoutSingleDest();
+        LayoutSingleDest();
+        page.Controls.Add(singleDestCard, 0, 1);
+
+        var tableCard = Card();
+        var topPanel = new Panel { Dock = DockStyle.Top, Height = 46 };
+        var tableHeader = new Label { Text = "Executáveis a baixar", AutoSize = true, ForeColor = Ink, Font = UiTypography.BodySemibold(11f), Location = new Point(18, 11) };
+        topPanel.Controls.Add(tableHeader);
+        tableCard.Controls.Add(topPanel);
+
+        _updateSicGrid.Dock = DockStyle.Fill;
+        _updateSicGrid.Margin = new Padding(12, 0, 12, 12);
+        tableCard.Controls.Add(_updateSicGrid);
+        _updateSicGrid.BringToFront();
+        _updateSicGrid.DataSource = _updateSicRows;
+
+        tableCard.Resize += (_, _) =>
+        {
+            _updateSicAddRow.Left = topPanel.ClientSize.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
+            _updateSicAddRow.Top = 7;
+            _updateSicAddRow.Size = new Size(170, 32);
+            _updateSicRemoveRow.Left = topPanel.ClientSize.Width - _updateSicRemoveRow.Width - 14;
+            _updateSicRemoveRow.Top = 7;
+            _updateSicRemoveRow.Size = new Size(165, 32);
+        };
+
+        _updateSicAddRow.Size = new Size(170, 32);
+        _updateSicAddRow.Location = new Point(0, 7);
+        _updateSicRemoveRow.Size = new Size(165, 32);
+        _updateSicRemoveRow.Location = new Point(0, 7);
+        topPanel.Controls.Add(_updateSicAddRow);
+        topPanel.Controls.Add(_updateSicRemoveRow);
+
+        _updateSicAddRow.Left = topPanel.Width - _updateSicAddRow.Width - _updateSicRemoveRow.Width - 26;
+        _updateSicRemoveRow.Left = topPanel.Width - _updateSicRemoveRow.Width - 14;
+
+        var contextMenu = new ContextMenuStrip { ShowImageMargin = false };
+        contextMenu.Items.Add("Renomear todos os exes", null, (_, _) => SetAllUpdateSicRename(true));
+        contextMenu.Items.Add("Não renomear os exes", null, (_, _) => SetAllUpdateSicRename(false));
+        _updateSicGrid.ContextMenuStrip = contextMenu;
+
+        _updateSicGrid.CellContentClick += (_, args) =>
+        {
+            if (args.RowIndex < 0) return;
+            var columnName = _updateSicGrid.Columns[args.ColumnIndex].Name;
+            var entry = _updateSicRows[args.RowIndex];
+            switch (columnName)
+            {
+                case "BrowseSource" or "BrowseDestination":
+                    {
+                        var isSource = columnName == "BrowseSource";
+                        var seed = (isSource ? entry.SourceRoot : entry.DestinationRoot).Trim();
+                        using var dialog = new FolderBrowserDialog { Description = isSource ? "Selecione a pasta-raiz (origem)" : "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
+                        if (dialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            if (isSource) entry.SourceRoot = dialog.SelectedPath; else entry.DestinationRoot = dialog.SelectedPath;
+                            _updateSicGrid.Refresh();
+                            SyncUpdateSicEntriesFromGrid();
+                            QueueSettingsSave();
+                        }
+                        break;
+                    }
+                case "BrowseFileName":
+                    {
+                        using var dialog = new OpenFileDialog
+                        {
+                            Title = "Selecione o arquivo",
+                            Filter = "Todos os arquivos (*.*)|*.*",
+                            FilterIndex = 1,
+                            Multiselect = false,
+                            CheckFileExists = true
+                        };
+                        if (dialog.ShowDialog(this) == DialogResult.OK)
+                        {
+                            entry.FileName = StripKnownExtensions(Path.GetFileName(dialog.FileName));
+                            _updateSicGrid.Refresh();
+                            SyncUpdateSicEntriesFromGrid();
+                            QueueSettingsSave();
+                        }
+                        break;
+                    }
+            }
+        };
+
+        if (_updateSicGrid.Columns["RenameWithVersion"] is { } renameCol)
+            renameCol.DefaultCellStyle.Alignment = DataGridViewContentAlignment.MiddleCenter;
+
+        page.Controls.Add(tableCard, 0, 2);
+        return page;
+    }
+
+    private void SetAllUpdateSicRename(bool value)
+    {
+        _updateSicGrid.EndEdit();
+        foreach (var entry in _updateSicRows) entry.RenameWithVersion = value;
+        _updateSicGrid.Refresh();
+        SyncUpdateSicEntriesFromGrid();
+        QueueSettingsSave();
+    }
+
+    private void ShowUpdateSicView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = true;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.FromArgb(231, 240, 255);
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
+        AcceptButton = _updateSicRunning ? null : _updateSicButton;
+        ApplyNavigationColors();
+        _updateSicButton.Focus();
+    }
+
+    private void ShowConfigureSicView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = true;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.FromArgb(231, 240, 255);
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
+        AcceptButton = null;
+        ApplyNavigationColors();
+        _updateSicGrid.Focus();
+    }
+
+    private void BrowseUpdateSicFolder(string kind)
+    {
+        if (kind != "singleDestination") return;
+        var seed = _updateSicSingleDestination.Text.Trim();
+        using var dialog = new FolderBrowserDialog { Description = "Selecione a pasta de destino", ShowNewFolderButton = false, SelectedPath = seed };
+        if (dialog.ShowDialog(this) == DialogResult.OK)
+        {
+            _updateSicSingleDestination.Text = dialog.SelectedPath;
+            try { PersistSettings(); }
+            catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar a configuração: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+        }
+    }
+
+    private static string? NormalizeVersionTag(string raw)
+    {
+        var s = (raw ?? "").Trim();
+        if (s.Length == 0) return null;
+        var sb = new System.Text.StringBuilder(s.Length);
+        foreach (var c in s)
+        {
+            if (char.IsLetterOrDigit(c) || c == '_') sb.Append(c);
+        }
+        var tag = sb.ToString();
+        return tag.Length == 0 ? null : tag;
+    }
+
+    // Renomeia o destino de um .exe extraído para a raiz do destino (só vale quando o arquivo vem direto para a pasta de destino).
+    // Aplica a regra "Renomeia com a versão" já na gravação, evitando um estado intermediário com o nome original.
+    private static string? RenameExtractionTarget(string target, string destinationRoot, string tag)
+    {
+        if (!string.Equals(Path.GetExtension(target), ".exe", StringComparison.OrdinalIgnoreCase)) return null;
+
+        var normalizedRoot = Path.GetFullPath(destinationRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var parentDir = Path.GetDirectoryName(target) ?? string.Empty;
+        parentDir = parentDir.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+        if (!string.Equals(parentDir, normalizedRoot, StringComparison.OrdinalIgnoreCase)) return null;
+
+        var stem = Path.GetFileNameWithoutExtension(target) ?? string.Empty;
+        if (stem.Length == 0) return null;
+
+        var suffix = "_" + tag;
+        if (stem.EndsWith(suffix, StringComparison.OrdinalIgnoreCase)) return target;
+
+        return Path.Combine(parentDir, stem + suffix + ".exe");
+    }
+
+    private async Task UpdateSicAsync()
+    {
+        if (_updateSicRunning) return;
+        ReadFields();
+        var singleDestination = _updateSicSingleDestination.Text.Trim();
+        var singleDestinationEnabled = _updateSicSingleDestinationCheck.Checked;
+
+        var rows = _updateSicRows.ToList();
+        if (rows.Count == 0)
+        {
+            FlowNotify("Nada a atualizar", "Adicione pelo menos um executável à tabela antes de prosseguir.");
+            return;
+        }
+
+        var errors = new List<UpdateSicOperationRules.UpdateSicValidationIssue>();
+        for (var i = 0; i < rows.Count; i++)
+        {
+            UpdateSicOperationRules.ValidateEntry(rows[i], singleDestination, singleDestinationEnabled, i, errors);
+        }
+        if (errors.Count > 0)
+        {
+            var detail = string.Join(Environment.NewLine, errors.Select(e => e.Message));
+            FlowNotify("Configuração incompleta", "Corrija os problemas abaixo antes de rodar a atualização:\n\n" + detail, error: true);
+            return;
+        }
+
+        var plan = new List<(UpdateSicEntry row, string zipPath, string destination)>();
+        foreach (var row in rows)
+        {
+            if (!UpdateSicOperationRules.TryResolveExecutableZip(row.SourceRoot, row.Version, row.FileName, out var zipPath, out var error))
+            {
+                errors.Add(new UpdateSicOperationRules.UpdateSicValidationIssue { Row = rows.IndexOf(row), Message = $"Linha {rows.IndexOf(row) + 1}: {error}" });
+                continue;
+            }
+            var destination = singleDestinationEnabled ? singleDestination : row.DestinationRoot.Trim();
+            if (!Directory.Exists(destination)) Directory.CreateDirectory(destination);
+            plan.Add((row, zipPath, destination));
+        }
+        if (errors.Count > 0)
+        {
+            var detail = string.Join(Environment.NewLine, errors.Select(e => e.Message));
+            FlowNotify("Arquivos não encontrados", "Não foi possível localizar arquivos/pastas:\n\n" + detail, error: true);
+            return;
+        }
+
+        if (!_backgroundTrayRun)
+        {
+            var answer = MessageBox.Show(this,
+                "Deseja atualizar os executáveis?\n\nOs executáveis serão substituídos se já existirem.\n\nDeseja continuar?",
+                "Atualizar executáveis", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1);
+            if (answer != DialogResult.Yes) return;
+        }
+
+        _updateSicRunning = true;
+        if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
+        {
+            ShowBackgroundNotification("Atualização iniciada", $"Atualizando {plan.Count} executável(is) configurado(s)…");
+        }
+        _updateSicCancellation = new CancellationTokenSource();
+        _updateSicGrid.Enabled = false;
+        _updateSicAddRow.Enabled = false;
+        _updateSicRemoveRow.Enabled = false;
+        _updateSicSingleDestination.Enabled = false;
+        _updateSicSingleDestinationCheck.Enabled = false;
+        _updateSicSingleDestinationBrowse.Enabled = false;
+        _updateSicButton.Enabled = false;
+        _updateSicCancelButton.Visible = true;
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = false;
+        _updateSicLog.Clear();
+        var token = _updateSicCancellation.Token;
+        var failures = new List<(string File, string Reason)>();
+        long totalBytes = 0;
+        foreach (var (row, zipPath, _) in plan)
+        {
+            try
+            {
+                using var za = ZipFile.OpenRead(zipPath);
+                foreach (var entry in za.Entries) totalBytes += entry.Length;
+            }
+            catch { /* estimativa: se o zip não abrir, a barra vai até 100% ao final do arquivo */ }
+        }
+        _updateSicTotalBytes = Math.Max(totalBytes, 1);
+        _updateSicBytesDone = 0;
+        ShowUpdateSicProgress(true);
+        SetUpdateSicProgress("Preparando a atualização…");
+        try
+        {
+            AppendUpdateSicLog($"Iniciando atualização de {plan.Count} executável(is)");
+            foreach (var (row, zipPath, destination) in plan)
+            {
+                token.ThrowIfCancellationRequested();
+                var zipName = Path.GetFileName(zipPath);
+                try
+                {
+                    var tag = row.RenameWithVersion ? NormalizeVersionTag(row.Version) : null;
+                    if (row.RenameWithVersion && tag is null)
+                        AppendUpdateSicLog($"Renomeamento ignorado para {row.FileName}: versão inválida (esperado apenas letras/dígitos/_ ou vazio).");
+
+                    AppendUpdateSicLog($"Extraindo {zipName} (direto da origem)…");
+                    using var archive = ZipFile.OpenRead(zipPath);
+                    foreach (var entry in archive.Entries)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        var target = ArchivePathSafety.GetSafeEntryPath(destination, entry.FullName);
+                        if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
+                        if (tag is not null)
+                        {
+                            var renamed = RenameExtractionTarget(target, destination, tag);
+                            if (renamed is not null && !string.Equals(renamed, target, StringComparison.OrdinalIgnoreCase))
+                            {
+                                target = renamed;
+                                AppendUpdateSicLog($"Extraindo como {Path.GetFileName(target)} (a renomear com a versão).");
+                            }
+                        }
+                        Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                        await using var input = entry.Open();
+                        await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                        var buffer = new byte[1024 * 1024];
+                        long bytesRead;
+                        while ((bytesRead = await input.ReadAsync(buffer, 0, buffer.Length, token)) > 0)
+                        {
+                            await output.WriteAsync(buffer.AsMemory(0, (int)bytesRead), token);
+                            _updateSicBytesDone += bytesRead;
+                            SetUpdateSicProgress($"Extraindo {zipName}…");
+                        }
+                    }
+                    AppendUpdateSicLog($"{zipName}: executável atualizado em {destination}.");
+                }
+                catch (OperationCanceledException)
+                {
+                    throw; // cancelamento do usuário encerra a operação inteira
+                }
+                catch (Exception ex)
+                {
+                    failures.Add((zipName, ex.Message));
+                    AppendUpdateSicLog($"{zipName}: ERRO — {ex.Message} — AVISO e seguindo para o próximo arquivo.");
+                }
+            }
+
+            // O renomear com a versão é feito diretamente na extração (ver linha acima).
+
+            _updateSicBytesDone = _updateSicTotalBytes; // força a barra chegar em 100%
+            SetUpdateSicProgress("Concluído.");
+            if (failures.Count == 0)
+            {
+                AppendUpdateSicLog("Atualização concluída com sucesso.");
+                FlowNotify("Atualização executáveis", "Os executáveis foram atualizados.");
+            }
+            else
+            {
+                var detail = string.Join("\n", failures.Select(failure => $"• {failure.File}"));
+                AppendUpdateSicLog($"Concluído com {failures.Count} falha(s): {string.Join(" | ", failures.Select(f => $"{f.File}: {f.Reason}"))}.");
+                FlowNotify("Atualização incompleta",
+                    $"Não foram atualizados {failures.Count} executável(is):\n\n{detail}\n\nVeja o log na tela Atualização de executáveis para mais detalhes.",
+                    error: true);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            AppendUpdateSicLog("Atualização cancelada a seu pedido.");
+        }
+        catch (Exception ex)
+        {
+            AppendUpdateSicLog("ERRO: " + ex.Message);
+            FlowNotify("Falha ao atualizar o SIC", ex.Message, error: true);
+        }
+        finally
+        {
+            ShowUpdateSicProgress(false);
+            _updateSicCancellation?.Dispose();
+            _updateSicCancellation = null;
+            _updateSicRunning = false;
+            _trayShortStatus = null;
+            RefreshTrayTooltip();
+            _updateSicGrid.Enabled = true;
+            _updateSicAddRow.Enabled = true;
+            _updateSicRemoveRow.Enabled = true;
+            _updateSicSingleDestination.Enabled = _updateSicSingleDestinationCheck.Checked;
+            _updateSicSingleDestinationCheck.Enabled = true;
+            _updateSicSingleDestinationBrowse.Enabled = _updateSicSingleDestinationCheck.Checked;
+            _updateSicButton.Enabled = true;
+            _updateSicCancelButton.Visible = false;
+            foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) navigation.Enabled = true;
+        }
+    }
+
+    /// <summary>Copia as linhas correntes (operadas pela grade) para a configuração persistida, sem arrastar objetos antigos.</summary>
+    private void SyncUpdateSicEntriesFromGrid()
+    {
+        _settings.UpdateSicSingleDestinationEnabled = _updateSicSingleDestinationCheck.Checked;
+        _settings.UpdateSicSingleDestinationRoot = _updateSicSingleDestination.Text.Trim();
+        _settings.UpdateSicEntries = _updateSicRows
+            .Select(row => new UpdateSicEntry
+            {
+                SourceRoot = (row.SourceRoot ?? "").Trim(),
+                Version = (row.Version ?? "").Trim(),
+                DestinationRoot = (row.DestinationRoot ?? "").Trim(),
+                FileName = (row.FileName ?? "").Trim(),
+                RenameWithVersion = row.RenameWithVersion
+            })
+            .ToList();
+    }
+
+    /// <summary>Hidden helper: lê a configuração e monta a lista editável na grade.</summary>
+    private void LoadUpdateSicRowsFromSettings()
+    {
+        _updateSicRows.Clear();
+        foreach (var entry in _settings.UpdateSicEntries ?? new List<UpdateSicEntry>())
+        {
+            _updateSicRows.Add(new UpdateSicEntry
+            {
+                SourceRoot = entry.SourceRoot ?? "",
+                Version = entry.Version ?? "",
+                DestinationRoot = entry.DestinationRoot ?? "",
+                FileName = entry.FileName ?? "",
+                RenameWithVersion = entry.RenameWithVersion
+            });
+        }
+    }
+
+    private void AddUpdateSicRow()
+    {
+        _updateSicRows.Add(new UpdateSicEntry { RenameWithVersion = false });
+        RefreshUpdateSicSummary();
+        if (_updateSicGrid.Rows.Count > 0)
+        {
+            var row = _updateSicGrid.Rows[_updateSicGrid.Rows.Count - 1];
+            _updateSicGrid.CurrentCell = row.Cells["FileName"];
+            _updateSicGrid.BeginEdit(true);
+        }
+        SyncUpdateSicEntriesFromGrid();
+        QueueSettingsSave();
+    }
+
+    private void RemoveSelectedUpdateSicRows()
+    {
+        var selected = _updateSicGrid.SelectedRows.Cast<DataGridViewRow>().ToList();
+        if (selected.Count == 0)
+        {
+            // fallback: linha corrente quando não há seleção explícita
+            if (_updateSicGrid.CurrentRow is not null) selected.Add(_updateSicGrid.CurrentRow);
+        }
+        foreach (var row in selected.OrderByDescending(r => r.Index))
+        {
+            if (row.DataBoundItem is UpdateSicEntry entry) _updateSicRows.Remove(entry);
+        }
+        RefreshUpdateSicSummary();
+        SyncUpdateSicEntriesFromGrid();
+        QueueSettingsSave();
+    }
+
+    private void UpdateUpdateSicSingleDestinationUI(bool focus = true)
+    {
+        var enabled = _updateSicSingleDestinationCheck.Checked;
+        _updateSicSingleDestination.Enabled = enabled;
+        _updateSicSingleDestinationBrowse.Enabled = enabled;
+        if (_updateSicGrid.Columns["Destination"] is { } destinationCol)
+            destinationCol.Visible = !enabled;
+        // A coluna de botão "…" do destino acompanha a coluna de destino.
+        if (_updateSicGrid.Columns["BrowseDestination"] is { } browseDestinationCol)
+            browseDestinationCol.Visible = !enabled;
+        foreach (DataGridViewRow row in _updateSicGrid.Rows)
+        {
+            var cell = row.Cells["Destination"];
+            if (cell is not null) cell.ReadOnly = enabled;
+        }
+        if (focus) _updateSicSingleDestination.Focus();
+    }
+
+    private static void WireEnterNavigation(Control[] chain, Control? terminal)
+    {
+        for (var i = 0; i < chain.Length; i++)
+        {
+            var target = i < chain.Length - 1 ? chain[i + 1] : terminal;
+            chain[i].KeyDown += (_, e) =>
+            {
+                if (e.KeyCode != Keys.Enter || e.Modifiers != Keys.None) return;
+                e.Handled = true;
+                e.SuppressKeyPress = true;
+                if (target is not null && target.Enabled && target.Visible) target.Focus();
+            };
+        }
+    }
+
+    private void AppendUpdateSicLog(string message)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => AppendUpdateSicLog(message))); return; }
+        _updateSicLog.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _updateSicLog.SelectionStart = _updateSicLog.TextLength;
+        _updateSicLog.ScrollToCaret();
+    }
+
+    private void UpdateUpdateSicProgressFillWidth()
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(UpdateUpdateSicProgressFillWidth)); return; }
+        var width = Math.Max(0, _updateSicProgress.ClientSize.Width - 4);
+        _updateSicProgressFill.Width = Math.Max(0, (int)Math.Round(width * _updateSicProgressPercent / 100d));
+        _updateSicProgressFill.Height = Math.Max(0, _updateSicProgress.ClientSize.Height - 2);
+    }
+
+    private void SetUpdateSicProgress(string status)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => SetUpdateSicProgress(status))); return; }
+        _updateSicProgressPercent = _updateSicTotalBytes == 0 ? 100 : (int)Math.Min(100, _updateSicBytesDone * 100d / _updateSicTotalBytes);
+        _updateSicProgressStatus.Text = status;
+        UpdateUpdateSicProgressFillWidth();
+    }
+
+    private void ShowUpdateSicProgress(bool show)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => ShowUpdateSicProgress(show))); return; }
+        var page = (TableLayoutPanel) _updateSicView;
+        _updateSicProgressRow.Visible = show;
+        _updateSicProgressStatus.Visible = show;
+        _updateSicProgress.Visible = show;
+        page.SuspendLayout();
+        page.RowStyles[3].Height = show ? 56 : 0;
+        page.ResumeLayout(true);
+    }
+
+    private void OpenSelectedBaseFolder()
+    {
+        var folder = _selectedBasePath.Text.Trim();
+        if (folder.Length == 0 || !Directory.Exists(folder))
+        {
+            MessageBox.Show(this, "Selecione uma pasta de base existente na lista.", "Base não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = folder, UseShellExecute = true }); }
+        catch (Exception ex) { AppLogger.Error("Abrir pasta", ex.Message, ex); MessageBox.Show(this, $"Não foi possível abrir a pasta:\n{ex.Message}", "Falha ao abrir pasta", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void ShowChangeBaseView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = true;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.FromArgb(231, 240, 255);
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
+        AcceptButton = _changeBaseButton;
+        RefreshBaseFolders();
+        ApplyNavigationColors();
+        // Só usa o Registro como fallback quando o usuário ainda não escolheu uma pasta nesta sessão.
+        if (_baseFolders.SelectedItems.Count == 0) SelectBaseMatchingRegistry();
+        _ = UpdateChangeBaseVersionAsync(_selectedBasePath.Text);
+        _baseFolders.Focus();
+    }
+
+    private void ShowResetView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = true;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _resetRootLabel.Text = "Pasta local: " + (string.IsNullOrWhiteSpace(_settings.BasesRoot) ? "(não configurada)" : _settings.BasesRoot);
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.FromArgb(231, 240, 255);
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
+        AcceptButton = _resetButton;
+        ApplyNavigationColors();
+        RefreshBaseFolders();
+        SelectResetBaseMatchingRegistry();
+        _resetBaseFolders.Focus();
+    }
+
+    private void ShowRestoreView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = true;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.FromArgb(231, 240, 255);
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
+        AcceptButton = _restoreRunning ? null : _restoreButton;
+        RefreshBaseFolders();
+        ApplyNavigationColors();
+        if (!_restoreRunning) _restoreFolder.Focus();
+    }
+
+    private Control BuildCommandView(string title, TextBox databasePath, RichTextBox editor, RichTextBox output, string databaseName)
+    {
+        var page = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = 5,
+            Padding = new Padding(26, 20, 26, 20)
+        };
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 112));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 58));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 62));
+        page.RowStyles.Add(new RowStyle(SizeType.Percent, 38));
+        page.RowStyles.Add(new RowStyle(SizeType.Absolute, 54));
+        page.Controls.Add(BuildHeader(title, $"Editor SQL para uma base {databaseName}.FDB"), 0, 0);
+
+        var databaseCard = Card();
+        var databaseLabel = new Label { Text = "Base Firebird (.FDB)", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(14, 14) };
+        databasePath.Location = new Point(160, 9);
+        var browse = new RoundedButton
+        {
+            Text = "Procurar",
+            Size = new Size(110, 32),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(31, 111, 235),
+            ForeColor = Color.White,
+            Font = UiTypography.BodySemibold()
+        };
+        browse.FlatAppearance.BorderSize = 0;
+        browse.Location = new Point(databaseCard.ClientSize.Width - browse.Width - 18, 8);
+        databaseCard.Resize += (_, _) => browse.Left = databaseCard.ClientSize.Width - browse.Width - 18;
+        browse.Click += (_, _) => BrowseCommandDatabase(databasePath);
+        if (string.Equals(databaseName, "ARQEMP", StringComparison.Ordinal)) _arqEmpBrowseButton = browse;
+        else if (string.Equals(databaseName, "ARQSIST", StringComparison.Ordinal)) _arqSistBrowseButton = browse;
+        databaseCard.Controls.Add(databaseLabel);
+        databasePath.Size = new Size(Math.Max(120, databaseCard.ClientSize.Width - 160 - browse.Width - 44), 32);
+        databasePath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        databaseCard.Resize += (_, _) => databasePath.Width = Math.Max(120, databaseCard.ClientSize.Width - 160 - browse.Width - 44);
+        databaseCard.Controls.Add(databasePath);
+        databaseCard.Controls.Add(browse);
+        page.Controls.Add(databaseCard, 0, 1);
+
+        page.Controls.Add(BuildEditorCard("Comandos SQL", editor), 0, 2);
+        editor.TextChanged += (_, _) =>
+        {
+            HighlightSql(editor);
+            QueueCommandSettingsSave();
+        };
+
+        page.Controls.Add(BuildEditorCard("Resultado do teste", output), 0, 3);
+
+        var actions = new Panel { Dock = DockStyle.Fill };
+        var testButton = new RoundedButton
+        {
+            Text = "Testar comando",
+            Size = new Size(180, 40),
+            Location = new Point(0, 4),
+            BackColor = Color.FromArgb(31, 111, 235),
+            ForeColor = Color.White,
+            FlatStyle = FlatStyle.Flat,
+            Font = UiTypography.BodySemibold()
+        };
+        testButton.FlatAppearance.BorderSize = 0;
+        testButton.Click += async (_, _) => await TestSqlCommandAsync(databaseName, databasePath, editor, output, testButton);
+        if (string.Equals(databaseName, "ARQEMP", StringComparison.Ordinal)) _arqEmpTestButton = testButton;
+        else if (string.Equals(databaseName, "ARQSIST", StringComparison.Ordinal)) _arqSistTestButton = testButton;
+        actions.Controls.Add(testButton);
+        page.Controls.Add(actions, 0, 4);
+        return page;
+    }
+
+    private Control BuildEditorCard(string title, Control editor)
+    {
+        var card = Card();
+        var heading = new Label { Text = title, AutoSize = true, Font = UiTypography.BodySemibold(11), ForeColor = Ink, Location = new Point(16, 10) };
+        var editorHost = new Panel
+        {
+            Location = new Point(16, 38),
+            Size = new Size(Math.Max(100, card.ClientSize.Width - 50), Math.Max(60, card.ClientSize.Height - 56)),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
+        };
+        editorHost.Controls.Add(editor);
+        editorHost.Resize += (_, _) => editor.Size = editorHost.ClientSize;
+        editor.Dock = DockStyle.Fill;
+        card.Controls.Add(heading);
+        card.Controls.Add(editorHost);
+        card.Resize += (_, _) => editorHost.Size = new Size(Math.Max(100, card.ClientSize.Width - 50), Math.Max(60, card.ClientSize.Height - 56));
+        return card;
+    }
+
+    private static ThemedRichTextBox CreateSqlEditor() => new()
+    {
+        Dock = DockStyle.Fill,
+        Multiline = true,
+        AcceptsTab = true,
+        WordWrap = false,
+        ScrollBars = RichTextBoxScrollBars.Both,
+        BackColor = Color.FromArgb(18, 25, 38),
+        ForeColor = Color.FromArgb(220, 229, 242),
+        BorderStyle = BorderStyle.None,
+        Font = new Font("Consolas", 11f)
+    };
+
+    private static ThemedRichTextBox CreateSqlOutput() => new()
+    {
+        Dock = DockStyle.Fill,
+        Multiline = true,
+        ReadOnly = true,
+        WordWrap = false,
+        ScrollBars = RichTextBoxScrollBars.Both,
+        BackColor = Color.FromArgb(18, 25, 38),
+        ForeColor = Color.FromArgb(220, 229, 242),
+        BorderStyle = BorderStyle.None,
+        Font = new Font("Consolas", 10f)
+    };
+
+    private static void HighlightSql(RichTextBox editor)
+    {
+        var dark = ThemeState.IsDark;
+        var normalColor = dark ? DarkMemoText : Ink;
+        var selectionStart = editor.SelectionStart;
+        var selectionLength = editor.SelectionLength;
+        editor.SuspendLayout();
+        editor.SelectAll();
+        editor.SelectionColor = normalColor;
+        const string pattern = """(?<comment>--[^\r\n]*|/\*[\s\S]*?\*/)|(?<string>'(?:''|[^'])*'|"(?:""|[^"])*")|(?<keyword>\b(?:SELECT|FROM|WHERE|INSERT|INTO|VALUES|UPDATE|SET|DELETE|CREATE|ALTER|DROP|TABLE|VIEW|INDEX|TRIGGER|PROCEDURE|EXECUTE|BLOCK|RETURNS|AS|BEGIN|END|IF|THEN|ELSE|AND|OR|NOT|NULL|IS|IN|JOIN|LEFT|RIGHT|INNER|OUTER|ON|GROUP|BY|ORDER|HAVING|UNION|ALL|DISTINCT|COMMIT|ROLLBACK|GRANT|REVOKE|PRIMARY|KEY|FOREIGN|REFERENCES|CONSTRAINT|DEFAULT|DATABASE|PLAN|ROWS|FIRST|SKIP|CASE|WHEN|CAST|COUNT|SUM|AVG|MIN|MAX|STARTING|WITH|CONTAINING|LIKE|BETWEEN|EXISTS|RETURNING|SUSPEND|DECLARE|VARIABLE|EXCEPTION|MESSAGE|FOR|DO|WHILE|LIST|ASC|DESC|CURRENT_DATE|CURRENT_TIME|CURRENT_TIMESTAMP)\b)|(?<number>\b\d+(?:\.\d+)?\b)""";
+        foreach (Match match in Regex.Matches(editor.Text, pattern, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant))
+        {
+            var group = match.Groups;
+            var color = group["comment"].Success ? (dark ? Color.FromArgb(106, 153, 85) : Color.FromArgb(0, 128, 0))
+                : group["string"].Success ? (dark ? Color.FromArgb(206, 145, 120) : Color.FromArgb(163, 21, 21))
+                : group["keyword"].Success ? (dark ? Color.FromArgb(86, 156, 214) : Color.FromArgb(0, 0, 205))
+                : (dark ? Color.FromArgb(181, 206, 168) : Color.FromArgb(9, 134, 88));
+            editor.Select(match.Index, match.Length);
+            editor.SelectionColor = color;
+        }
+        editor.Select(selectionStart, selectionLength);
+        editor.SelectionColor = normalColor;
+        editor.ResumeLayout();
+    }
+
+    private void BrowseCommandDatabase(TextBox pathField)
+    {
+        using var dialog = new OpenFileDialog
+        {
+            CheckFileExists = true,
+            FileName = pathField.Text,
+            Filter = "Bases Firebird (*.fdb;*.gdb)|*.fdb;*.gdb|Todos os arquivos (*.*)|*.*",
+            Title = "Selecione a base Firebird"
+        };
+        if (dialog.ShowDialog(this) == DialogResult.OK) pathField.Text = dialog.FileName;
+    }
+
+    private async Task TestSqlCommandAsync(string databaseName, TextBox databasePath, RichTextBox editor, RichTextBox output, Button testButton)
+    {
+        var database = databasePath.Text.Trim();
+        var sql = editor.Text.Trim();
+        if (database.Length == 0 || !File.Exists(database))
+        {
+            MessageBox.Show(this, "Selecione um arquivo de base Firebird existente.", "Base não selecionada", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (sql.Length == 0)
+        {
+            MessageBox.Show(this, "Digite um ou mais comandos SQL para testar.", "Comando vazio", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            editor.Focus();
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Informe a senha Firebird na tela Configuração antes de testar comandos.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+            return;
+        }
+        if (MessageBox.Show(this,
+            $"O SQL será executado na base {databaseName}:\n{database}\n\nComandos de alteração podem modificar os dados. Deseja continuar?",
+            "Confirmar execução SQL", MessageBoxButtons.YesNo, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button2) != DialogResult.Yes)
+            return;
+
+        testButton.Enabled = false;
+        output.Clear();
+        AppendCommandOutput(output, $"Conectando em {Path.GetFileName(database)}…");
+        try
+        {
+            var connectionString = BuildFirebirdConnectionString(database);
+            await Task.Run(() =>
+            {
+                using var connection = new FbConnection(connectionString);
+                connection.Open();
+                var script = new FbScript(sql);
+                script.Parse();
+                var batch = new FbBatchExecution(connection);
+                batch.AppendSqlStatements(script);
+                batch.Execute();
+            });
+            AppendCommandOutput(output, "Comandos executados com sucesso.");
+        }
+        catch (Exception ex)
+        {
+            AppendCommandOutput(output, "Não foi possível executar o SQL:");
+            AppendCommandOutput(output, ex.Message);
+        }
+        finally { testButton.Enabled = true; }
+    }
+
+    private static void AppendCommandOutput(RichTextBox output, string message)
+    {
+        output.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        output.SelectionStart = output.TextLength;
+        output.ScrollToCaret();
+    }
+
+    private const int HotKeyIdCopySicPassword = 0x5442; // 'TB'
+    private const int HotKeyIdCopySicDynamicPassword = 0x5443; // 'TC'
+    private const int WmHotKey = 0x0312;
+    private const uint ModAlt = 0x0001;
+    private const uint ModControl = 0x0002;
+    private const uint ModNoRepeat = 0x4000;
+    private const uint VkC = 0x43;
+    private const uint VkX = 0x58;
+
+    private const int MenuCollapsedWidth = 68;
+    private const int MenuExpandedWidth = 300;
+    private const int TrayMenuWidth = 372; // largura do menu da bandeja: comporta o item mais longo ("Copiar senha padrão Empresa" + Ctrl+Alt+X) sem sobreposição
+    private const double MenuAnimationDurationMs = 220;
+    private readonly System.Windows.Forms.Timer _menuAnimationTimer = new() { Interval = 15 };
+    private readonly System.Diagnostics.Stopwatch _menuAnimationClock = new();
+    private int _menuAnimationFromWidth = MenuCollapsedWidth;
+    private int _menuAnimationTargetWidth = MenuCollapsedWidth;
+    private bool _menuAnimationTargetExpanded;
+
+    private void SetMenuExpanded(bool expanded, bool animate = true)
+    {
+        var changed = expanded != _menuExpanded;
+        _menuExpanded = expanded;
+        if (animate && changed && IsHandleCreated)
+        {
+            if (!expanded) ApplyMenuExpansionText(expanded); // rótulos somem imediatamente ao recolher
+            StartMenuAnimation(expanded);
+            return;
+        }
+        ApplyMenuExpansionState(expanded);
+    }
+
+    private void StartMenuAnimation(bool expanded)
+    {
+        _menuAnimationTimer.Stop();
+        _menuAnimationFromWidth = Math.Clamp((int)_shell.ColumnStyles[0].Width, MenuCollapsedWidth, MenuExpandedWidth);
+        _menuAnimationTargetWidth = expanded ? MenuExpandedWidth : MenuCollapsedWidth;
+        _menuAnimationTargetExpanded = expanded;
+        _menuAnimationClock.Restart();
+        _menuAnimationTimer.Start();
+    }
+
+    private void OnMenuAnimationTick(object? sender, EventArgs e)
+    {
+        var progress = Math.Clamp(_menuAnimationClock.Elapsed.TotalMilliseconds / MenuAnimationDurationMs, 0, 1);
+        var eased = 1 - Math.Pow(1 - progress, 3); // ease-out cúbico
+        _shell.ColumnStyles[0].Width = (int)Math.Round(_menuAnimationFromWidth + (_menuAnimationTargetWidth - _menuAnimationFromWidth) * eased);
+        if (progress >= 1)
+        {
+            _menuAnimationTimer.Stop();
+            _shell.ColumnStyles[0].Width = _menuAnimationTargetWidth;
+            ApplyMenuExpansionState(_menuAnimationTargetExpanded, applyWidth: false);
+        }
+    }
+
+    /// <summary>
+    /// Define a altura virtual do menu lateral. O scroll só aparece quando essa altura
+    /// ultrapassa o espaço disponível entre o topo e os rodapés fixos.
+    /// </summary>
+    private void RefreshSidebarScroll()
+    {
+        var total = 0;
+        foreach (Control item in _sidebarScroll.Controls)
+        {
+            if (item.Dock == DockStyle.Top && item.Visible)
+                total += item.Height;
+        }
+        _sidebarScroll.AutoScrollMinSize = new Size(0, total + 4);
+    }
+
+    private void ApplyMenuExpansionState(bool expanded, bool applyWidth = true)
+    {
+        if (applyWidth) _shell.ColumnStyles[0].Width = expanded ? MenuExpandedWidth : MenuCollapsedWidth;
+        _menuFooter.Visible = true;
+        _menuFooter.Padding = expanded ? new Padding(12, 6, 12, 8) : new Padding(6, 4, 6, 6);
+        _menuFooter.Height = expanded
+            ? (_updateButton.Tag is ReleaseUpdate ? 104 : 70)
+            : (_updateButton.Tag is ReleaseUpdate ? 78 : 48);
+        _appVersionLabel.Visible = true;
+        _appVersionLabel.Text = expanded ? $"Versão {GetCurrentVersion().ToString(3)}" : GetCurrentVersion().ToString(3);
+        _creatorLabel.Visible = expanded;
+        _updateRow.Visible = _updateButton.Tag is ReleaseUpdate;
+        if (_updateButton.Tag is ReleaseUpdate update)
+        {
+            _updateRow.Visible = true;
+            _updateRow.Height = 34;
+            _updateButton.Font = UiTypography.BodySemibold(10f);
+            UpdateDownloadButtonText();
+        }
+        ApplyMenuExpansionText(expanded);
+        RefreshSidebarScroll();
+    }
+
+    private void ApplyMenuExpansionText(bool expanded)
+    {
+        _menuToggle.Text = expanded ? "Menu" : "";
+        _homeNav.Text = expanded ? "Início" : "";
+        _transferNav.Text = expanded ? "Buscar base" : "";
+        _changeBaseNav.Text = expanded ? "Trocar base" : "";
+        _resetNav.Text = expanded ? "Redefinir base" : "";
+        _restoreNav.Text = expanded ? "Restaurar base" : "";
+        _updateSicNav.Text = expanded ? "Atualização de executáveis" : "";
+        _configureSicNav.Text = expanded ? "Configurar caminhos" : "";
+        _settingsNav.Text = expanded ? "Configuração" : "";
+        _folderShortcutsNav.Text = expanded ? "Atalhos de pasta" : "";
+        _copySqlNav.Text = expanded ? "Copiar SQL" : "";
+        _arqEmpNav.Text = expanded ? "Comandos ARQEMP" : "";
+        _arqSistNav.Text = expanded ? "Comandos ARQSIST" : "";
+        _menuToggle.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
+        _menuToggle.TextAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
+        _menuToggle.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
+        _menuToggle.FlatAppearance.BorderSize = 0;
+        _menuToggle.Font = UiTypography.Body(12f);
+        foreach (var button in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav })
+        {
+            button.Font = UiTypography.Body(12f);
+            button.ImageAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
+            button.TextAlign = expanded ? ContentAlignment.MiddleLeft : ContentAlignment.MiddleCenter;
+            button.Padding = expanded ? new Padding(18, 0, 4, 0) : Padding.Empty;
+            button.FlatAppearance.BorderSize = 0;
+        }
+    }
+
+    private void ShowStartScreen()
+    {
+        switch (_settings.DefaultScreen)
+        {
+            case StartScreen.Inicio: ShowHomeView(); break;
+            case StartScreen.AlterarBase: ShowChangeBaseView(); break;
+            case StartScreen.RedefinirBase: ShowResetView(); break;
+            case StartScreen.RestaurarBase: ShowRestoreView(); break;
+            case StartScreen.AtualizarSic: ShowUpdateSicView(); break;
+            case StartScreen.ConfigurarSic: ShowConfigureSicView(); break;
+            case StartScreen.Atalhos: ShowFolderShortcutsView(); break;
+            case StartScreen.CopiarSql: ShowCopySqlView(); break;
+            case StartScreen.Transferir:
+            case StartScreen.Configuracao:     // removido das opções — abre na Transferir
+            case StartScreen.ComandosArqEmp:   // removido das opções — abre na Transferir
+            case StartScreen.ComandosArqSist:  // removido das opções — abre na Transferir
+            default: ShowView(settings: false); break;
+        }
+    }
+
+    private void ShowChangelogDialog()
+    {
+        var current = GetCurrentVersion();
+        using var dialog = new ChangelogDialog(this, current);
+        dialog.ShowDialog(this);
+        _settings.LastChangelogVersion = current.ToString(3);
+        try { PersistSettings(); }
+        catch (Exception ex) { MessageBox.Show(this, $"Não foi possível registrar a versão do changelog: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+    }
+
+    private void MaybeShowChangelogOnStartup()
+    {
+        var current = GetCurrentVersion().ToString(3);
+        if (string.Equals(current, _settings.LastChangelogVersion, StringComparison.OrdinalIgnoreCase)) return;
+        ShowChangelogDialog();
+    }
+
+    private void ShowHintPopup(Control anchor, string text)
+    {
+        HideHintPopup();
+        var dark = _settings.DarkMode;
+        var background = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var foreground = dark ? Color.FromArgb(232, 237, 245) : Ink;
+        var border = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
+
+        const int width = 484; // 484 + 16 de margens internas = 500px de largura total
+
+        var surfacePanel = new Panel { Dock = DockStyle.Fill, BackColor = background };
+        var body = new Label
+        {
+            AutoSize = true,
+            MaximumSize = new Size(width, 0),
+            Location = new Point(8, 8),
+            Text = text,
+            ForeColor = foreground,
+            BackColor = background,
+            Font = UiTypography.Body(9f),
+            TextAlign = ContentAlignment.MiddleLeft
+        };
+        surfacePanel.Controls.Add(body);
+        var height = body.PreferredSize.Height + 16;
+
+        var popup = new Form
+        {
+            FormBorderStyle = FormBorderStyle.None,
+            ShowInTaskbar = false,
+            StartPosition = FormStartPosition.Manual,
+            TopMost = true,
+            Size = new Size(width + 16, height),
+            BackColor = border,
+            Padding = new Padding(1)
+        };
+        popup.Controls.Add(surfacePanel);
+
+        var screen = Screen.FromControl(anchor);
+        var preferred = anchor.PointToScreen(new Point(anchor.Width + 8, 0));
+        if (preferred.X + popup.Width > screen.WorkingArea.Right)
+            preferred = new Point(screen.WorkingArea.Right - popup.Width, preferred.Y);
+        if (preferred.Y + popup.Height > screen.WorkingArea.Bottom)
+            preferred = new Point(preferred.X, Math.Max(screen.WorkingArea.Top, screen.WorkingArea.Bottom - popup.Height));
+        popup.Location = preferred;
+
+        popup.Show();
+        _hintPopup = popup;
+    }
+
+    private void HideHintPopup()
+    {
+        var current = _hintPopup;
+        _hintPopup = null;
+        if (current is not null && !current.IsDisposed)
+        {
+            try { current.Close(); } catch { current.Dispose(); }
+        }
+    }
+
+    private void ShowHomeView()
+    {
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _homeView.Visible = true;
+        ResetHomeTicketHint();
+        AcceptButton = _homeTicketButton; // Enter no campo dispara o botão Buscar
+        ApplyNavigationColors();
+        _homeTicketBox.Focus();
+    }
+
+    private void ShowView(bool settings)
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = !settings;
+        _settingsView.Visible = settings;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _transferNav.BackColor = settings ? Color.White : Color.FromArgb(231, 240, 255);
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _settingsNav.BackColor = settings ? Color.FromArgb(231, 240, 255) : Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.White;
+        AcceptButton = settings ? null : _start;
+        ApplyNavigationColors();
+        if (settings) _fields[nameof(AppSettings.SolicitationRoot)].Focus();
+        else _sl.Focus();
+    }
+
+    private void ShowCommandView(bool arqEmp)
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = arqEmp;
+        _arqSistView.Visible = !arqEmp;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = false;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = arqEmp ? Color.FromArgb(231, 240, 255) : Color.White;
+        _arqSistNav.BackColor = arqEmp ? Color.White : Color.FromArgb(231, 240, 255);
+        AcceptButton = null;
+        ApplyNavigationColors();
+        (arqEmp ? _arqEmpEditor : _arqSistEditor).Focus();
+    }
+
+    private void ShowFolderShortcutsView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _copySqlView.Visible = false;
+        _folderShortcutsView.Visible = true;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.FromArgb(231, 240, 255);
+        AcceptButton = null;
+        ApplyNavigationColors();
+        _folderShortcutName.Focus();
+    }
+
+    private void ShowCopySqlView()
+    {
+        _homeView.Visible = false;
+        _transferView.Visible = false;
+        _settingsView.Visible = false;
+        _changeBaseView.Visible = false;
+        _resetView.Visible = false;
+        _restoreView.Visible = false;
+        _updateSicView.Visible = false;
+        _configureSicView.Visible = false;
+        _arqEmpView.Visible = false;
+        _arqSistView.Visible = false;
+        _folderShortcutsView.Visible = false;
+        _copySqlView.Visible = true;
+        _transferNav.BackColor = Color.White;
+        _changeBaseNav.BackColor = Color.White;
+        _resetNav.BackColor = Color.White;
+        _restoreNav.BackColor = Color.White;
+        _updateSicNav.BackColor = Color.White;
+        _configureSicNav.BackColor = Color.White;
+        _settingsNav.BackColor = Color.White;
+        _arqEmpNav.BackColor = Color.White;
+        _arqSistNav.BackColor = Color.White;
+        _folderShortcutsNav.BackColor = Color.White;
+        _copySqlNav.BackColor = Color.FromArgb(231, 240, 255);
+        AcceptButton = null;
+        ApplyNavigationColors();
+        _sqlShortcutTitle.Focus();
+    }
+
+    /// <summary>Rótulo de seção pequeno usado para agrupar blocos nas abas de configuração.</summary>
+    private static Label SectionLabel(string text, int y) =>
+        new() { Text = text, AutoSize = true, ForeColor = Muted, Font = UiTypography.BodySemibold(9.5f), Location = new Point(0, y) };
+
+    private Control BuildPasswordsSettingsPanel()
+    {
+        var card = Card();
+        var host = _passwordsSettingsHost = new Panel
+        {
+            Location = new Point(18, 20),
+            Size = new Size(100, 300),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            Margin = Padding.Empty
+        };
+        host.Controls.Add(new Label { Text = "As senhas são protegidas pelo Windows (DPAPI) para a sua conta de usuário.", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 2) });
+        var labels = new[]
+        {
+            new Label { Text = "Senha Firebird", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Senha padrão do SIC", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Senha padrão Empresa", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft }
+        };
+        const string sicDynamicPasswordHelpText =
+            "Digite apenas a parte fixa da senha — o aplicativo completa o resto automaticamente na hora de copiar (atalho Ctrl+Alt+X).\n\n" +
+            "Cálculo: senha informada + (Dia × Hora × 13)\n\n" +
+            "Exemplo: digitando TESTE num dia 17 às 16 horas, o aplicativo copia TESTE3536\n(17 × 16 × 13 = 3536).\n\n" +
+            "A conta usa o dia do mês (1–31) e a hora local (0–23); minutos e segundos são ignorados.";
+        var sicDynamicPasswordHelp = new PictureBox
+        {
+            Size = new Size(16, 16),
+            Location = new Point(0, 0),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
+            Cursor = Cursors.Hand
+        };
+        sicDynamicPasswordHelp.MouseEnter += (_, _) => ShowHintPopup(sicDynamicPasswordHelp, sicDynamicPasswordHelpText);
+        sicDynamicPasswordHelp.MouseLeave += (_, _) => HideHintPopup();
+
+        _password.BorderStyle = BorderStyle.FixedSingle;
+        _password.BackColor = Color.FromArgb(249, 251, 254);
+        _password.Margin = Padding.Empty;
+        _savePassword.Margin = Padding.Empty;
+        _sicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicPassword.Margin = Padding.Empty;
+        _saveSicPassword.Margin = Padding.Empty;
+        _sicDynamicPassword.BorderStyle = BorderStyle.FixedSingle;
+        _sicDynamicPassword.BackColor = Color.FromArgb(249, 251, 254);
+        _sicDynamicPassword.Margin = Padding.Empty;
+        _saveSicDynamicPassword.Margin = Padding.Empty;
+
+        host.Controls.Add(sicDynamicPasswordHelp);
+        host.Controls.Add(labels[0]);
+        host.Controls.Add(_password);
+        host.Controls.Add(_passwordVisibilityToggle);
+        host.Controls.Add(_savePassword);
+        host.Controls.Add(labels[1]);
+        host.Controls.Add(_sicPassword);
+        host.Controls.Add(_sicPasswordVisibilityToggle);
+        host.Controls.Add(_saveSicPassword);
+        host.Controls.Add(labels[2]);
+        host.Controls.Add(_sicDynamicPassword);
+        host.Controls.Add(_sicDynamicPasswordVisibilityToggle);
+        host.Controls.Add(_saveSicDynamicPassword);
+
+        void LayoutPasswordRows()
+        {
+            const int fieldLeft = 200;
+            const int buttonWidth = 120;
+            const int rightInset = 18;
+            for (var i = 0; i < labels.Length; i++)
+            {
+                var y = 44 + i * 72;
+                labels[i].Location = new Point(i == 2 ? 24 : 0, y);
+                if (i == 2) sicDynamicPasswordHelp.Location = new Point(0, y + 7);
+                var pwdField = i == 0 ? _password : i == 2 ? _sicDynamicPassword : _sicPassword;
+                var pwdToggle = i == 0 ? _passwordVisibilityToggle : i == 2 ? _sicDynamicPasswordVisibilityToggle : _sicPasswordVisibilityToggle;
+                var pwdSave = i == 0 ? _savePassword : i == 2 ? _saveSicDynamicPassword : _saveSicPassword;
+                pwdField.Location = new Point(fieldLeft, y);
+                pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
+                pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                pwdField.Height = 30;
+                pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y + 1);
+                pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+                var saveHeight = pwdSave.PreferredSize.Height;
+                pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
+                pwdSave.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            }
+        }
+
+        host.Resize += (_, _) => LayoutPasswordRows();
+        LayoutPasswordRows();
+        card.Controls.Add(host);
+        return card;
+    }
+
+    private Control BuildGeneralSettingsPanel()
+    {
+        var card = Card();
+        // Painel rolável dedicado: o conteúdo mantém a altura fixa e a barra aparece
+        // quando a janela/cartão fica menor que ele (não sobrepõe os controles).
+        var scroller = _generalSettingsScroller = new ThemedPanel
+        {
+            Dock = DockStyle.Fill,
+            AutoScroll = true,
+            AutoScrollMinSize = new Size(0, 570),
+            BackColor = Surface
+        };
+        var host = _generalSettingsHost = new Panel
+        {
+            Location = new Point(18, 20),
+            Size = new Size(100, 544),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            Margin = Padding.Empty
+        };
+        var labels = new[]
+        {
+            new Label { Text = "Origem das solicitações", AutoSize = false, Width = 190, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Pasta local das bases", AutoSize = false, Width = 190, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Pasta de bases de apoio", AutoSize = false, Width = 176, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft },
+            new Label { Text = "Pasta da base temporária", AutoSize = false, Width = 190, ForeColor = Muted, Font = UiTypography.Body(9f), Height = 30, TextAlign = ContentAlignment.MiddleLeft }
+        };
+        const string supportHelpText =
+            "Configure aqui uma pasta com as bases de apoio (ARQEMP.FDB e ARQOCOR.FDB), as mesmas sempre necessárias para uma base funcionar.\n\n" +
+            "Se a base de uma solicitação não trouxer esses arquivos (compactada sem eles ou sem ARQSIST.FDB, por exemplo), a aplicação copia automaticamente dessa pasta para a pasta local da base, sem intervenção do operador.";
+        var supportHelp = new PictureBox
+        {
+            Size = new Size(16, 16),
+            Location = new Point(0, 0),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
+            Cursor = Cursors.Hand
+        };
+        supportHelp.MouseEnter += (_, _) => ShowHintPopup(supportHelp, supportHelpText);
+        supportHelp.MouseLeave += (_, _) => HideHintPopup();
+        var keys = new[] { nameof(AppSettings.SolicitationRoot), nameof(AppSettings.BasesRoot), nameof(AppSettings.SupportRoot), nameof(AppSettings.TempPath) };
+        var emptyTempHint = TryGetSicTempPath() is string registryTemp
+            ? $"(Vazio = valor do Registro: {registryTemp})"
+            : "(Vazio = pasta temporária do Windows)";
+        var pathFields = keys.Select(key => new UnthemedTextBox
+        {
+            Text = GetSetting(key),
+            BorderStyle = BorderStyle.FixedSingle,
+            BackColor = Color.FromArgb(249, 251, 254),
+            PlaceholderText = key == nameof(AppSettings.TempPath) ? emptyTempHint : "",
+            Height = 30
+        }).ToArray();
+        var browseButtons = keys.Select(key =>
+        {
+            var button = new RoundedButton
+            {
+                Text = "Procurar",
+                Size = new Size(120, 28),
+                FlatStyle = FlatStyle.Flat,
+                BackColor = Color.FromArgb(31, 111, 235),
+                ForeColor = Color.White,
+                Font = UiTypography.BodySemibold(9f),
+                Tag = key
+            };
+            button.Click += (sender, _) => Browse((string)((Button)sender!).Tag!, "folder");
+            button.FlatAppearance.BorderSize = 0;
+            button.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+            button.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+            return button;
+        }).ToArray();
+
+        host.Controls.Add(SectionLabel("Pastas", 0));
+        foreach (var keyIndex in Enumerable.Range(0, keys.Length))
+        {
+            _fields[keys[keyIndex]] = pathFields[keyIndex];
+            _browseButtons[keys[keyIndex]] = browseButtons[keyIndex];
+            if (keyIndex == 2) host.Controls.Add(supportHelp);
+            host.Controls.Add(labels[keyIndex]);
+            host.Controls.Add(pathFields[keyIndex]);
+            host.Controls.Add(browseButtons[keyIndex]);
+        }
+        foreach (var field in pathFields) field.TextChanged += (_, _) => QueueSettingsSave();
+
+        _useSupportAsCompany.Location = new Point(0, 154);
+        host.Controls.Add(_useSupportAsCompany);
+        host.Controls.Add(new Label { Text = "Nº de bases no Regedit", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 248), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        _baseCount.Location = new Point(200, 241);
+        host.Controls.Add(_baseCount);
+
+        host.Controls.Add(new Label { Text = "Tela inicial", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 296), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        foreach (var item in StartScreenItems) _defaultScreen.Items.Add(item.Text);
+        var initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
+        if (initialIndex < 0)
+        {
+            _settings.DefaultScreen = StartScreen.Transferir; // valor antigo fora da lista: normaliza para o padrão
+            initialIndex = Array.FindIndex(StartScreenItems, item => item.Value == _settings.DefaultScreen);
+        }
+        _defaultScreen.SelectedIndex = initialIndex;
+        _defaultScreen.Location = new Point(200, 289);
+        _defaultScreen.SelectionChangeCommitted += (_, _) =>
+        {
+            _settings.DefaultScreen = StartScreenItems[_defaultScreen.SelectedIndex].Value;
+            QueueSettingsSave();
+        };
+        host.Controls.Add(_defaultScreen);
+
+        host.Controls.Add(SectionLabel("Comportamento", 326));
+        _forceMultiBase.Location = new Point(0, 352);
+        host.Controls.Add(_forceMultiBase);
+        _renameSl.Location = new Point(0, 378);
+        host.Controls.Add(_renameSl);
+        _minimizeToTray.Location = new Point(0, 404);
+        host.Controls.Add(_minimizeToTray);
+        _startInBackground.Location = new Point(0, 430);
+        host.Controls.Add(_startInBackground);
+        _startWithWindows.Location = new Point(0, 456);
+        host.Controls.Add(_startWithWindows);
+
+        _tutorialButton = new RoundedButton
+        {
+            Text = "Ver tutorial guiado",
+            Size = new Size(170, 30),
+            Location = new Point(0, 494),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(231, 240, 255),
+            ForeColor = Ink,
+            Font = UiTypography.BodySemibold(9f)
+        };
+        _tutorialButton.FlatAppearance.BorderSize = 0;
+        _tutorialButton.Click += (_, _) => StartTutorial();
+        host.Controls.Add(_tutorialButton);
+
+        void LayoutSettingsRows()
+        {
+            const int fieldLeft = 200;
+            const int buttonWidth = 120;
+            const int rightInset = 18;
+            var rowY = new[] { 26, 68, 110, 194 };
+            for (var i = 0; i < labels.Length; i++)
+            {
+                var y = rowY[i];
+                labels[i].Location = new Point(i == 2 ? 24 : 0, y);
+                if (i == 2) supportHelp.Location = new Point(0, y + 7);
+                pathFields[i].Location = new Point(fieldLeft, y);
+                pathFields[i].Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
+                pathFields[i].Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+                browseButtons[i].Location = new Point(host.ClientSize.Width - buttonWidth - rightInset, y + 1);
+                browseButtons[i].Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            }
+        }
+
+        host.Resize += (_, _) => LayoutSettingsRows();
+        LayoutSettingsRows();
+        scroller.Controls.Add(host);
+        card.Controls.Add(scroller);
+        return card;
+    }
+
+    private Control BuildVpnSettingsPanel()
+    {
+        var card = Card();
+        var host = _vpnSettingsHost = new Panel
+        {
+            Location = new Point(18, 12),
+            Size = new Size(100, 520),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right,
+            AutoScroll = true,
+            Margin = Padding.Empty
+        };
+        const string vpnHelpText =
+            "Use a VPN somente quando a pasta de origem das solicitações estiver acessível apenas através dela (por exemplo, quando você está fora da rede).\n\n" +
+            "A conexão é feita antes de iniciar a transferência e desfeita ao final somente se ela não estava conectada antes.\n\n" +
+            "Se a conexão cair no meio da cópia, o aplicativo reconecta e refaz a cópia substituindo o que já tinha sido baixado.";
+        var vpnHelp = new PictureBox
+        {
+            Size = new Size(16, 16),
+            Location = new Point(0, 1),
+            SizeMode = PictureBoxSizeMode.Zoom,
+            Image = SvgIconLoader.Load("Ajuda.svg", 16),
+            Cursor = Cursors.Hand
+        };
+        vpnHelp.MouseEnter += (_, _) => ShowHintPopup(vpnHelp, vpnHelpText);
+        vpnHelp.MouseLeave += (_, _) => HideHintPopup();
+
+        _vpnHint.Text =
+            "Com a VPN ligada, o aplicativo conecta a conexão escolhida antes de acessar a origem e desconecta ao final somente se ela não estava conectada antes.\n" +
+            "Se a conexão cair durante a cópia, a transferência reconecta e refaz a cópia, substituindo os arquivos já baixados.\n" +
+            "O script (conteúdo de um .bat/.cmd) é executado após a VPN ser conectada pelo aplicativo — somente quando ela é conectada (não se ela já estava conectada). Se o script falhar, a transferência é abortada com o erro.";
+        _saveVpnPassword.Text = "Salvar senha";
+        _saveVpnPassword.Margin = Padding.Empty;
+        _vpnPasswordVisibilityToggle.Margin = Padding.Empty;
+        _vpnUsername.Margin = Padding.Empty;
+        _vpnPassword.Margin = Padding.Empty;
+        _vpnConnectionName.Margin = Padding.Empty;
+
+        host.Controls.Add(vpnHelp);
+        host.Controls.Add(_useVpn);
+        host.Controls.Add(new Label { Text = "Nome da conexão VPN", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 43), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnConnectionName);
+        host.Controls.Add(_vpnRefreshList);
+        host.Controls.Add(_vpnUseManualCredentials);
+        host.Controls.Add(new Label { Text = "Usuário", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 126), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnUsername);
+        host.Controls.Add(new Label { Text = "Senha", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 170), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnPassword);
+        host.Controls.Add(_vpnPasswordVisibilityToggle);
+        host.Controls.Add(_saveVpnPassword);
+        host.Controls.Add(new Label { Text = "Máx. tentativas de reconexão", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 215), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnReconnectAttempts);
+        host.Controls.Add(new Label { Text = "Script ao conectar (.bat/.cmd)", AutoSize = false, Width = 205, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(0, 255), Height = 30, TextAlign = ContentAlignment.MiddleLeft });
+        host.Controls.Add(_vpnRunConnectScript);
+        host.Controls.Add(_vpnConnectScript);
+        host.Controls.Add(_vpnHint);
+
+        void LayoutVpnRows()
+        {
+            const int fieldLeft = 220;
+            const int buttonWidth = 132;
+            const int rightInset = 18;
+            const int fieldToButtonGap = 10;
+
+            _useVpn.Location = new Point(24, 2);
+            // Alinha o ícone de ajuda verticalmente com o checkbox (fixo em 26 px).
+            vpnHelp.Location = new Point(0, _useVpn.Location.Y + (_useVpn.Height - 16) / 2);
+            _vpnConnectionName.Location = new Point(fieldLeft, 43);
+            _vpnConnectionName.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - fieldToButtonGap);
+            _vpnConnectionName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _vpnRefreshList.Location = new Point(host.ClientSize.Width - rightInset - buttonWidth, 43);
+            _vpnRefreshList.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+            _vpnUseManualCredentials.Location = new Point(0, 88);
+
+            _vpnUsername.Location = new Point(fieldLeft, 126);
+            _vpnUsername.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - rightInset);
+            _vpnUsername.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            _vpnPassword.Location = new Point(fieldLeft, 170);
+            _vpnPassword.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
+            _vpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+            _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 171);
+            var saveHeight = _saveVpnPassword.PreferredSize.Height;
+            _saveVpnPassword.Location = new Point(host.ClientSize.Width - buttonWidth, 170 + (30 - saveHeight) / 2);
+            _saveVpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+
+            _vpnReconnectAttempts.Location = new Point(fieldLeft, 215);
+            _vpnReconnectAttempts.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+
+            _vpnRunConnectScript.Location = new Point(fieldLeft, 257);
+            _vpnRunConnectScript.Anchor = AnchorStyles.Top | AnchorStyles.Left;
+            _vpnConnectScript.Location = new Point(0, 300);
+            _vpnConnectScript.Size = new Size(Math.Max(120, host.ClientSize.Width - 2 * rightInset), 120);
+            _vpnConnectScript.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+
+            _vpnHint.Location = new Point(0, 436);
+            _vpnHint.Width = Math.Max(120, host.ClientSize.Width - 2 * rightInset);
+            _vpnHint.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
+        }
+
+        host.Resize += (_, _) => LayoutVpnRows();
+        LayoutVpnRows();
+        card.Controls.Add(host);
+        return card;
+    }
+
+    private Control BuildActionPanel()
+    {
+        var card = Card();
+        var label = new Label { Text = "Número da solicitação (SL)", ForeColor = Muted, AutoSize = true, Font = UiTypography.Body(9f), Location = new Point(18, 17) };
+        card.Controls.Add(label);
+        _sl.Location = new Point(18, 42);
+        _sl.Font = UiTypography.BodySemibold(11);
+        card.Controls.Add(_sl);
+        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), 31);
+        _start.FlatAppearance.BorderSize = 0;
+        card.Controls.Add(_start);
+        _cancel.Location = new Point(_start.Right + 16, 31);
+        _cancel.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
+        _cancel.FlatAppearance.BorderSize = 1;
+        card.Controls.Add(_cancel);
+        _versionLabel.Location = new Point(card.ClientSize.Width - _versionLabel.Width - 18, 24);
+        card.Resize += (_, _) => _versionLabel.Left = card.ClientSize.Width - _versionLabel.Width - 18;
+        card.Controls.Add(_versionLabel);
+        return card;
+    }
+
+    private Control BuildProgressFooter()
+    {
+        _status.Location = new Point(2, 0);
+        _progress.Location = new Point(2, 24);
+        _progress.Size = new Size(650, 20);
+        _progress.Controls.Add(_progressFill);
+        _progress.Resize += (_, _) => UpdateProgressFill();
+        _progressFooter.Resize += (_, _) => _progress.Width = Math.Max(100, _progressFooter.ClientSize.Width - 4);
+        _progressFooter.Controls.Add(_status);
+        _progressFooter.Controls.Add(_progress);
+        return _progressFooter;
+    }
+
+    private Control BuildLogPanel()
+    {
+        var card = Card();
+        var heading = new Panel { Dock = DockStyle.Top, Height = 42 };
+        heading.Controls.Add(new Label { Text = "Andamento da operação", Font = UiTypography.BodySemibold(11), ForeColor = Ink, AutoSize = true, Location = new Point(18, 12) });
+        var clear = new RoundedButton { Text = "Limpar", Size = new Size(108, 32), Anchor = AnchorStyles.Top | AnchorStyles.Right, Location = new Point(0, 5), BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold() };
+        clear.FlatAppearance.BorderSize = 0;
+        clear.Click += (_, _) => _log.Clear();
+        heading.Resize += (_, _) => clear.Location = new Point(Math.Max(18, heading.ClientSize.Width - clear.Width - 18), 5);
+        heading.Controls.Add(clear);
+        card.Controls.Add(_log);
+        card.Controls.Add(heading);
+        return card;
+    }
+
+    private static Panel Card() => new() { Dock = DockStyle.Fill, BackColor = Surface, Padding = new Padding(16), BorderStyle = BorderStyle.FixedSingle };
+
+    private void ApplyTheme()
+    {
+        var dark = _settings.DarkMode;
+        var background = dark ? Color.FromArgb(24, 30, 40) : Color.FromArgb(244, 247, 251);
+        var surface = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var text = dark ? Color.FromArgb(232, 237, 245) : Ink;
+        var muted = dark ? Color.FromArgb(166, 180, 199) : Muted;
+        var input = dark ? Color.FromArgb(43, 53, 69) : Color.FromArgb(249, 251, 254);
+
+        BackColor = background;
+        ApplyTitleBarTheme();
+        ThemeState.IsDark = dark;
+        var memoBack = dark ? DarkMemo : Color.White;
+        var memoFore = dark ? Color.FromArgb(220, 229, 242) : Ink;
+        foreach (var memo in new Control[] { _log, _resetLog, _restoreLog, _updateSicLog, _arqEmpEditor, _arqSistEditor, _arqEmpOutput, _arqSistOutput, _vpnConnectScript, _sqlShortcutEditor })
+        {
+            if (memo is TextBox textBox) { textBox.BackColor = memoBack; textBox.ForeColor = memoFore; }
+            else if (memo is RichTextBox richTextBox) { richTextBox.BackColor = memoBack; richTextBox.ForeColor = memoFore; }
+        }
+        foreach (var target in _restoreLogTargets)
+        {
+            target.Box.BackColor = memoBack;
+            target.Box.ForeColor = memoFore;
+        }
+        _restoreLogTabs.BackColor = surface;
+        _restoreLogTabs.ForeColor = text;
+        foreach (TabPage page in _restoreLogTabs.TabPages) page.BackColor = surface;
+
+        // Tema claro: borda de 1 px nos editores/resultados dos comandos ARQEMP/ARQSIST
+        // para separar o campo do fundo branco. No tema escuro a borda permanece sem desenho.
+        foreach (var editor in new RichTextBox[] { _arqEmpEditor, _arqSistEditor, _arqEmpOutput, _arqSistOutput })
+            editor.BorderStyle = dark ? BorderStyle.None : BorderStyle.FixedSingle;
+        // Alterar base: a área da lista é o equivalente lógico ao memo do app; usa o mesmo fundo
+        if (_changeBaseListCard is not null) _changeBaseListCard.BackColor = memoBack;
+        if (_resetBaseListCard is not null) _resetBaseListCard.BackColor = memoBack;
+        if (_restoreBaseListCard is not null) _restoreBaseListCard.BackColor = memoBack;
+        _baseFolders.BackColor = memoBack;
+        _baseFolders.ForeColor = memoFore;
+        if (_resetBaseFolders is not null)
+        {
+            _resetBaseFolders.BackColor = memoBack;
+            _resetBaseFolders.ForeColor = memoFore;
+        }
+        _restoreBaseFolders.BackColor = memoBack;
+        _restoreBaseFolders.ForeColor = memoFore;
+        HighlightSql(_arqEmpEditor);
+        HighlightSql(_arqSistEditor);
+        HighlightSql(_sqlShortcutEditor);
+        foreach (var control in EnumerateControls(this))
+        {
+            try
+            {
+                if (control == _log || control == _resetLog || control == _restoreLog || control == _updateSicLog || control == _arqEmpEditor || control == _arqSistEditor || control == _arqEmpOutput || control == _arqSistOutput || control == _vpnConnectScript || control == _sqlShortcutEditor || control == _changeBaseListCard || control == _resetBaseListCard || control == _restoreBaseListCard)
+                    continue; // memos/lista de Alterar base já tematizados acima
+            if (control is Panel panel)
+            {
+                if (panel == _progress || panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
+                else if (panel == _progressFill || panel == _updateSicProgressFill) panel.BackColor = Color.FromArgb(31, 111, 235);
+                else if (panel == _sidebar || panel == _sidebarScroll || panel == _menuFooter || panel == _updateRow || panel == _themeToggleRow) panel.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                else if (panel == _generalSettingsHost || panel == _generalSettingsScroller || panel == _passwordsSettingsHost || panel == _vpnSettingsHost) panel.BackColor = surface;
+                else if (panel == _updateSicProgress) panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(222, 228, 237);
+                else if (panel.Tag is string panelTag && panelTag == "sidebarSeparator") panel.BackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(226, 232, 240);
+                else panel.BackColor = panel.BorderStyle == BorderStyle.None ? background : surface;
+            }
+            else if (control is TableLayoutPanel || control is FlowLayoutPanel) control.BackColor = background;
+
+            if (control is DataGridView gridView)
+            {
+                var gridBackground = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                gridView.BackgroundColor = gridBackground;
+                gridView.DefaultCellStyle.BackColor = gridBackground;
+                gridView.DefaultCellStyle.ForeColor = text;
+                gridView.DefaultCellStyle.SelectionBackColor = Color.FromArgb(31, 111, 235);
+                gridView.DefaultCellStyle.SelectionForeColor = Color.White;
+                gridView.DefaultCellStyle.Font = UiTypography.Body(9f);
+                gridView.GridColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
+
+                // Cabeçalhos: aplicar também por coluna, porque a grade de "Configurar caminhos"
+                // define WrapMode/Alinhamento/Padding em HeaderCell.Style e isso pode mascarar o
+                // estilo padrão em tema claro.
+                var headerBack = dark ? Color.FromArgb(34, 42, 55) : Color.FromArgb(231, 240, 255);
+                var headerFore = dark ? Color.FromArgb(232, 237, 245) : Ink;
+                var headerFont = UiTypography.BodySemibold(9f);
+                gridView.EnableHeadersVisualStyles = false;
+                gridView.ColumnHeadersDefaultCellStyle.BackColor = headerBack;
+                gridView.ColumnHeadersDefaultCellStyle.ForeColor = headerFore;
+                gridView.ColumnHeadersDefaultCellStyle.Font = headerFont;
+                foreach (DataGridViewColumn column in gridView.Columns)
+                {
+                    column.HeaderCell.Style.BackColor = headerBack;
+                    column.HeaderCell.Style.ForeColor = headerFore;
+                    column.HeaderCell.Style.Font = headerFont;
+                }
+                gridView.RowTemplate.DefaultCellStyle.BackColor = gridBackground;
+                gridView.RowTemplate.DefaultCellStyle.ForeColor = text;
+                // As linhas existentes foram clonadas do RowTemplate com as cores do tema anterior;
+                // atualizá-las também (as futuras copiam as novas do RowTemplate).
+                foreach (DataGridViewRow row in gridView.Rows)
+                {
+                    row.DefaultCellStyle.BackColor = gridBackground;
+                    row.DefaultCellStyle.ForeColor = text;
+                    row.DefaultCellStyle.SelectionBackColor = Color.FromArgb(31, 111, 235);
+                    row.DefaultCellStyle.SelectionForeColor = Color.White;
+                    row.DefaultCellStyle.Font = UiTypography.Body(9f);
+                }
+                gridView.Invalidate();
+            }
+
+            if (control is ThemedProgressBar progressBar)
+            {
+                progressBar.TrackColor = dark ? Color.FromArgb(18, 25, 38) : Color.FromArgb(225, 232, 241);
+                progressBar.FillColor = Color.FromArgb(31, 111, 235);
+                progressBar.BorderColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(196, 207, 221);
+                progressBar.Invalidate();
+            }
+
+            if (control is Label label)
+            {
+                if (label == _homeTicketError)
+                {
+                    label.ForeColor = _homeTicketErrorShown ? Color.FromArgb(196, 43, 28) : muted;
+                    label.BackColor = Color.Transparent;
+                }
+                else if (label == _homeTicketTitle)
+                {
+                    label.ForeColor = text;
+                    label.BackColor = Color.Transparent;
+                }
+                else label.ForeColor = label == _appVersionLabel
+                    ? dark ? Color.FromArgb(190, 208, 230) : Color.FromArgb(25, 94, 205)
+                    : label == _versionLabel || label == _changeBaseVersionLabel
+                    ? Color.FromArgb(31, 111, 235)
+                    : label.Text is "Preparar base por solicitação" or "Buscar base" or "Configurações" or "Comandos ARQEMP" or "Comandos ARQSIST"
+                        ? text : muted;
+                label.BackColor = label == _appVersionLabel
+                    ? dark ? Color.FromArgb(38, 50, 68) : Color.FromArgb(231, 240, 255)
+                    : Color.Transparent;
+            }
+            else if (control is ListView listView)
+            {
+                if (listView != _baseFolders && listView != _resetBaseFolders && listView != _restoreBaseFolders)
+                {
+                    listView.BackColor = surface;
+                    listView.ForeColor = text;
+                }
+            }
+            else if (control is TextBox textBox)
+            {
+                textBox.BackColor = input;
+                textBox.ForeColor = text;
+                if (control == _arqEmpDatabase || control == _arqSistDatabase)
+                    textBox.BorderStyle = BorderStyle.FixedSingle; // 1 px também no campo de base dos comandos
+            }
+            else if (control is NumericUpDown numeric) { numeric.BackColor = input; numeric.ForeColor = text; }
+            else if (control is ComboBox combo)
+            {
+                combo.BackColor = input;
+                combo.ForeColor = text;
+                combo.FlatStyle = FlatStyle.Flat; // desenha borda plana de 1 px no tema claro
+            }
+            else if (control is CheckBox checkBox) { checkBox.BackColor = Color.Transparent; checkBox.ForeColor = text; }
+            else if (control is Button button)
+            {
+                var isNavigation = button == _menuToggle || button == _homeNav || button == _transferNav || button == _changeBaseNav || button == _resetNav || button == _restoreNav || button == _updateSicNav || button == _configureSicNav || button == _settingsNav || button == _arqEmpNav || button == _arqSistNav || button == _folderShortcutsNav || button == _copySqlNav;
+                var isSecondaryAction = button == _openBaseFolderButton || button == _cancel || button == _resetCancelButton || button == _restoreCancelButton || button == _updateSicCancelButton || button == _folderShortcutRemove || button == _sqlShortcutCopy || button == _sqlShortcutDelete || button == _tutorialButton;
+                button.ForeColor = isNavigation || isSecondaryAction ? text : Color.White;
+                if (isNavigation)
+                {
+                    button.BackColor = dark ? Color.FromArgb(28, 35, 47) : Color.White;
+                    button.FlatStyle = FlatStyle.Flat;
+                    button.FlatAppearance.BorderSize = 0;
+                    button.FlatAppearance.BorderColor = button.BackColor;
+                    button.FlatAppearance.MouseOverBackColor = dark ? Color.FromArgb(38, 47, 62) : Color.FromArgb(244, 247, 251);
+                    button.FlatAppearance.MouseDownBackColor = dark ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
+                }
+                else if (isSecondaryAction)
+                {
+                    button.BackColor = surface;
+                    button.FlatAppearance.BorderColor = dark ? Color.FromArgb(83, 98, 119) : Color.FromArgb(208, 217, 230);
+                    button.FlatAppearance.BorderSize = 1;
+                }
+            }
+            }
+            catch { /* um controle mal configurado não derruba o tema do restante */ }
+        }
+        ApplyNavigationColors();
+        HighlightSql(_arqEmpEditor);
+        HighlightSql(_arqSistEditor);
+        HighlightSql(_sqlShortcutEditor);
+    }
+
+    private void RefreshNativeScrollingThemes()
+    {
+        foreach (var control in EnumerateControls(this).OfType<IThemedScrollingControl>())
+            control.RefreshNativeTheme();
+    }
+
+    private void ApplyNavigationColors()
+    {
+        var inactive = _settings.DarkMode ? Color.FromArgb(28, 35, 47) : Color.White;
+        var active = _settings.DarkMode ? Color.FromArgb(48, 67, 94) : Color.FromArgb(231, 240, 255);
+        foreach (var button in new[] { _menuToggle, _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _configureSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav, _copySqlNav }) button.BackColor = inactive;
+        if (_homeView.Visible) _homeNav.BackColor = active;
+        else if (_transferView.Visible) _transferNav.BackColor = active;
+        else if (_changeBaseView.Visible) _changeBaseNav.BackColor = active;
+        else if (_resetView.Visible) _resetNav.BackColor = active;
+        else if (_restoreView.Visible) _restoreNav.BackColor = active;
+        else if (_updateSicView.Visible) _updateSicNav.BackColor = active;
+        else if (_configureSicView.Visible) _configureSicNav.BackColor = active;
+        else if (_settingsView.Visible) _settingsNav.BackColor = active;
+        else if (_arqEmpView.Visible) _arqEmpNav.BackColor = active;
+        else if (_arqSistView.Visible) _arqSistNav.BackColor = active;
+        else if (_folderShortcutsView.Visible) _folderShortcutsNav.BackColor = active;
+        else if (_copySqlView.Visible) _copySqlNav.BackColor = active;
+    }
+
+    private static IEnumerable<Control> EnumerateControls(Control root)
+    {
+        foreach (Control child in root.Controls)
+        {
+            yield return child;
+            foreach (var descendant in EnumerateControls(child)) yield return descendant;
+        }
+    }
+
+    private void ApplyTitleBarTheme()
+    {
+        if (!IsHandleCreated) return;
+        var dark = _settings.DarkMode;
+        uint enabled = dark ? 1u : 0u;
+        const int useImmersiveDarkMode = 20;
+        const int useImmersiveDarkModeLegacy = 19;
+        if (DwmSetWindowAttribute(Handle, useImmersiveDarkMode, ref enabled, sizeof(uint)) != 0)
+            _ = DwmSetWindowAttribute(Handle, useImmersiveDarkModeLegacy, ref enabled, sizeof(uint));
+
+        var caption = ToColorRef(dark ? Color.FromArgb(24, 30, 40) : Color.FromArgb(244, 247, 251));
+        var foreground = ToColorRef(dark ? Color.FromArgb(232, 237, 245) : Color.FromArgb(29, 42, 61));
+        var border = ToColorRef(dark ? Color.FromArgb(24, 30, 40) : Color.FromArgb(220, 228, 238));
+        _ = DwmSetWindowAttribute(Handle, 35, ref caption, sizeof(uint)); // DWMWA_CAPTION_COLOR (Windows 11+)
+        _ = DwmSetWindowAttribute(Handle, 36, ref foreground, sizeof(uint)); // DWMWA_TEXT_COLOR (Windows 11+)
+        _ = DwmSetWindowAttribute(Handle, 34, ref border, sizeof(uint)); // DWMWA_BORDER_COLOR (Windows 11+)
+    }
+
+    private static uint ToColorRef(Color color) => (uint)(color.R | (color.G << 8) | (color.B << 16));
+
+    [DllImport("dwmapi.dll", PreserveSig = true)]
+    private static extern int DwmSetWindowAttribute(IntPtr hwnd, int attribute, ref uint value, int valueSize);
+
+    private string GetSetting(string key) => key switch
+    {
+        nameof(AppSettings.SolicitationRoot) => _settings.SolicitationRoot,
+        nameof(AppSettings.BasesRoot) => _settings.BasesRoot,
+        nameof(AppSettings.SupportRoot) => _settings.SupportRoot,
+        nameof(AppSettings.TempPath) => _settings.TempPath,
+        _ => ""
+    };
+
+    private void Browse(string key, string kind)
+    {
+        if (kind == "folder")
+        {
+            using var dialog = new FolderBrowserDialog { SelectedPath = _fields[key].Text, ShowNewFolderButton = true };
+            if (dialog.ShowDialog(this) == DialogResult.OK)
+            {
+                _fields[key].Text = dialog.SelectedPath;
+                try { PersistSettings(); }
+                catch (Exception ex) { MessageBox.Show(this, $"Não foi possível salvar as configurações: {ex.Message}", "Erro ao salvar", MessageBoxButtons.OK, MessageBoxIcon.Warning); }
+            }
+        }
+    }
+
+    private void ReadFields()
+    {
+        _settings.SolicitationRoot = _fields[nameof(AppSettings.SolicitationRoot)].Text.Trim();
+        _settings.BasesRoot = _fields[nameof(AppSettings.BasesRoot)].Text.Trim();
+        _settings.SupportRoot = _fields[nameof(AppSettings.SupportRoot)].Text.Trim();
+        _settings.TempPath = _fields[nameof(AppSettings.TempPath)].Text.Trim();
+        _settings.UseVpn = _useVpn.Checked;
+        _settings.VpnConnectionName = _vpnConnectionName.Text.Trim();
+        _settings.VpnUseManualCredentials = _vpnUseManualCredentials.Checked;
+        _settings.VpnUsername = _vpnUsername.Text.Trim();
+        _settings.VpnReconnectAttempts = Math.Clamp((int)_vpnReconnectAttempts.Value, 1, 10);
+        _settings.VpnConnectScriptEnabled = _vpnRunConnectScript.Checked;
+        _settings.VpnConnectScript = _vpnConnectScript.Text;
+        _settings.RenameSlFolderToClientName = _renameSl.Checked;
+        _settings.BaseCount = Math.Clamp((int)_baseCount.Value, 1, 99);
+        SyncUpdateSicEntriesFromGrid();
+        _settings.ArqEmpCommands = _arqEmpEditor.Text;
+        _settings.ArqSistCommands = _arqSistEditor.Text;
+    }
+
+    private void PersistSettings()
+    {
+        ReadFields();
+        _settings.SetFirebirdPassword(_savePassword.Checked ? _password.Text : null);
+        _settings.SetSicPassword(_saveSicPassword.Checked ? _sicPassword.Text : null);
+        _settings.SetSicDynamicPassword(_saveSicDynamicPassword.Checked ? _sicDynamicPassword.Text : null);
+        // Senha da VPN só é mantida quando o operador optou por informar as credenciais no app.
+        _settings.SetVpnPassword(_saveVpnPassword.Checked && _vpnUseManualCredentials.Checked ? _vpnPassword.Text : null);
+        _settings.Save();
+    }
+
+    private void QueueSettingsSave()
+    {
+        _settingsSaveTimer.Stop();
+        _settingsSaveTimer.Start();
+    }
+
+    private void QueueCommandSettingsSave()
+    {
+        _commandSaveTimer.Stop();
+        _commandSaveTimer.Start();
+    }
+
+    private void SaveCommandSettings()
+    {
+        _settings.ArqEmpCommands = _arqEmpEditor.Text;
+        _settings.ArqSistCommands = _arqSistEditor.Text;
+        try { _settings.Save(); }
+        catch (Exception ex)
+        {
+            AppLogger.Error("Salvar comandos SQL", ex.Message, ex);
+            MessageBox.Show(this, $"Não foi possível salvar os comandos SQL: {ex.Message}", "Erro ao salvar comandos", MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
+    }
+
+    private void MigrateLegacySqlScripts()
+    {
+        if (_settings.CommandScriptsMigrated) return;
+        try
+        {
+            var oldArqEmpScript = _settings.ScriptArqEmp;
+            var oldArqSistScript = _settings.ScriptArqSist;
+            if (string.IsNullOrWhiteSpace(_settings.ArqEmpCommands) && !string.IsNullOrWhiteSpace(oldArqEmpScript) && File.Exists(oldArqEmpScript))
+                _settings.ArqEmpCommands = File.ReadAllText(oldArqEmpScript);
+            if (string.IsNullOrWhiteSpace(_settings.ArqSistCommands) && !string.IsNullOrWhiteSpace(oldArqSistScript) && File.Exists(oldArqSistScript))
+                _settings.ArqSistCommands = File.ReadAllText(oldArqSistScript);
+            _settings.ScriptArqEmp = null;
+            _settings.ScriptArqSist = null;
+            _settings.CommandScriptsMigrated = true;
+            _settings.Save();
+        }
+        catch
+        {
+            // A migração será tentada novamente na próxima abertura.
+        }
+    }
+
+    private void WirePasswordToggle(TextBox field, RoundedButton toggle)
+    {
+        const string hiddenIcon = "Visualizar.svg";
+        const string visibleIcon = "Nao-Visualizar.svg";
+        toggle.Image = SvgIconLoader.Load(hiddenIcon, 16);
+        toggle.FlatAppearance.BorderSize = 0;
+        toggle.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        toggle.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+        _menuToolTip.SetToolTip(toggle, "Mostrar senha");
+        toggle.Click += (_, _) =>
+        {
+            var willShow = field.UseSystemPasswordChar; // oculto no momento => a senha passará a ser exibida
+            field.UseSystemPasswordChar = !willShow;
+            toggle.Image = SvgIconLoader.Load(willShow ? visibleIcon : hiddenIcon, 16);
+            _menuToolTip.SetToolTip(toggle, willShow ? "Ocultar senha" : "Mostrar senha");
+        };
+    }
+
+    private void SavePasswordPreference()
+    {
+        if (_savePassword.Checked && string.IsNullOrWhiteSpace(_password.Text))
+        {
+            MessageBox.Show(this, "Digite a senha Firebird antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _savePassword.Checked = false;
+            _password.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void SaveSicPasswordPreference()
+    {
+        if (_saveSicPassword.Checked && string.IsNullOrWhiteSpace(_sicPassword.Text))
+        {
+            MessageBox.Show(this, "Digite a senha padrão do SIC antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _saveSicPassword.Checked = false;
+            _sicPassword.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void SaveSicDynamicPasswordPreference()
+    {
+        if (_saveSicDynamicPassword.Checked && string.IsNullOrWhiteSpace(_sicDynamicPassword.Text))
+        {
+            MessageBox.Show(this, "Digite a senha do sistema Empresa antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _saveSicDynamicPassword.Checked = false;
+            _sicDynamicPassword.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void SaveVpnPasswordPreference()
+    {
+        if (_saveVpnPassword.Checked && _vpnUseManualCredentials.Checked && string.IsNullOrWhiteSpace(_vpnPassword.Text))
+        {
+            MessageBox.Show(this, "Digite a senha da VPN antes de marcar a opção para salvá-la.", "Senha necessária", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            _saveVpnPassword.Checked = false;
+            _vpnPassword.Focus();
+            return;
+        }
+
+        try { PersistSettings(); }
+        catch (Exception ex) { AppLogger.Error("Salvar senha", ex.Message, ex); MessageBox.Show(this, $"Não foi possível salvar a senha protegida: {ex.Message}", "Erro ao salvar senha", MessageBoxButtons.OK, MessageBoxIcon.Error); }
+    }
+
+    private void UpdateVpnCredentialsEnabled()
+    {
+        var manual = _vpnUseManualCredentials.Checked;
+        foreach (var control in new Control[] { _vpnUsername, _vpnPassword, _vpnPasswordVisibilityToggle, _saveVpnPassword })
+            control.Enabled = manual;
+    }
+
+    // O editor do script fica desabilitado quando a opção está desmarcada (o roteiro nunca será executado).
+    private void UpdateVpnConnectScriptEnabled()
+    {
+        _vpnConnectScript.Enabled = _vpnRunConnectScript.Checked;
+    }
+
+    private async Task LoadVpnConnectionListAsync()
+    {
+        try
+        {
+            var connections = await Task.Run(VpnConnection.ListConnections);
+            var selected = _vpnConnectionName.Text.Trim();
+            _vpnConnectionName.BeginUpdate();
+            _vpnConnectionName.Items.Clear();
+            foreach (var connection in connections) _vpnConnectionName.Items.Add(connection);
+            _vpnConnectionName.EndUpdate();
+            _vpnConnectionName.Text = selected;
+        }
+        catch
+        {
+            // Enumeração indisponível: o operador digita o nome manualmente.
+        }
+    }
+
+    private enum VpnConnectOutcome { ConnectedByApp, AlreadyConnected, Failed }
+
+    private async Task<VpnConnectOutcome> ConnectVpnForTransferAsync(CancellationToken token)
+    {
+        var name = _settings.VpnConnectionName.Trim();
+        if (name.Length == 0)
+        {
+            FlowNotify("VPN não configurada", "Marque a opção 'Usar VPN para transferir bases' e informe o nome da conexão na tela Configuração, aba VPN.", error: true);
+            return VpnConnectOutcome.Failed;
+        }
+        if (_settings.VpnUseManualCredentials && string.IsNullOrWhiteSpace(_settings.VpnUsername))
+        {
+            FlowNotify("Credenciais incompletas", "Informe o usuário da VPN ou desmarque a opção 'Informar usuário e senha manualmente' na Configuração.", error: true);
+            return VpnConnectOutcome.Failed;
+        }
+
+        if (VpnConnection.IsConnected(name))
+        {
+            Log($"A VPN '{name}' já está conectada; ela será mantida após a transferência.");
+            return VpnConnectOutcome.AlreadyConnected;
+        }
+
+        Log($"Conectando à VPN '{name}'…");
+        var userName = _settings.VpnUseManualCredentials ? _settings.VpnUsername.Trim() : null;
+        var password = _settings.VpnUseManualCredentials ? _settings.GetVpnPassword() : null;
+        var result = await VpnConnection.ConnectAsync(name, _settings.VpnUseManualCredentials, userName, password, token);
+        if (!result.Success)
+        {
+            Log($"Não foi possível conectar à VPN '{name}': {result.Message}");
+            FlowNotify("Não foi possível conectar à VPN",
+                $"Verifique se a conexão '{name}' existe e se as credenciais estão corretas.\n\nDetalhe: {result.Message}", error: true);
+            return VpnConnectOutcome.Failed;
+        }
+
+        Log($"A VPN '{name}' foi conectada pelo aplicativo.");
+
+        // Executa o script somente quando o próprio aplicativo conectou a VPN — não quando ela já estava conectada.
+        if (_settings.VpnConnectScriptEnabled && !string.IsNullOrWhiteSpace(_settings.VpnConnectScript))
+        {
+            var scriptResult = await RunVpnConnectScriptAsync(token);
+            if (!scriptResult.Success)
+            {
+                Log($"Script de conexão da VPN falhou: {scriptResult.Message}");
+                try { await VpnConnection.DisconnectAsync(name); Log($"A VPN '{name}' foi desconectada porque o script de conexão falhou."); } catch { }
+                FlowNotify("Script de conexão da VPN falhou", scriptResult.Message, error: true);
+                return VpnConnectOutcome.Failed;
+            }
+            Log("Script de conexão da VPN concluído com sucesso.");
+        }
+
+        return VpnConnectOutcome.ConnectedByApp;
+    }
+
+    /// <summary>
+    /// Executa o script (.bat/.cmd) informado ao conectar a VPN pelo aplicativo.
+    /// O script é gravado num arquivo temporário e executado via cmd.exe; a saída e o código de encerramento
+    /// são registrados no log. Em erro, retorna o detalhe da falha (a transferência é abortada).
+    /// </summary>
+    private async Task<(bool Success, string Message)> RunVpnConnectScriptAsync(CancellationToken token)
+    {
+        var script = _settings.VpnConnectScript ?? "";
+        var tempFile = Path.Combine(Path.GetTempPath(), "SupraKit-vpn-" + Guid.NewGuid().ToString("N") + ".cmd");
+        try
+        {
+            // "@echo off" evita eco dos comandos no console; "chcp 65001" interpreta acentos. Sem BOM: cmd.exe não entende a marca de ordem de bytes.
+            var content = "@echo off\r\n@chcp 65001 >nul\r\n" + script.Replace("\r\n", "\n").Replace("\n", "\r\n");
+            await File.WriteAllTextAsync(tempFile, content, new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: false), token);
+
+            var start = new ProcessStartInfo
+            {
+                FileName = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), "System32", "cmd.exe"),
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            start.ArgumentList.Add("/c");
+            start.ArgumentList.Add(tempFile);
+
+            using var process = new Process { StartInfo = start };
+            process.Start();
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(token);
+            linked.CancelAfter(TimeSpan.FromMinutes(3));
+            try
+            {
+                await process.WaitForExitAsync(linked.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException)
+            {
+                if (token.IsCancellationRequested)
+                {
+                    try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                    throw;
+                }
+                try { if (!process.HasExited) process.Kill(entireProcessTree: true); } catch { }
+                return (false, "Tempo esgotado (3 minutos) esperando o script de conexão concluir.");
+            }
+
+            var output = (await outputTask).Trim();
+            var error = (await errorTask).Trim();
+            if (!string.IsNullOrEmpty(output)) Log("Script: " + output);
+
+            if (process.ExitCode != 0)
+            {
+                var detail = string.IsNullOrWhiteSpace(error) ? output : error;
+                if (string.IsNullOrWhiteSpace(detail)) detail = $"o script encerrou com o código {process.ExitCode}.";
+                return (false, detail);
+            }
+
+            return (true, output);
+        }
+        catch (Exception ex)
+        {
+            return (false, ex.Message);
+        }
+        finally
+        {
+            try { if (File.Exists(tempFile)) File.Delete(tempFile); } catch { }
+        }
+    }
+
+    private async Task StartFlowAsync()
+    {
+        if (_running) return;
+        try
+        {
+        ReadFields();
+        var sl = _sl.Text.Trim();
+        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c))) { FlowNotify("Número inválido", "Digite o número da solicitação usando apenas números.\n\nExemplo: 123456", error: true); return; }
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || string.IsNullOrWhiteSpace(_settings.SupportRoot)) { FlowNotify("Configuração necessária", "Antes de começar, defina estas pastas na tela Configuração:\n• Pasta local das bases\n• Pasta de bases de apoio", error: true); return; }
+        if (!Directory.Exists(_settings.BasesRoot) || !Directory.Exists(_settings.SupportRoot)) { FlowNotify("Pastas indisponíveis", $"As pastas configuradas precisam existir e estar acessíveis:\n• Pasta local das bases: {_settings.BasesRoot}\n• Pasta de bases de apoio: {_settings.SupportRoot}\n\nConfira os caminhos na tela Configuração.", error: true); return; }
+        if (string.IsNullOrWhiteSpace(_password.Text)) { FlowNotify("Senha necessária", "Para conectar ao Firebird, informe a senha na tela Configuração.", error: true); return; }
+        try { PersistSettings(); }
+        catch (Exception ex) { FlowNotify("Configuração não salva", $"Não foi possível salvar as configurações.\n\nDetalhe: {ex.Message}", error: true); return; }
+
+        // VPN: conectar antes de acessar a pasta de rede da origem.
+        _vpnConnectedByApp = false;
+        if (_settings.UseVpn)
+        {
+            var outcome = await ConnectVpnForTransferAsync(CancellationToken.None);
+            if (outcome == VpnConnectOutcome.Failed) return;
+            _vpnConnectedByApp = outcome == VpnConnectOutcome.ConnectedByApp;
+        }
+        if (!await DirectoryExistsWithVpnRetryAsync(_settings.SolicitationRoot, "Origem indisponível")) { FlowNotify("Origem indisponível", "Não foi possível acessar a pasta de origem das solicitações.\n\nVerifique se o compartilhamento de rede está disponível e tente novamente.", error: true); return; }
+
+        var source = Path.GetFullPath(Path.Combine(_settings.SolicitationRoot, sl));
+        string destination;
+        try { destination = BaseOperationRules.ResolveLocalBaseDirectory(_settings.BasesRoot, sl); }
+        catch (Exception ex) { FlowNotify("Não foi possível definir a pasta de destino", ex.Message, error: true); return; }
+        try
+        {
+            var baseRoot = Path.GetFullPath(_settings.BasesRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            if (!Directory.Exists(destination))
+            {
+                var slSuffix = "_" + sl;
+                var candidate = Directory.GetDirectories(baseRoot)
+                    .FirstOrDefault(dir => string.Equals(Path.GetFileName(dir), sl, StringComparison.OrdinalIgnoreCase)
+                        || Path.GetFileName(dir).EndsWith(slSuffix, StringComparison.OrdinalIgnoreCase));
+                if (candidate is not null) destination = candidate;
+            }
+        }
+        catch { /* best-effort; a verificação pontual acima é suficiente */ }
+        if (!await DirectoryExistsWithVpnRetryAsync(source, "SL não encontrada")) { FlowNotify("SL não encontrada", $"Não encontrei a pasta da solicitação na origem:\n{source}\n\nConfira o número digitado e se o compartilhamento está acessível.", error: true); return; }
+        var destinationConflictChoice = ExistingDestinationAction.Cancel;
+        if (Directory.Exists(destination))
+        {
+            var conflictResult = AppMessageBox.ShowFolderConflict(this,
+                $"A pasta desta solicitação já existe:\n{destination}\n\n• Criar backup guarda uma cópia da pasta atual e continua.\n• Substituir apaga a pasta atual, sem guardar cópia.\n\nDeseja continuar?");
+            destinationConflictChoice = BaseOperationRules.GetDestinationAction(conflictResult);
+            if (destinationConflictChoice == ExistingDestinationAction.Cancel) return;
+        }
+
+        _running = true;
+        _versionLabel.Text = "";
+        _versionLabel.Visible = false;
+        _runCancellation = new CancellationTokenSource();
+        if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
+        {
+            ShowBackgroundNotification("Transferência iniciada", $"Preparando a SL {sl}…");
+        }
+        SetBusy(true);
+        try
+        {
+            SetStatus("Preparando tudo para começar…");
+            Log($"Iniciando a preparação da SL {sl}…");
+            if (Directory.Exists(destination))
+            {
+                if (destinationConflictChoice == ExistingDestinationAction.CreateBackup)
+                {
+                    var backup = destination + ".backup-" + DateTime.Now.ToString("yyyyMMdd-HHmmss");
+                    Directory.Move(destination, backup);
+                    Log($"A pasta anterior foi preservada em: {backup}");
+                }
+                else
+                {
+                    Directory.Delete(destination, recursive: true);
+                    Log("A pasta anterior foi substituída, sem cópia de segurança, conforme você escolheu.");
+                }
+            }
+            Directory.CreateDirectory(destination);
+            SetStatus("Copiando os arquivos da solicitação…");
+            Log("Copiando os arquivos — isso pode levar alguns minutos.");
+            await CopyWithVpnRetryAsync(source, destination, _runCancellation.Token);
+            Log("Cópia concluída.");
+            SetStatus("Preparando a base…");
+
+            await ExtractArchivesAsync(destination, _runCancellation.Token);
+            var databaseFolders = MultiBaseOperationRules.FindDatabaseFolders(destination);
+            var forced = !MultiBaseOperationRules.IsMultiBase(destination) && _settings.ForceMultiBase;
+            var multiBase = forced || databaseFolders.Count > 0;
+            string arqSistDatabase;
+            if (multiBase)
+            {
+                if (forced) Log("Opção 'Sempre criar estrutura multi-base' ativa: aplicando o tratamento multi-base.");
+                else Log("Pastas ARQ## encontradas: " + string.Join(", ", databaseFolders.Select(folder => Path.GetFileName(folder.DirectoryPath))) + ". Aplicando o tratamento multi-base.");
+                Log("A ARQSIST usada será a da pasta ARQ01.");
+                arqSistDatabase = await PrepareMultiBaseDatabasesAsync(destination, _runCancellation.Token);
+            }
+            else
+            {
+                MoveDatabasesToRoot(destination, _runCancellation.Token);
+                await EnsureRequiredDatabasesAsync(destination, _runCancellation.Token);
+                arqSistDatabase = Path.Combine(destination, "ARQSIST.FDB");
+            }
+            var arqEmpDatabase = multiBase
+                ? Path.Combine(MultiBaseOperationRules.GetCompanyDirectory(destination), MultiBaseOperationRules.CompanyDatabaseEmp)
+                : Path.Combine(destination, "ARQEMP.FDB");
+            await RunSqlScriptsAsync(arqEmpDatabase, arqSistDatabase, destination, multiBase, _runCancellation.Token);
+
+            if (_settings.RenameSlFolderToClientName)
+            {
+                var newDestination = await TryGetClientNameAsync(arqSistDatabase, _runCancellation.Token);
+                if (newDestination is not null)
+                {
+                    var firstName = GetFirstWord(newDestination);
+                    var sanitized = SanitizeFolderName(firstName);
+                    if (string.IsNullOrWhiteSpace(sanitized))
+                    {
+                        Log("O primeiro nome retornado contém caracteres inválidos para pasta; a renomeação foi ignorada.");
+                    }
+                    else
+                    {
+                        var target = Path.Combine(Path.GetDirectoryName(destination)!, $"{sanitized}_{sl}");
+                        if (string.Equals(target, Path.GetFullPath(destination), StringComparison.OrdinalIgnoreCase))
+                        {
+                            Log($"A pasta já está nomeada como '{sanitized}_{sl}'; nada a renomear.");
+                        }
+                        else if (Directory.Exists(target))
+                        {
+                            Log($"Já existe uma pasta com o nome '{sanitized}_{sl}'; renomeação ignorada. O número da SL foi preservado.");
+                        }
+                        else
+                        {
+                            Directory.Move(destination, target);
+                            Log($"Pasta da solicitação renomeada para: {Path.GetFileName(target)}");
+                            destination = target;
+                        }
+                    }
+                }
+            }
+
+            if (multiBase)
+            {
+                arqSistDatabase = MultiBaseOperationRules.GetArqSistPath(destination);
+                arqEmpDatabase = Path.Combine(MultiBaseOperationRules.GetCompanyDirectory(destination), MultiBaseOperationRules.CompanyDatabaseEmp);
+            }
+            else
+            {
+                arqSistDatabase = Path.Combine(destination, "ARQSIST.FDB");
+                arqEmpDatabase = Path.Combine(destination, "ARQEMP.FDB");
+            }
+
+            if (multiBase) await UpdateRegistryForMultiBaseAsync(destination); else await UpdateRegistryAsync(destination);
+            await ShowVersionAsync(arqSistDatabase, _runCancellation.Token);
+            Log("Base preparada com sucesso. Ela já está selecionada para uso.");
+            _status.Text = "Tudo pronto!";
+            FlowNotify("Pronto!", $"A base da SL {sl} foi preparada e selecionada.\n\nÉ só abrir o sistema e trabalhar normalmente.");
+        }
+        catch (OperationCanceledException) { Log("Cancelado a seu pedido. O que já tinha sido copiado permanece na pasta de destino."); _status.Text = "Cancelado"; }
+        catch (Exception ex) { Log("Algo não saiu como esperado: " + ex.Message); _status.Text = "Não foi possível concluir"; FlowNotify("Não foi possível preparar a base", $"Algo não saiu como esperado:\n\n{ex.Message}\n\nVeja o log na tela Buscar base para saber em que etapa aconteceu.", error: true); }
+        finally { _runCancellation?.Dispose(); _runCancellation = null; _running = false; _trayShortStatus = null; SetBusy(false); RefreshTrayTooltip(); }
+        }
+        finally
+        {
+            if (_vpnConnectedByApp)
+            {
+                _vpnConnectedByApp = false;
+                var vpnName = _settings.VpnConnectionName.Trim();
+                try
+                {
+                    await VpnConnection.DisconnectAsync(vpnName);
+                    Log($"A VPN '{vpnName}' foi desconectada.");
+                }
+                catch (Exception ex)
+                {
+                    Log($"Não foi possível desconectar a VPN '{vpnName}': {ex.Message}");
+                }
+            }
+        }
+    }
+
+    private async Task ExtractArchivesAsync(string root, CancellationToken token)
+    {
+        var rars = Directory.GetFiles(root, "*.rar", SearchOption.AllDirectories);
+        if (rars.Length > 0)
+        {
+            var selected = SelectArchives("Quais arquivos RAR você quer extrair?", rars);
+            token.ThrowIfCancellationRequested();
+            if (selected.Length > 0)
+            {
+                foreach (var rar in selected)
+                    await ExtractRarArchiveAsync(rar, root, token);
+            }
+        }
+        var zips = Directory.GetFiles(root, "*.zip", SearchOption.AllDirectories);
+        if (zips.Length > 0)
+        {
+            var selected = SelectArchives("Quais arquivos ZIP você quer extrair?", zips);
+            token.ThrowIfCancellationRequested();
+            foreach (var zip in selected)
+            {
+                Log("Extraindo " + Path.GetFileName(zip));
+                SetArchiveProgress(0, "Extraindo " + Path.GetFileName(zip), $"Extraindo {Path.GetFileName(zip)} (0%)");
+                using var archive = ZipFile.OpenRead(zip);
+                foreach (var entry in archive.Entries)
+                {
+                    token.ThrowIfCancellationRequested();
+                    var target = GetSafeArchiveEntryPath(root, entry.FullName);
+                    if (string.IsNullOrEmpty(entry.Name)) { Directory.CreateDirectory(target); continue; }
+                    Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+                    await using var input = entry.Open();
+                    await using var output = new FileStream(target, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+                    await input.CopyToAsync(output, 1024 * 1024, token);
+                }
+                SetArchiveProgress(100, "ZIP extraído com sucesso", $"Extraindo {Path.GetFileName(zip)} (100%)");
+            }
+        }
+    }
+
+    private async Task ExtractRarArchiveAsync(string archivePath, string destinationRoot, CancellationToken token)
+    {
+        Log("Extraindo " + Path.GetFileName(archivePath));
+        var rarName = Path.GetFileName(archivePath);
+        SetArchiveProgress(0, "Extraindo " + rarName, $"Extraindo {rarName} (0%)");
+        await using var archiveStream = new FileStream(archivePath, FileMode.Open, FileAccess.Read, FileShare.Read, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        var extractionProgress = new Progress<ProgressReport>(report =>
+        {
+            var percent = (int)Math.Clamp(Math.Round(report.PercentComplete ?? 0), 0d, 100d);
+            var entryName = string.IsNullOrWhiteSpace(report.EntryPath) ? Path.GetFileName(archivePath) : Path.GetFileName(report.EntryPath);
+            SetArchiveProgress(percent, $"Extraindo {entryName} ({percent}%)", $"Extraindo {entryName} ({percent}%)");
+        });
+        var readerOptions = ReaderOptions.ForExternalStream.WithProgress(extractionProgress);
+        await using var reader = await ReaderFactory.OpenAsyncReader(archiveStream, readerOptions, token);
+        while (await reader.MoveToNextEntryAsync(token))
+        {
+            token.ThrowIfCancellationRequested();
+            var entry = reader.Entry;
+            var entryKey = entry.Key ?? throw new InvalidOperationException("Há um arquivo sem nome dentro do RAR. Recompacte o arquivo ou extraia manualmente.");
+            SetStatus("Extraindo " + Path.GetFileName(entryKey));
+            _trayShortStatus = "Extraindo " + Path.GetFileName(entryKey);
+            var outputPath = GetSafeArchiveEntryPath(destinationRoot, entryKey);
+            if (entry.IsDirectory)
+            {
+                Directory.CreateDirectory(outputPath);
+                continue;
+            }
+
+            Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
+            await using var output = new FileStream(outputPath, FileMode.Create, FileAccess.Write, FileShare.None, 1024 * 1024, FileOptions.Asynchronous | FileOptions.SequentialScan);
+            await reader.WriteEntryToAsync(output, token);
+        }
+        SetArchiveProgress(100, "RAR extraído com sucesso", $"Extraindo {Path.GetFileName(archivePath)} (100%)");
+    }
+
+    private void SetArchiveProgress(int percent, string status, string? trayStatus = null)
+    {
+        _progressPercent = Math.Clamp(percent, 0, 100);
+        _trayShortStatus = trayStatus ?? status;
+        UpdateProgressFill();
+        SetStatus(status);
+    }
+
+    private static string GetSafeArchiveEntryPath(string destinationRoot, string entryKey)
+    {
+        return ArchivePathSafety.GetSafeEntryPath(destinationRoot, entryKey);
+    }
+
+    private string[] SelectArchives(string title, string[] files)
+    {
+        if (files.Length == 1) return files;
+        if (files.Length > 1) NotifyIfMinimized(title, "O SupraKit aguarda a sua escolha dos arquivos.");
+        var dark = _settings.DarkMode;
+        var background = dark ? Color.FromArgb(34, 42, 55) : Color.White;
+        var surface = dark ? Color.FromArgb(43, 53, 69) : Color.FromArgb(249, 251, 254);
+        var headerColor = dark ? Color.FromArgb(28, 35, 47) : Color.FromArgb(31, 111, 235);
+        var foreground = dark ? Color.FromArgb(232, 237, 245) : Ink;
+        var border = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(208, 217, 230);
+        var dialogLocation = new Point(
+            Screen.FromControl(this).WorkingArea.Left + Math.Max(0, (Screen.FromControl(this).WorkingArea.Width - 650) / 2),
+            Screen.FromControl(this).WorkingArea.Top + Math.Max(0, (Screen.FromControl(this).WorkingArea.Height - 460) / 2));
+
+        using var dialog = new Form
+        {
+            Text = title,
+            Size = new Size(650, 460),
+            Location = dialogLocation,
+            StartPosition = FormStartPosition.Manual,
+            FormBorderStyle = FormBorderStyle.None,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            ShowInTaskbar = false,
+            BackColor = border,
+            Padding = new Padding(1)
+        };
+        dialog.Controls.Add(new Panel { Dock = DockStyle.Fill, BackColor = background });
+
+        var clientWidth = dialog.ClientSize.Width - 2;
+        var clientHeight = dialog.ClientSize.Height - 2;
+        var body = (Panel)dialog.Controls[0];
+
+        var header = new Panel { Location = Point.Empty, Size = new Size(clientWidth, 44), Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right, BackColor = headerColor };
+        var caption = new Label { Text = title, ForeColor = Color.White, BackColor = Color.Transparent, Font = UiTypography.Body(10f), TextAlign = ContentAlignment.MiddleLeft, AutoSize = true, Location = new Point(18, 13) };
+        header.Controls.Add(caption);
+        var close = new RoundedButton
+        {
+            Text = "×",
+            CornerRadius = 0,
+            Size = new Size(42, 44),
+            Location = new Point(clientWidth - 42, 0),
+            Anchor = AnchorStyles.Top | AnchorStyles.Right,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = Color.White,
+            BackColor = headerColor,
+            Font = UiTypography.Body(15f),
+            TabStop = false
+        };
+        close.FlatAppearance.BorderSize = 0;
+        close.BackColor = headerColor;
+        close.MouseEnter += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.MouseLeave += (_, _) => close.BackColor = headerColor;
+        close.MouseDown += (_, _) => close.BackColor = Color.FromArgb(0xA1, 0x1F, 0x15);
+        close.MouseUp += (_, _) => close.BackColor = Color.FromArgb(0xC4, 0x2B, 0x1C);
+        close.Click += (_, _) => dialog.DialogResult = DialogResult.Cancel;
+        header.Controls.Add(close);
+        DraggableWindow.Wire(header, dialog);
+        DraggableWindow.Wire(caption, dialog);
+        body.Controls.Add(header);
+
+        var list = new CheckedListBox
+        {
+            CheckOnClick = true,
+            IntegralHeight = false,
+            Font = UiTypography.Body(10f),
+            BackColor = surface,
+            ForeColor = foreground,
+            BorderStyle = BorderStyle.FixedSingle,
+            Location = new Point(12, 56),
+            Size = new Size(clientWidth - 24, clientHeight - 122),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            ItemHeight = 26
+        };
+        foreach (var file in files) list.Items.Add(file, true);
+        body.Controls.Add(list);
+
+        const int buttonHeight = 32;
+        var okWidth = Math.Max(150, TextRenderer.MeasureText("Extrair selecionados", UiTypography.BodySemibold(9f)).Width + 28);
+        var skipWidth = Math.Max(120, TextRenderer.MeasureText("Pular extração", UiTypography.BodySemibold(9f)).Width + 28);
+
+        var buttons = new Panel { Location = new Point(0, clientHeight - 60), Size = new Size(clientWidth, 60), Anchor = AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right, BackColor = background };
+        var ok = new RoundedButton
+        {
+            Text = "Extrair selecionados",
+            DialogResult = DialogResult.OK,
+            Size = new Size(okWidth, buttonHeight),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = Color.FromArgb(31, 111, 235),
+            ForeColor = Color.White,
+            Font = UiTypography.BodySemibold(9f)
+        };
+        ok.FlatAppearance.BorderSize = 0;
+        ok.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
+        ok.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
+
+        var cancel = new RoundedButton
+        {
+            Text = "Pular extração",
+            DialogResult = DialogResult.Cancel,
+            Size = new Size(skipWidth, buttonHeight),
+            FlatStyle = FlatStyle.Flat,
+            BackColor = dark ? Color.FromArgb(43, 53, 69) : Color.White,
+            ForeColor = foreground,
+            Font = UiTypography.BodySemibold(9f)
+        };
+        cancel.FlatAppearance.BorderSize = 1;
+        cancel.FlatAppearance.BorderColor = border;
+        cancel.FlatAppearance.MouseOverBackColor = dark ? Color.FromArgb(57, 68, 84) : Color.FromArgb(244, 247, 251);
+        cancel.FlatAppearance.MouseDownBackColor = dark ? Color.FromArgb(63, 75, 92) : Color.FromArgb(231, 240, 255);
+
+        ok.Location = new Point(buttons.Width - okWidth - 12, 14);
+        cancel.Location = new Point(ok.Left - skipWidth - 8, 14);
+        buttons.Controls.Add(ok);
+        buttons.Controls.Add(cancel);
+        body.Controls.Add(buttons);
+
+        dialog.AcceptButton = ok;
+        dialog.CancelButton = cancel;
+        if (dialog.ShowDialog(this) != DialogResult.OK) return Array.Empty<string>();
+        return list.CheckedItems.Cast<string>().ToArray();
+    }
+
+    private static bool IsNetworkError(Exception ex)
+    {
+        for (Exception? current = ex; current is not null; current = current.InnerException)
+        {
+            if (current is OperationCanceledException) return false;
+            if (current is IOException or UnauthorizedAccessException or DirectoryNotFoundException
+                or FileNotFoundException or System.Net.Sockets.SocketException)
+                return true;
+            if (current is Win32Exception win32)
+            {
+                // 53 = caminho de rede inacessível; 64 = nome de rede excluído; 67 = nome de rede inválido;
+                // 1219 = sessão duplicada; 1231/1232/1234 = rede indisponível; 12002/12029/1222 = timeouts/host inacessível.
+                var code = win32.NativeErrorCode;
+                if (code is 53 or 64 or 67 or 1219 or 1231 or 1232 or 1234 or 12002 or 12029 or 1222) return true;
+            }
+            var message = current.Message;
+            if (message.Contains("network", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("rede", StringComparison.OrdinalIgnoreCase)
+                || message.Contains("remote procedure call", StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
+    /// <summary>
+    /// Verifica a existência de um diretório que pode estar na rede (origem das solicitações) com
+    /// reconexão automática da VPN quando ela cai. Evita falso positivo de "pasta não encontrada"
+    /// por causa de uma instabilidade momentânea.
+    /// </summary>
+    private async Task<bool> DirectoryExistsWithVpnRetryAsync(string path, string context)
+    {
+        var maxChecks = Math.Clamp(_settings.VpnReconnectAttempts, 1, 10) + 1;
+        var vpnName = _settings.VpnConnectionName.Trim();
+        for (var check = 1; ; check++)
+        {
+            bool exists;
+            try { exists = Directory.Exists(path); }
+            catch (Exception ex)
+            {
+                exists = false;
+                if (_settings.UseVpn) Log($"{context}: erro ao acessar a rede ({ex.Message}).");
+            }
+
+            if (exists) return true;
+            if (!_settings.UseVpn || check >= maxChecks) return false;
+
+            // Se a VPN está conectada e a pasta continua não encontrada, é um caminho errado — não adianta reconectar.
+            if (VpnConnection.IsConnected(vpnName))
+            {
+                if (check == 1) Log($"{context}: a VPN está conectada, mas a pasta não foi encontrada — verifique o caminho.");
+                return false;
+            }
+
+            Log($"{context}: a VPN pode ter caído. Reconectando à VPN — verificação {check} de {maxChecks}.");
+            if (!await ConnectVpnForReconnectAsync(vpnName, CancellationToken.None)) return false;
+        }
+    }
+
+    /// <summary>
+    /// Copia com reconexão automática quando a VPN cai durante a transferência: reconecta e
+    /// refaz a cópia inteira, substituindo o que já tinha sido baixado (conforme a opção configurada).
+    /// </summary>
+    private async Task CopyWithVpnRetryAsync(string source, string destination, CancellationToken token)
+    {
+        var maxReconnects = Math.Clamp(_settings.VpnReconnectAttempts, 1, 10);
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                await CopyDirectoryAsync(source, destination, token);
+                return;
+            }
+            catch (Exception ex) when (attempt <= maxReconnects && _settings.UseVpn && !token.IsCancellationRequested && IsNetworkError(ex))
+            {
+                if (token.IsCancellationRequested) token.ThrowIfCancellationRequested();
+                SetStatus($"Conexão perdida. Reconectando à VPN… (tentativa {attempt} de {maxReconnects})");
+                Log($"A cópia dos arquivos falhou por causa da conexão ({ex.Message}).");
+                var vpnName = _settings.VpnConnectionName.Trim();
+                try { await VpnConnection.DisconnectAsync(vpnName); } catch { }
+                if (!await ConnectVpnForReconnectAsync(vpnName, token))
+                {
+                    var details = $"A VPN '{vpnName}' caiu durante a cópia e não foi possível reconectar — tente novamente.";
+                    Log(details);
+                    throw new IOException(details, ex);
+                }
+
+                Log($"Conexão restabelecida. Copiando tudo de novo, substituindo o que já tinha sido baixado (tentativa {attempt + 1}).");
+                try { if (Directory.Exists(destination)) Directory.Delete(destination, recursive: true); }
+                catch (Exception cleanupEx) { Log($"Não foi possível limpar a pasta de destino antes da nova cópia: {cleanupEx.Message}"); }
+                Directory.CreateDirectory(destination);
+            }
+        }
+    }
+
+    private async Task<bool> ConnectVpnForReconnectAsync(string vpnName, CancellationToken token)
+    {
+        if (VpnConnection.IsConnected(vpnName)) return true;
+        var userName = _settings.VpnUseManualCredentials ? _settings.VpnUsername.Trim() : null;
+        var password = _settings.VpnUseManualCredentials ? _settings.GetVpnPassword() : null;
+        var result = await VpnConnection.ConnectAsync(vpnName, _settings.VpnUseManualCredentials, userName, password, token);
+        if (!result.Success) Log($"Não foi possível reconectar à VPN '{vpnName}': {result.Message}");
+        return result.Success;
+    }
+
+    private async Task CopyDirectoryAsync(string source, string destination, CancellationToken token)
+    {
+        var files = Directory.GetFiles(source, "*", SearchOption.AllDirectories);
+        var directories = Directory.GetDirectories(source, "*", SearchOption.AllDirectories);
+        foreach (var directory in directories)
+        {
+            token.ThrowIfCancellationRequested();
+            Directory.CreateDirectory(Path.Combine(destination, Path.GetRelativePath(source, directory)));
+        }
+
+        long totalBytes = 0;
+        foreach (var file in files)
+        {
+            token.ThrowIfCancellationRequested();
+            totalBytes += new FileInfo(file).Length;
+        }
+
+        long bytesCopied = 0;
+        var filesCopied = 0;
+        var lastPercent = -1;
+        foreach (var file in files)
+        {
+            token.ThrowIfCancellationRequested();
+            var target = Path.Combine(destination, Path.GetRelativePath(source, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            await CopyFileAsync(file, target, token, delta =>
+            {
+                bytesCopied += delta;
+                var percent = totalBytes == 0 ? 100 : (int)Math.Min(100, bytesCopied * 100d / totalBytes);
+                if (percent != lastPercent || delta == 0)
+                {
+                    lastPercent = percent;
+                    SetTransferProgress(percent, bytesCopied, totalBytes, filesCopied, files.Length);
+                }
+            });
+            filesCopied++;
+            SetTransferProgress(totalBytes == 0 ? 100 : (int)Math.Min(100, bytesCopied * 100d / totalBytes), bytesCopied, totalBytes, filesCopied, files.Length);
+            File.SetLastWriteTimeUtc(target, File.GetLastWriteTimeUtc(file));
+            File.SetAttributes(target, File.GetAttributes(file));
+        }
+        SetTransferProgress(100, totalBytes, totalBytes, files.Length, files.Length);
+    }
+
+    private static async Task CopyFileAsync(string source, string destination, CancellationToken token, Action<int>? copied = null, FileMode mode = FileMode.Create)
+    {
+        const int bufferSize = 1024 * 1024;
+        var buffer = new byte[bufferSize];
+        await using var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        await using var output = new FileStream(destination, mode, FileAccess.Write, FileShare.None, bufferSize, FileOptions.Asynchronous | FileOptions.SequentialScan);
+        while (true)
+        {
+            var read = await input.ReadAsync(buffer.AsMemory(0, buffer.Length), token);
+            if (read == 0) break;
+            await output.WriteAsync(buffer.AsMemory(0, read), token);
+            copied?.Invoke(read);
+        }
+    }
+
+    private void SetTransferProgress(int percent, long bytesCopied, long totalBytes, int filesCopied, int totalFiles)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => SetTransferProgress(percent, bytesCopied, totalBytes, filesCopied, totalFiles))); return; }
+        _progressPercent = Math.Clamp(percent, 0, 100);
+        UpdateProgressFill();
+        var copiedMb = bytesCopied / 1024d / 1024d;
+        var totalMb = totalBytes / 1024d / 1024d;
+        _status.Text = $"Copiando: {percent}%  ·  {copiedMb:N1} de {totalMb:N1} MB  ·  {filesCopied} de {totalFiles} arquivos";
+        _trayShortStatus = $"Copiando ({percent}%)";
+        RefreshTrayTooltip();
+    }
+
+    private void UpdateProgressFill()
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(UpdateProgressFill)); return; }
+        var availableWidth = Math.Max(0, _progress.ClientSize.Width);
+        _progressFill.Width = (int)Math.Round(availableWidth * _progressPercent / 100d);
+        _progressFill.Height = Math.Max(0, _progress.ClientSize.Height);
+    }
+
+    private void MoveDatabasesToRoot(string root, CancellationToken token)
+    {
+        foreach (var file in Directory.GetFiles(root, "*.fdb", SearchOption.AllDirectories).Where(f => !string.Equals(Path.GetDirectoryName(f), root, StringComparison.OrdinalIgnoreCase)).ToArray())
+        {
+            token.ThrowIfCancellationRequested();
+            var target = Path.Combine(root, Path.GetFileName(file));
+            if (File.Exists(target)) throw new IOException($"Encontrei dois arquivos {Path.GetFileName(target)}: um na pasta raiz e outro numa subpasta.\nRemova um deles e tente novamente.");
+            File.Move(file, target);
+            Log("A base " + Path.GetFileName(target) + " foi movida para a raiz da pasta.");
+        }
+    }
+
+    private async Task EnsureRequiredDatabasesAsync(string root, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var systemDb = Path.Combine(root, "ARQSIST.FDB");
+        if (!File.Exists(systemDb))
+        {
+            NotifyIfMinimized("Selecione a ARQSIST.FDB", "O SupraKit precisa que você escolha o arquivo ARQSIST.");
+            using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
+            if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
+            await CopyFileAsync(dialog.FileName, systemDb, token);
+            Log("ARQSIST.FDB criado com o arquivo que você selecionou.");
+        }
+        foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(root, _settings.SupportRoot))
+        {
+            token.ThrowIfCancellationRequested();
+            await CopyFileAsync(supportFile.Source, supportFile.Destination, token);
+            Log($"Arquivo de apoio copiado: {supportFile.Name}");
+        }
+        if (!File.Exists(Path.Combine(root, "ARQEMP.FDB")) || !File.Exists(systemDb)) throw new InvalidOperationException("Faltam a ARQEMP.FDB ou a ARQSIST.FDB na pasta da base e elas também não existem na pasta de apoio.");
+    }
+
+    private async Task<string> PrepareMultiBaseDatabasesAsync(string root, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        var companyDirectory = MultiBaseOperationRules.GetCompanyDirectory(root);
+        Directory.CreateDirectory(companyDirectory);
+
+        foreach (var databaseName in new[] { MultiBaseOperationRules.CompanyDatabaseEmp, MultiBaseOperationRules.CompanyDatabaseOcor })
+        {
+            token.ThrowIfCancellationRequested();
+            var destination = Path.Combine(companyDirectory, databaseName);
+            string? source = File.Exists(Path.Combine(root, databaseName)) ? Path.Combine(root, databaseName) : null;
+            if (source is null)
+            {
+                var nested = MultiBaseOperationRules.FindFilesOutsideManagedFolders(root, databaseName);
+                if (nested.Count > 1)
+                    throw new IOException($"Encontrei mais de uma {databaseName} em subpastas:\n{string.Join("\n", nested)}\nRemova as extras ou mantenha apenas uma e tente novamente.");
+                source = nested.Count == 1 ? nested[0] : null;
+            }
+
+            if (source is not null)
+            {
+                if (File.Exists(destination))
+                    throw new IOException($"Encontrei {databaseName} em {Path.GetDirectoryName(source)} e também na pasta ARQ00. Resolva o conflito antes de continuar.");
+                File.Move(source, destination);
+                Log($"{databaseName} movida para a pasta ARQ00.");
+            }
+            else if (!File.Exists(destination))
+            {
+                var support = Path.Combine(_settings.SupportRoot, databaseName);
+                if (!File.Exists(support))
+                    throw new FileNotFoundException($"{databaseName} não existe na raiz nem em subpastas, nem na pasta ARQ00, nem na pasta de apoio.", support);
+                await CopyFileAsync(support, destination, token);
+                Log($"Arquivo de apoio copiado para ARQ00: {databaseName}");
+            }
+            else
+            {
+                Log($"{databaseName} já existe na pasta ARQ00 — mantida.");
+            }
+        }
+
+        var arqSist = MultiBaseOperationRules.GetArqSistPath(root);
+        var sistCandidates = MultiBaseOperationRules.FindFilesOutsideManagedFolders(root, "ARQSIST.FDB");
+        if (sistCandidates.Count > 1)
+            throw new IOException($"Encontrei mais de uma ARQSIST.FDB fora das pastas ARQ01/ARQ00:\n{string.Join("\n", sistCandidates)}\nRemova as extras ou mantenha apenas uma e tente novamente.");
+        if (sistCandidates.Count == 1 && File.Exists(arqSist))
+            throw new IOException($"Encontrei ARQSIST.FDB em {Path.GetDirectoryName(sistCandidates[0])} e também na pasta ARQ01. Resolva o conflito antes de continuar.");
+
+        if (sistCandidates.Count == 1 && !File.Exists(arqSist))
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(arqSist)!);
+            File.Move(sistCandidates[0], arqSist);
+            Log("ARQSIST.FDB movida para a pasta ARQ01.");
+        }
+        else if (!File.Exists(arqSist))
+        {
+            NotifyIfMinimized("Selecione a ARQSIST.FDB", "O SupraKit precisa que você escolha o arquivo ARQSIST para a pasta ARQ01.");
+            using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB (pasta ARQ01)", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
+            if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
+            Directory.CreateDirectory(Path.GetDirectoryName(arqSist)!);
+            await CopyFileAsync(dialog.FileName, arqSist, token);
+            Log("ARQSIST.FDB criado em ARQ01 com o arquivo que você selecionou.");
+        }
+        else
+        {
+            Log("ARQSIST.FDB encontrada na pasta ARQ01.");
+        }
+
+        if (!File.Exists(Path.Combine(companyDirectory, MultiBaseOperationRules.CompanyDatabaseEmp)) ||
+            !File.Exists(Path.Combine(companyDirectory, MultiBaseOperationRules.CompanyDatabaseOcor)) ||
+            !File.Exists(arqSist))
+            throw new InvalidOperationException("A validação das bases obrigatórias falhou: confira ARQEMP.FDB/ARQOCOR.FDB na pasta ARQ00 e ARQSIST.FDB na pasta ARQ01.");
+
+        return arqSist;
+    }
+
+    private async Task RunSqlScriptsAsync(string arqEmpDatabase, string arqSistDatabase, string destination, bool multiBase, CancellationToken token)
+    {
+        await RunSqlIfConfiguredAsync(_arqEmpEditor.Text, arqEmpDatabase, "Comandos ARQEMP", token);
+
+        var targets = GetArqSistTargetsForSql(destination, multiBase, arqSistDatabase);
+        foreach (var database in targets)
+        {
+            var label = targets.Count == 1
+                ? "Comandos ARQSIST"
+                : "Comandos ARQSIST (" + Path.GetFileName(Path.GetDirectoryName(database)!) + ")";
+            await RunSqlIfConfiguredAsync(_arqSistEditor.Text, database, label, token);
+        }
+    }
+
+    private IReadOnlyList<string> GetArqSistTargetsForSql(string destination, bool multiBase, string defaultArqSist)
+    {
+        if (!multiBase || string.IsNullOrWhiteSpace(_arqSistEditor.Text))
+            return new[] { defaultArqSist };
+
+        foreach (var folder in MultiBaseOperationRules.GetFolderNamesWithoutArqSist(destination))
+            Log($"{folder}: sem ARQSIST.FDB — os comandos ARQSIST não serão executados nessa pasta.");
+
+        var existing = MultiBaseOperationRules.GetArqSistDatabases(destination);
+        if (existing.Count <= 1) return new[] { defaultArqSist };
+
+        var names = existing.Select(database => Path.GetFileName(Path.GetDirectoryName(database)!) ?? database).ToList();
+        var answer = MessageBox.Show(this,
+            $"Executar os comandos ARQSIST em todas as {existing.Count} bases ARQSIST?\n\nPastas: {string.Join(", ", names)}\n\nSim = executa em todas, uma após a outra.\nNão = executa somente na ARQ01.",
+            "Comandos ARQSIST", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button2);
+        return answer == DialogResult.Yes ? existing : new[] { defaultArqSist };
+    }
+
+    private async Task RunSqlIfConfiguredAsync(string commands, string database, string label, CancellationToken token, Action<string>? operationLog = null)
+    {
+        if (string.IsNullOrWhiteSpace(commands)) { WriteOperationLog(operationLog, $"{label}: nada a executar (campo vazio)."); return; }
+        token.ThrowIfCancellationRequested();
+        _trayShortStatus = null; // dica do tray volta para o texto do status (ex.: "Conectando em ...")
+        SetStatus($"Conectando em {Path.GetFileName(database)}…");
+        WriteOperationLog(operationLog, $"Conectando ao banco {database}");
+        var connectionString = BuildFirebirdConnectionString(database);
+        await using var connection = new FbConnection(connectionString);
+        await connection.OpenAsync(token);
+
+        var parsedScript = new FbScript(commands);
+        parsedScript.Parse();
+        var batch = new FbBatchExecution(connection);
+        batch.AppendSqlStatements(parsedScript);
+
+        SetStatus($"Executando {label} no banco…");
+        SetTraySqlHint(label);
+        WriteOperationLog(operationLog, $"{label}: executando os comandos no banco…");
+        using var cancelRegistration = token.Register(() =>
+        {
+            try { connection.Close(); } catch { }
+        });
+        try { await Task.Run(() => batch.Execute(), CancellationToken.None); }
+        catch (Exception) when (token.IsCancellationRequested) { throw new OperationCanceledException(token); }
+        token.ThrowIfCancellationRequested();
+        WriteOperationLog(operationLog, $"{label}: comandos executados com sucesso.");
+    }
+
+    private void SetTraySqlHint(string label)
+    {
+        const string prefix = "Comandos ";
+        var trimmed = label.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) ? label[prefix.Length..] : label;
+        _trayShortStatus = $"Executando comando {trimmed.Trim()}";
+        RefreshTrayTooltip();
+    }
+
+    private void NotifyIfMinimized(string caption, string? body = null)
+    {
+        // Sempre ativa: notificar quando há perguntas/mensagens pendentes com a janela minimizada.
+        if (WindowState != FormWindowState.Minimized) return;
+        ShowBalloon(caption, body);
+    }
+
+    // Tooltip do ícone da bandeja: expõe a etapa atual do processo e, quando há barra de progresso, a porcentagem.
+    private void RefreshTrayTooltip()
+    {
+        if (_notifyIcon is null) return;
+        if (!ShouldShowTrayIcon())
+        {
+            if (_notifyIcon.Text != "SupraKit") _notifyIcon.Text = "SupraKit";
+            return;
+        }
+        if (!(_running || _resetRunning || _restoreRunning || _updateSicRunning))
+        {
+            if (_notifyIcon.Text != "SupraKit") _notifyIcon.Text = "SupraKit";
+            return;
+        }
+        var step = string.IsNullOrEmpty(_trayShortStatus) ? _status.Text?.Trim() : _trayShortStatus;
+        if (string.IsNullOrEmpty(step)) step = "Processando…";
+        string tip;
+        if (_updateSicRunning && _updateSicTotalBytes > 1 && _updateSicBytesDone > 0)
+            tip = $"{step} ({Math.Clamp((long)_updateSicBytesDone * 100 / _updateSicTotalBytes, 0, 100)}%)";
+        else
+            tip = step;
+        _notifyIcon.Text = tip.Length > 120 ? tip[..117] + "…" : tip;
+    }
+
+    /// <summary>
+    /// Exibe a notificação de segundo plano como toast do Windows (marca "SupraKit"; clique restaura a janela).
+    /// O som é escolhido por tipo: sucesso, falha ou informação (detectado pelo texto quando não informado).
+    /// Se o toast falhar, cai para o balão da bandeja com som equivalente. Nunca abre diálogo próprio.
+    /// </summary>
+    private void ShowBackgroundNotification(string caption, string message, ToastNotifier.NotificationSound? sound = null)
+    {
+        sound ??= LooksLikeFailure(caption, message)
+            ? ToastNotifier.NotificationSound.Error
+            : ToastNotifier.NotificationSound.Info;
+
+        EnsureTrayIcon();
+        if (ToastNotifier.TryShow(caption, message, RestoreWindowFromBackground, sound.Value)) return;
+
+        try
+        {
+            if (sound == ToastNotifier.NotificationSound.Error) System.Media.SystemSounds.Exclamation.Play();
+            else if (sound == ToastNotifier.NotificationSound.Success) System.Media.SystemSounds.Asterisk.Play();
+        }
+        catch { /* o som do balão é best-effort */ }
+        _notifyIcon?.ShowBalloonTip(5000, caption, message, ToolTipIcon.Info);
+    }
+
+    private static bool LooksLikeFailure(string caption, string message)
+    {
+        var text = caption + " " + message;
+        return text.Contains("falha", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("erro", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("não foi possível", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("cancelada", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("incompleta", StringComparison.OrdinalIgnoreCase)
+            || text.Contains("não encontrad", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void RestoreWindowFromBackground()
+    {
+        if (IsDisposed || !IsHandleCreated) return;
+        try { BeginInvoke(new Action(RestoreFromMinimized)); } catch { /* janela já fechou; nada a fazer */ }
+    }
+
+    private void ShowBalloon(string caption, string? body)
+    {
+        var message = body is { Length: > 0 }
+            ? body + "\nClique aqui para abrir a janela."
+            : "O SupraKit precisa da sua atenção.\nClique aqui para abrir a janela.";
+        ShowBackgroundNotification(caption, message);
+    }
+
+    private void EnsureTrayIcon()
+    {
+        if (_notifyIcon is not null) return;
+        var menu = BuildTrayMenu();
+        _notifyIcon = new NotifyIcon { Icon = Icon, Text = "SupraKit", Visible = ShouldShowTrayIcon(), ContextMenuStrip = menu };
+        _notifyIcon.BalloonTipClicked += (_, _) => RestoreFromMinimized();
+        _notifyIcon.DoubleClick += (_, _) => RestoreFromMinimized();
+        RefreshTrayIconVisibility();
+    }
+
+    /// <summary>Inicia a aplicação escondida na bandeja (opção "Iniciar o SupraKit em segundo plano"): cria o handle (registra os hotkeys), exibe a bandeja e dispara a verificação silenciosa de atualizações — sem exibir a janela. A janela pode ser restaurada pelo duplo-clique no ícone da bandeja ou pelo menu (Transferir/Fechar etc.).</summary>
+    public void StartInBackground()
+    {
+        _ = Handle; // cria o handle: o registro dos hotkeys acontece no HandleCreated
+        EnsureTrayIcon();            // janela oculta => o ícone da bandeja fica visível
+        RefreshTrayIconVisibility();
+        NotifyPendingUpdateResult();
+        ShowBackgroundNotification("SupraKit em segundo plano",
+            "O SupraKit abriu na bandeja. Clique nesta notificação ou dê dois cliques no ícone da bandeja para abrir a janela.",
+            ToastNotifier.NotificationSound.Info);
+        _ = CheckForUpdatesAsync();  // atualização silenciosa: só ajusta o botão "Atualização disponível", sem diálogos
+    }
+
+    /// <summary>Registra/remove o SupraKit em HKCU\Software\Microsoft\Windows\CurrentVersion\Run ("Iniciar o SupraKit com o Windows").</summary>
+    private void SetStartWithWindowsRegistry(bool enable)
+    {
+        using var key = Registry.CurrentUser.CreateSubKey(@"Software\Microsoft\Windows\CurrentVersion\Run");
+        if (key is null) return;
+        const string valueName = "SupraKit";
+        if (enable) key.SetValue(valueName, $"\"{Application.ExecutablePath}\"");
+        else key.DeleteValue(valueName, throwOnMissingValue: false);
+
+        // Remove o valor legado do Traz Base para não iniciar duas instâncias após a renomeação.
+        key.DeleteValue("TrazBase", throwOnMissingValue: false);
+    }
+
+    private void RefreshTrayMenuTheme()
+    {
+        if (_notifyIcon?.ContextMenuStrip is not { } current) return;
+        _notifyIcon.ContextMenuStrip = null;
+        current.Dispose();
+        _notifyIcon.ContextMenuStrip = BuildTrayMenu();
+    }
+
+    private ContextMenuStrip BuildTrayMenu()
+    {
+        var menu = new ContextMenuStrip { ShowImageMargin = false, ShowCheckMargin = false, Renderer = new TrayMenuRenderer() };
+
+        // Linhas de entrada (texto estático + edit). Os ícones ficam à esquerda de cada linha.
+        var transferRow = CreateTrayInputRow("Buscar base", "Transferir.svg", "Nº da SL");
+        _traySlBox = transferRow.Box;
+        transferRow.Box.KeyDown += async (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                await TrayTransferAsync();
+            }
+        };
+        var transferItem = new ToolStripControlHost(transferRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
+        menu.Items.Add(transferItem);
+
+        var changeBaseRow = CreateTrayInputRow("Trocar base", "Trocar-Base.svg", "Nome da base");
+        _trayChangeBaseBox = changeBaseRow.Box;
+        changeBaseRow.Box.KeyDown += async (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                await TrayChangeBaseAsync();
+            }
+        };
+        var changeBaseItem = new ToolStripControlHost(changeBaseRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
+        menu.Items.Add(changeBaseItem);
+        menu.Items.Add(new ToolStripSeparator()); // separador logo abaixo do Alterar base
+
+        var ticketRow = CreateTrayInputRow("Buscar chamado", "Chamado.svg", "Nº do chamado");
+        _trayTicketBox = ticketRow.Box;
+        ticketRow.Box.KeyDown += (_, e) =>
+        {
+            if (e.KeyCode == Keys.Enter)
+            {
+                e.SuppressKeyPress = true;
+                TrayOpenTicket();
+            }
+        };
+        var ticketItem = new ToolStripControlHost(ticketRow.Panel) { AutoSize = false, Width = TrayMenuWidth, Height = 32, Padding = Padding.Empty, ControlAlign = ContentAlignment.MiddleLeft };
+        menu.Items.Add(ticketItem);
+
+        menu.Items.Add(new ToolStripSeparator());
+        var updateItem = new ToolStripMenuItem("Atualizar executáveis", SvgIconLoader.Load("Atualizar.svg", 16), async (_, _) => await TrayUpdateSicAsync()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+        menu.Items.Add(updateItem);
+
+        // Submenu com os SQLs salvos na tela "Copiar SQL" (separador acima, abaixo de "Atualizar executáveis").
+        menu.Items.Add(new ToolStripSeparator());
+        var copySqlItem = new SubmenuMenuItem("Copiar SQL") { ForeColor = TrayMenuTheme.Text, Image = GetTraySqlIcon(), ImageScaling = ToolStripItemImageScaling.None };
+        copySqlItem.DropDown = CreateTraySubMenu();
+        copySqlItem.DropDownOpening += (_, _) => PopulateCopySqlMenu(copySqlItem);
+        PopulateCopySqlMenu(copySqlItem); // carrega já de cara para a seta de submenu aparecer
+        menu.Items.Add(copySqlItem);
+
+        var copySicPasswordItem = new ToolStripMenuItem("Copiar senha padrão SIC", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.C, ImageScaling = ToolStripItemImageScaling.None };
+        menu.Items.Add(copySicPasswordItem);
+        var copySicDynamicPasswordItem = new ToolStripMenuItem("Copiar senha padrão Empresa", SvgIconLoader.Load("Copiar.svg", 16), (_, _) => TrayCopySicDynamicPassword()) { ForeColor = TrayMenuTheme.Text, ShortcutKeys = Keys.Control | Keys.Alt | Keys.X, ImageScaling = ToolStripItemImageScaling.None };
+        menu.Items.Add(copySicDynamicPasswordItem);
+        menu.Items.Add(new ToolStripSeparator());
+        var shortcutsItem = new SubmenuMenuItem("Atalhos") { ForeColor = TrayMenuTheme.Text, Image = SvgIconLoader.Load("Atalho.svg", 16), ImageScaling = ToolStripItemImageScaling.None };
+        shortcutsItem.DropDown = CreateTraySubMenu();
+        shortcutsItem.DropDownOpening += (_, _) => PopulateFolderShortcutsMenu(shortcutsItem);
+        PopulateFolderShortcutsMenu(shortcutsItem); // carrega já de cara: a seta de submenu só é pintada quando o DropDown tem itens
+        menu.Items.Add(shortcutsItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Opening += (_, _) => copySicPasswordItem.Visible = !string.IsNullOrWhiteSpace(_settings.ProtectedSicPassword);
+        var closeItem = new ToolStripMenuItem("Fechar", SvgIconLoader.Load("Fechar.svg", 16), (_, _) => TrayExit()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+        menu.Items.Add(closeItem);
+        return menu;
+    }
+
+    /// <summary>O ícone da bandeja só existe visualmente com a janela oculta ou minimizada (segundo plano).</summary>
+    private bool ShouldShowTrayIcon() => !Visible || WindowState == FormWindowState.Minimized;
+
+    private void RefreshTrayIconVisibility()
+    {
+        if (_notifyIcon is not null) _notifyIcon.Visible = ShouldShowTrayIcon();
+    }
+
+    private bool IsAppInBackground() => _backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized;
+
+    private void FlowNotify(string caption, string message, bool error = false)
+    {
+        if (error)
+        {
+            var path = AppLogger.FilePath;
+            AppLogger.Error(caption, message);
+            message += $"\n\nDetalhes do erro foram registrados em:\n{path}";
+        }
+
+        if (_backgroundTrayRun || !Visible || WindowState == FormWindowState.Minimized)
+        {
+            ShowBackgroundNotification(caption, message,
+                error ? ToastNotifier.NotificationSound.Error : ToastNotifier.NotificationSound.Success);
+            return;
+        }
+        MessageBox.Show(this, message, caption, MessageBoxButtons.OK, error ? MessageBoxIcon.Error : MessageBoxIcon.Information);
+    }
+
+    private async Task TrayTransferAsync()
+    {
+        if (_running)
+        {
+            ShowBackgroundNotification("SupraKit", "Aguarde a operação atual terminar antes de iniciar outra transferência.");
+            return;
+        }
+        var sl = _traySlBox?.Text.Trim() ?? "";
+        if (sl.Length == 0 || sl.Any(c => !char.IsAsciiDigit(c)))
+        {
+            ShowBackgroundNotification("Buscar base", "Digite um número de SL válido (apenas dígitos) para iniciar.");
+            return;
+        }
+        _sl.Text = sl;
+        _traySlBox?.Clear();
+        ShowView(settings: false);
+        _backgroundTrayRun = true;
+        try { await StartFlowAsync(); }
+        finally { _backgroundTrayRun = false; }
+    }
+
+    /// <summary>Resolve uma base pelo nome digitado; em caso de múltiplas correspondências, pergunta ao operador qual deseja usar (tela própria). Retorna (pasta, cancelouSelecao).</summary>
+    private (string? Folder, bool Cancelled) ResolveBaseChoice(string basesRoot, string typed)
+    {
+        var matches = BaseOperationRules.FindLocalBaseDirectoriesByName(basesRoot, typed);
+        if (matches.Count == 1) return (matches[0], false);
+        if (matches.Count == 0) return (null, false);
+        var chosen = AppMessageBox.ShowPickBaseFolder(this, typed, matches);
+        return chosen is null ? ((string?)null, true) : (chosen, false);
+    }
+
+    private async Task TrayChangeBaseAsync()
+    {
+        var typed = _trayChangeBaseBox?.Text.Trim() ?? "";
+        if (typed.Length == 0)
+        {
+            ShowBackgroundNotification("Trocar base", "Digite o nome da base para apontar o Registro para ela.");
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_settings.BasesRoot) || !Directory.Exists(_settings.BasesRoot))
+        {
+            ShowBackgroundNotification("Trocar base", "A pasta local das bases não está configurada ou não está acessível. Configure em Configurações.");
+            return;
+        }
+
+        string? folder;
+        try
+        {
+            var (chosen, cancelled) = ResolveBaseChoice(_settings.BasesRoot, typed);
+            if (cancelled)
+            {
+                ShowBackgroundNotification("Trocar base", "Seleção cancelada. A base não foi alterada.");
+                return;
+            }
+            folder = chosen;
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Trocar base", $"Não foi possível buscar a base:\n{ex.Message}");
+            return;
+        }
+        if (folder is null)
+        {
+            ShowBackgroundNotification("Trocar base", $"Nenhuma base encontrada para \"{typed}\" em:\n{_settings.BasesRoot}\nBusca por prefixo (ex.: \"TE\" lista TESTE e TESTE_123456) ou por sufixo \"_<dígitos>\".");
+            return;
+        }
+
+        if (MultiBaseOperationRules.IsMultiBase(folder) && !Directory.Exists(MultiBaseOperationRules.GetCompanyDirectory(folder)))
+        {
+            ShowBackgroundNotification("Trocar base", $"A base \"{Path.GetFileName(folder)}\" tem a estrutura multi-base (pastas ARQ##), mas não existe a pasta ARQ00:\n{MultiBaseOperationRules.GetCompanyDirectory(folder)}\n\nO Registro não foi alterado.");
+            return;
+        }
+
+        try
+        {
+            await UpdateRegistryForFolderAsync(folder);
+            _trayChangeBaseBox?.Clear();
+            _status.Text = "Base alterada para: " + folder;
+            Log($"Base alterada pela bandeja: {folder}");
+            var version = await TryGetSicVersionAsync(folder);
+            _ = UpdateChangeBaseVersionAsync(folder);
+            ShowBackgroundNotification("Trocar base", version is null
+                ? $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}"
+                : $"O Registro foi atualizado para a base:\n{Path.GetFileName(folder)}\nVersão: {version}");
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Trocar base", $"Não foi possível alterar a base no Registro:\n{ex.Message}");
+        }
+    }
+
+    private void TrayOpenTicket()
+    {
+        var error = OpenTicketSearch(_trayTicketBox?.Text ?? "");
+        if (error is not null)
+        {
+            ShowBackgroundNotification("Buscar chamado", error);
+            return;
+        }
+        _trayTicketBox?.Clear();
+    }
+
+    /// <summary>Busca da tela Início: usa a mesma validação e URL da bandeja, mas mostra o erro no próprio card.</summary>
+    private void OpenTicketFromHome()
+    {
+        var error = OpenTicketSearch(_homeTicketBox.Text);
+        if (error is not null)
+        {
+            _homeTicketError.Text = error.Split('\n')[0];
+            _homeTicketError.ForeColor = Color.FromArgb(196, 43, 28);
+            _homeTicketErrorShown = true;
+            _homeTicketBox.Focus();
+            return;
+        }
+        ResetHomeTicketHint();
+        _homeTicketBox.Clear();
+        _homeTicketBox.Focus();
+    }
+
+    private void ResetHomeTicketHint()
+    {
+        _homeTicketErrorShown = false;
+        _homeTicketError.Text = HomeTicketHintText;
+        _homeTicketError.ForeColor = _settings.DarkMode ? Color.FromArgb(166, 180, 199) : Muted;
+    }
+
+    /// <summary>Abre a busca do chamado no navegador. Retorna null em caso de sucesso ou a mensagem de erro.</summary>
+    private static string? OpenTicketSearch(string typed)
+    {
+        var ticket = typed.Trim();
+        if (ticket.Length == 0 || ticket.Length > 12 || ticket.Any(character => character is < '0' or > '9'))
+            return "Informe um número de chamado com até 12 dígitos.";
+        try
+        {
+            var uri = $"https://suporte.suprasys.com.br/intranet/admin/find_tickets.php?q={ticket}&what=seqid";
+            Process.Start(new ProcessStartInfo { FileName = uri, UseShellExecute = true });
+            return null;
+        }
+        catch (Exception ex)
+        {
+            return $"Não foi possível abrir o navegador:\n{ex.Message}";
+        }
+    }
+
+    private async Task TrayUpdateSicAsync()
+    {
+        if (_updateSicRunning)
+        {
+            ShowBackgroundNotification("Atualizar executáveis", "A atualização dos executáveis já está em andamento.");
+            return;
+        }
+        ShowUpdateSicView();
+        _backgroundTrayRun = true;
+        try { await UpdateSicAsync(); }
+        finally { _backgroundTrayRun = false; }
+    }
+
+    private void TrayCopySicPassword()
+    {
+        var password = _settings.GetSicPassword();
+        if (string.IsNullOrEmpty(password))
+        {
+            ShowBackgroundNotification("Copiar senha padrão SIC", "Nenhuma senha salva. Cadastre a senha padrão em Configurações para usá-la aqui.");
+            return;
+        }
+        try
+        {
+            Clipboard.SetText(password);
+            ShowBackgroundNotification("Copiar senha padrão SIC", "Senha copiada para a área de transferência.\n(Atalho: Ctrl+Alt+C)");
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Copiar senha padrão SIC", "Não foi possível copiar: " + ex.Message);
+        }
+    }
+
+    private void TrayCopySicDynamicPassword()
+    {
+        var prefix = _settings.GetSicDynamicPassword();
+        if (string.IsNullOrEmpty(prefix))
+        {
+            ShowBackgroundNotification("Copiar senha padrão Empresa", "Nenhuma senha salva. Cadastre a senha do sistema Empresa em Configurações para usá-la aqui.");
+            return;
+        }
+        try
+        {
+            var now = DateTime.Now;
+            // Conta: dia (1-31) × hora (0-23) × 13 — ignora minutos e segundos, igual ao SupraAgil.
+            var suffix = (now.Day * now.Hour * 13).ToString(CultureInfo.InvariantCulture);
+            Clipboard.SetText(prefix + suffix);
+            ShowBackgroundNotification("Copiar senha padrão Empresa", "Senha copiada para a área de transferência.\n(Atalho: Ctrl+Alt+X)");
+        }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Copiar senha padrão Empresa", "Não foi possível copiar: " + ex.Message);
+        }
+    }
+
+    /// <summary>Linha de entrada da bandeja (ícone + texto estático + edit). Devolve o painel e o edit; o Enter no edit é ligado por quem chama.</summary>
+    private (Panel Panel, TextBox Box) CreateTrayInputRow(string labelText, string iconFile, string placeholder)
+    {
+        var panel = new Panel { Width = TrayMenuWidth, Height = 32, BackColor = TrayMenuTheme.Background };
+        panel.Controls.Add(new PictureBox { Size = new Size(16, 16), Location = new Point(2, 8), SizeMode = PictureBoxSizeMode.Zoom, Image = SvgIconLoader.Load(iconFile, 16), BackColor = Color.Transparent });
+        var label = new Label
+        {
+            Text = labelText,
+            AutoSize = true,
+            Location = new Point(30, 8),
+            Font = UiTypography.BodySemibold(9f),
+            ForeColor = TrayMenuTheme.Text,
+            BackColor = Color.Transparent
+        };
+        var box = new UnthemedTextBox { PlaceholderText = placeholder, Height = 24, BackColor = TrayMenuTheme.InputBackground, ForeColor = TrayMenuTheme.InputForeground };
+        var boxX = label.PreferredSize.Width + 30 + 8; // ícone (x=2, 16px) + rótulo (x=30) + folga
+        box.Location = new Point(boxX, 4);
+        box.Width = Math.Max(60, panel.Width - boxX - 8);
+        panel.Controls.Add(label);
+        panel.Controls.Add(box);
+        return (panel, box);
+    }
+
+    /// <summary>Submenu da bandeja com margem de ícones ligada (o ToolStripDropDown automático não pinta imagens; o ContextMenuStrip, que é um ToolStripDropDownMenu, pinta). Altura limitada a ~20 itens; o excedente usa a rolagem nativa do Windows Forms (setas do topo/rodapé ou roda do mouse).</summary>
+    private static ContextMenuStrip CreateTraySubMenu() => new TrayDropDownMenu();
+
+    private static readonly Dictionary<string, Image?> _fileIconCache = new(StringComparer.OrdinalIgnoreCase);
+    private static readonly Dictionary<string, Image?> _extensionIconCache = new(StringComparer.OrdinalIgnoreCase);
+    private static Image? _trayFolderIcon;
+    private static Image? _trayManageIcon;
+    private static Image? _traySqlIcon;
+    private static Image? _filePlaceholderIcon;
+
+    // Cache de ícones em disco: evita re-extrair o ícone de arquivos que nunca mudam (ex.: milhares de
+    // executáveis na pasta de desenvolvimento). Nome do arquivo = hash do caminho + ticks de modificação
+    // + tamanho — o ícone invalida sozinho quando o .exe é alterado (data/tamanho mudam).
+    private static string IconCacheDir => Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "SupraKit", "icon-cache");
+    private static readonly object IconCacheLock = new();
+
+    private static string IconCacheFileName(string path, long ticks, long length)
+    {
+        var normalized = Path.GetFullPath(path).Trim().ToLowerInvariant();
+        using var sha1 = System.Security.Cryptography.SHA1.Create();
+        var hash = Convert.ToHexString(sha1.ComputeHash(System.Text.Encoding.UTF8.GetBytes(normalized)));
+        return Path.Combine(IconCacheDir, $"{hash}-{ticks}-{length}.png");
+    }
+
+    private static Image? TryLoadIconFromDisk(string path, long ticks, long length)
+    {
+        try
+        {
+            var file = IconCacheFileName(path, ticks, length);
+            if (!File.Exists(file)) return null;
+            using var bytes = new MemoryStream(File.ReadAllBytes(file));
+            using var bitmap = new Bitmap(bytes);
+            return (Image)bitmap.Clone();
+        }
+        catch { return null; }
+    }
+
+    private static void TrySaveIconToDisk(Image image, string path, long ticks, long length)
+    {
+        try
+        {
+            lock (IconCacheLock)
+            {
+                Directory.CreateDirectory(IconCacheDir);
+                image.Save(IconCacheFileName(path, ticks, length), System.Drawing.Imaging.ImageFormat.Png);
+            }
+        }
+        catch { /* cache é decorativo: falha ao gravar não pode quebrar o menu */ }
+    }
+
+    /// <summary>Página genérica 16×16 usada como placeholder enquanto o ícone real carrega em segundo plano.</summary>
+    private static Image GetFilePlaceholderIcon()
+    {
+        if (_filePlaceholderIcon is not null) return _filePlaceholderIcon;
+        var bitmap = new Bitmap(16, 16);
+        using var graphics = Graphics.FromImage(bitmap);
+        graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+        graphics.Clear(Color.Transparent);
+        using var page = new SolidBrush(Color.FromArgb(200, 210, 224));
+        using var fold = new SolidBrush(Color.FromArgb(150, 163, 184));
+        graphics.FillRectangle(page, 3, 1, 8, 14);
+        var points = new[] { new PointF(11, 1), new PointF(13, 4), new PointF(11, 4) };
+        graphics.FillPolygon(fold, points);
+        _filePlaceholderIcon = bitmap;
+        return bitmap;
+    }
+
+    // Cache da listagem de pastas: evita re-enumerar a pasta a cada abertura do submenu
+    // (ex.: a pasta de desenvolvimento do SIC possui milhares de entradas).
+    private static readonly object _folderListingCacheLock = new();
+    private static readonly Dictionary<string, (FileSystemInfo[] Entries, DateTime CachedAt)> _folderListingCache = new();
+    private static readonly TimeSpan FolderListingCacheTtl = TimeSpan.FromSeconds(15);
+
+    private static FileSystemInfo[] GetTrayFolderListing(string path, FolderShortcut folder)
+    {
+        var key = path + "|" + (folder.ShowAllFiles ? "A" : $"{(folder.ShowExeFiles ? "X" : "")}{(folder.ShowBatFiles ? "B" : "")}");
+        lock (_folderListingCacheLock)
+        {
+            if (_folderListingCache.TryGetValue(key, out var hit) && DateTime.UtcNow - hit.CachedAt < FolderListingCacheTtl)
+                return hit.Entries;
+        }
+        if (!Directory.Exists(path)) throw new DirectoryNotFoundException(path);
+        var entries = new DirectoryInfo(path).GetFileSystemInfos()
+            .Where(entry => entry is DirectoryInfo ? folder.ShowAllFiles : folder.MatchesFile(entry.Name))
+            .OrderBy(entry => entry is DirectoryInfo ? 0 : 1)
+            .ThenBy(entry => entry.Name, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+        lock (_folderListingCacheLock) _folderListingCache[key] = (entries, DateTime.UtcNow);
+        return entries;
+    }
+
+    /// <summary>Ícone associado ao arquivo (do próprio executável/.bat, via shell), 16×16, com cache por caminho. Scripts de shell (.bat/.cmd) compartilham o mesmo ícone — o shell não distingue por conteúdo. O cache é persistido em disco (invalida quando o arquivo muda).</summary>
+    private static Image? GetTrayFileIcon(string path)
+    {
+        var ext = Path.GetExtension(path);
+        var shared = ext.Equals(".bat", StringComparison.OrdinalIgnoreCase) || ext.Equals(".cmd", StringComparison.OrdinalIgnoreCase)
+            ? "@" + ext.ToLowerInvariant()
+            : null;
+
+        lock (_fileIconCache)
+        {
+            if (shared is not null && _extensionIconCache.TryGetValue(shared, out var sharedIcon)) return sharedIcon;
+            if (_fileIconCache.TryGetValue(path, out var cached)) return cached;
+
+            long ticks = 0, length = 0;
+            try { var info = new FileInfo(path); ticks = info.LastWriteTimeUtc.Ticks; length = info.Length; }
+            catch { /* sem metadados: segue sem o cache de disco */ }
+
+            var image = ticks > 0 && length >= 0 ? TryLoadIconFromDisk(path, ticks, length) : null;
+            if (image is null)
+            {
+                try
+                {
+                    using var icon = Icon.ExtractAssociatedIcon(path);
+                    if (icon is not null)
+                    {
+                        var bitmap = new Bitmap(16, 16);
+                        using var graphics = Graphics.FromImage(bitmap);
+                        graphics.InterpolationMode = System.Drawing.Drawing2D.InterpolationMode.HighQualityBicubic;
+                        using var source = icon.ToBitmap();
+                        graphics.DrawImage(source, 0, 0, 16, 16);
+                        image = bitmap;
+                        if (ticks > 0 && length >= 0) TrySaveIconToDisk(bitmap, path, ticks, length);
+                    }
+                }
+                catch { image = null; }
+            }
+
+            if (shared is not null) _extensionIconCache[shared] = image;
+            else _fileIconCache[path] = image;
+            return image;
+        }
+    }
+
+    private static Image GetTrayFolderIcon() => _trayFolderIcon ??= SvgIconLoader.Load("Pasta.svg", 16);
+    private static Image GetTrayManageIcon() => _trayManageIcon ??= SvgIconLoader.Load("Atalho.svg", 16);
+    private static Image GetTraySqlIcon() => _traySqlIcon ??= SvgIconLoader.Load("Copiar-SQL.svg", 16);
+
+    /// <summary>Submenu da bandeja com os SQLs salvos; cada item copia o comando para a área de transferência.</summary>
+    private void PopulateCopySqlMenu(ToolStripMenuItem parentItem)
+    {
+        var items = parentItem.DropDown.Items;
+        DisposeAllToolStripItems(items);
+        var shortcuts = _settings.SqlShortcuts;
+        if (shortcuts.Count == 0)
+        {
+            items.Add(new ToolStripMenuItem("Nenhum SQL cadastrado") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+        }
+        else
+        {
+            foreach (var sql in shortcuts)
+            {
+                var item = new ToolStripMenuItem((sql.Title ?? "").Replace("&", "&&"), GetTraySqlIcon(), (_, _) => CopySqlToClipboard(sql, fromTray: true))
+                {
+                    ForeColor = TrayMenuTheme.Text,
+                    ImageScaling = ToolStripItemImageScaling.None,
+                    ToolTipText = SqlPreview(sql.Content)
+                };
+                items.Add(item);
+            }
+            items.Add(new ToolStripSeparator());
+        }
+        items.Add(new ToolStripMenuItem("Gerenciar SQLs...", GetTraySqlIcon(), (_, _) => { RestoreFromMinimized(); ShowCopySqlView(); }) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None });
+    }
+
+    private void PopulateFolderShortcutsMenu(ToolStripMenuItem parentItem)
+    {
+        var items = parentItem.DropDown.Items;
+        DisposeAllToolStripItems(items);
+        var folders = _settings.FolderShortcuts;
+        if (folders.Count == 0)
+        {
+            items.Add(new ToolStripMenuItem("Nenhum atalho cadastrado") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+        }
+        else
+        {
+            foreach (var folder in folders)
+                items.Add(CreateFolderShortcutMenuItem(folder, PopulateFolderShortcutFilesMenu));
+            items.Add(new ToolStripSeparator());
+        }
+        var manageItem = new ToolStripMenuItem("Gerenciar atalhos...", GetTrayManageIcon(), (_, _) => { RestoreFromMinimized(); ShowFolderShortcutsView(); }) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+        items.Add(manageItem);
+    }
+
+    private static ToolStripMenuItem CreateFolderShortcutMenuItem(FolderShortcut folder, Action<ToolStripMenuItem, FolderShortcut>? filesMenuPopulator = null)
+    {
+        var item = new SubmenuMenuItem((folder.Name ?? "").Replace("&", "&&")) { ForeColor = TrayMenuTheme.Text, Image = GetTrayFolderIcon(), ImageScaling = ToolStripItemImageScaling.None };
+        item.DropDown = CreateTraySubMenu();
+        if (filesMenuPopulator is not null)
+            item.DropDownOpening += (_, _) => filesMenuPopulator(item, folder);
+        return item;
+    }
+
+    private void PopulateFolderShortcutFilesMenu(ToolStripMenuItem parentItem, FolderShortcut folder)
+    {
+        var items = parentItem.DropDown.Items;
+        DisposeAllToolStripItems(items);
+        string? error = null;
+        FileSystemInfo[] entries = Array.Empty<FileSystemInfo>();
+        try
+        {
+            entries = GetTrayFolderListing(folder.Path, folder);
+        }
+        catch (Exception ex) when (ex is DirectoryNotFoundException or IOException or UnauthorizedAccessException or ArgumentException or System.Security.SecurityException)
+        {
+            error = "Pasta indisponível ou sem permissão";
+        }
+
+        var openExplorer = new ToolStripMenuItem("Abrir esta pasta no Explorer", GetTrayFolderIcon(), (_, _) => OpenPathInExplorer(folder.Path)) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+        items.Add(openExplorer);
+        items.Add(new ToolStripSeparator());
+        if (error is not null)
+        {
+            items.Add(new ToolStripMenuItem(error) { Enabled = false, ForeColor = TrayMenuTheme.Text });
+            return;
+        }
+
+        // O menu abre na hora: os itens entram com um placeholder e os ícones reais são preenchidos
+        // em segundo plano (na ordem de exibição — os visíveis no topo aparecem primeiro).
+        var pending = new List<(ToolStripMenuItem Item, string FullPath)>();
+
+        foreach (var entry in entries)
+        {
+            if (entry is DirectoryInfo subDir)
+            {
+                var subFolderShortcut = new FolderShortcut
+                {
+                    Name = subDir.Name,
+                    Path = subDir.FullName,
+                    ShowAllFiles = folder.ShowAllFiles,
+                    ShowExeFiles = folder.ShowExeFiles,
+                    ShowBatFiles = folder.ShowBatFiles
+                };
+                items.Add(CreateFolderShortcutMenuItem(subFolderShortcut, PopulateFolderShortcutFilesMenu));
+            }
+            else
+            {
+                var fullPath = entry.FullName;
+                var fileItem = new ToolStripMenuItem(entry.Name, GetFilePlaceholderIcon()) { ForeColor = TrayMenuTheme.Text, ImageScaling = ToolStripItemImageScaling.None };
+                fileItem.Click += (_, _) => OpenPathInExplorer(fullPath);
+                items.Add(fileItem);
+                pending.Add((fileItem, fullPath));
+            }
+        }
+        if (entries.Length == 0)
+            items.Add(new ToolStripMenuItem("Nenhum arquivo para este filtro") { Enabled = false, ForeColor = TrayMenuTheme.Text });
+
+        if (pending.Count > 0) QueueFolderShortcutIconsLoad(pending);
+    }
+
+    /// <summary>Preenche os ícones dos itens recém-adicionados em segundo plano; cada ícone é aplicado na thread de UI quando fica pronto (na ordem de exibição, os mais visíveis enfileiram primeiro).</summary>
+    private void QueueFolderShortcutIconsLoad(List<(ToolStripMenuItem Item, string FullPath)> pending)
+    {
+        var form = this;
+        Task.Run(() =>
+        {
+            foreach (var (item, fullPath) in pending)
+            {
+                var icon = GetTrayFileIcon(fullPath);
+                if (icon is null) continue;
+                var capturedItem = item;
+                var capturedIcon = icon;
+                try
+                {
+                    form.BeginInvoke(new Action(() =>
+                    {
+                        try
+                        {
+                            if (capturedItem.Owner is not { IsDisposed: false }) return; // menu recriado/fechado enquanto carregava
+                            capturedItem.Image = capturedIcon;
+                        }
+                        catch { /* item já descartado */ }
+                    }));
+                }
+                catch { /* a janela pode estar se encerrando */ }
+            }
+        });
+    }
+
+    private static void DisposeAllToolStripItems(ToolStripItemCollection items)
+    {
+        if (items.Count == 0) return;
+        var stale = new List<ToolStripItem>();
+        foreach (ToolStripItem? item in items)
+            if (item is not null) stale.Add(item);
+        items.Clear();
+        foreach (var item in stale) item.Dispose();
+    }
+
+    private void OpenPathInExplorer(string path)
+    {
+        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = path, UseShellExecute = true }); }
+        catch (Exception ex)
+        {
+            ShowBackgroundNotification("Abrir pasta", $"Não foi possível abrir o item:\n{ex.Message}");
+        }
+    }
+
+    private void TrayExit()
+    {
+        _exitRequested = true;
+        if (_running || _resetRunning || _restoreRunning || _updateSicRunning)
+            RestoreFromMinimized(); // permite que o aviso de operação em andamento fique visível
+        Close();
+        Application.Exit(); // encerra o loop de mensagens também no modo de arranque oculto (sem janela); no modo normal é redundante e inofensivo
+    }
+
+    private void NotifyTrayHiddenOnce()
+    {
+        if (_trayHintShown || _notifyIcon is null) return;
+        _trayHintShown = true;
+        ShowBackgroundNotification(
+            "SupraKit",
+            "A janela foi minimizada para a bandeja. Clique com o botão direito no ícone para Buscar base, Atualizar executáveis ou Fechar.");
+    }
+
+    /// <summary>Thread de escuta do evento de instância única: quando uma segunda tentativa de abrir o app acontece, traz a janela para frente (se estiver oculta/minimizada, restaura da bandeja).</summary>
+    private void ShowWindowRequestedLoop()
+    {
+        while (true)
+        {
+            try { _showEvent.WaitOne(); }
+            catch { break; }
+            _showWindowRequested = true;
+            if (IsHandleCreated && !IsDisposed)
+            {
+                _showWindowRequested = false;
+                BeginInvoke(new Action(RestoreFromMinimized));
+            }
+        }
+    }
+
+    private void RestoreFromMinimized()
+    {
+        if (!Visible) Show();
+        if (WindowState == FormWindowState.Minimized) WindowState = FormWindowState.Normal;
+        BringToFront();
+        Activate();
+        RefreshTrayIconVisibility(); // janela visível => oculta o ícone da bandeja
+        FlushPendingRestorePrompt();
+    }
+
+    private string GetConfiguredTempPath()
+    {
+        var custom = _settings.TempPath?.Trim();
+        var path = !string.IsNullOrWhiteSpace(custom)
+            ? custom
+            : TryGetSicTempPath() ?? Path.GetTempPath();
+
+        // Normaliza: caminho com apenas uma barra final, igual a BASE e EMPRESA no Registro.
+        try
+        {
+            // Caminho absoluto: normaliza (resolve "../", colapsa barras duplicadas, etc.).
+            if (Path.IsPathRooted(path))
+            {
+                var full = Path.GetFullPath(path).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+                return full + Path.DirectorySeparatorChar;
+            }
+
+            // Caminho relativo/estranho: não tenta adivinhar a raiz; só garante a barra final.
+            var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return trimmed + Path.DirectorySeparatorChar;
+        }
+        catch
+        {
+            var trimmed = path.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            return trimmed + Path.DirectorySeparatorChar;
+        }
+    }
+
+    private static string? TryGetSicTempPath()
+    {
+        try
+        {
+            using var key = Registry.CurrentUser.OpenSubKey(@"SIC\CONEXAO", writable: false);
+            var value = key?.GetValue("TEMP") as string;
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+        catch
+        {
+            return null; // Registro inacessível/ausente — cai no padrão do Windows.
+        }
+    }
+
+    private string BuildFirebirdConnectionString(string databasePath)
+    {
+        var builder = new FbConnectionStringBuilder
+        {
+            DataSource = "localhost",
+            Database = Path.GetFullPath(databasePath),
+            UserID = "SYSDBA",
+            Password = _password.Text,
+            Dialect = 3,
+            Charset = "UTF8",
+            Pooling = false,
+            ServerType = FbServerType.Default
+        };
+        return builder.ToString();
+    }
+
+    private string GetEmpresaRegistryPath(string fallback, Action<string>? operationLog)
+    {
+        if (!_settings.UseSupportRootAsCompany) return fallback;
+        if (!string.IsNullOrWhiteSpace(_settings.SupportRoot) && Directory.Exists(_settings.SupportRoot))
+            return Path.GetFullPath(_settings.SupportRoot).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        WriteOperationLog(operationLog, "A opção 'Apontar a EMPRESA do Regedit para a pasta de bases de apoio' está ativada, mas a pasta não está configurada ou acessível; usando o caminho padrão.");
+        return fallback;
+    }
+
+    private async Task UpdateRegistryForFolderAsync(string folder, Action<string>? operationLog = null)
+    {
+        // Multi-base é deduzido da própria pasta (pastas ARQ##), independente da opção "Sempre criar estrutura multi-base" (que atua só na transferência).
+        if (MultiBaseOperationRules.IsMultiBase(folder))
+            await UpdateRegistryForMultiBaseAsync(folder, operationLog);
+        else
+            await UpdateRegistryAsync(folder, operationLog);
+    }
+
+    private async Task UpdateRegistryAsync(string root, Action<string>? operationLog = null)
+    {
+        WriteOperationLog(operationLog, "Apontando o sistema para esta base (Registro do Windows)…");
+        using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível atualizar o Registro do Windows (HKCU\\SIC\\CONEXAO).\nVerifique as permissões do seu usuário e tente novamente.");
+        var basePath = Path.GetFullPath(root).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+        var baseCount = Math.Clamp(_settings.BaseCount, 1, 99);
+        for (var number = 1; number <= baseCount; number++)
+            key.SetValue("BASE" + number, basePath, RegistryValueKind.String);
+        WriteOperationLog(operationLog, $"{baseCount} base(s) configurada(s): BASE1…BASE{baseCount} = {basePath}");
+        var empresaPath = GetEmpresaRegistryPath(basePath, operationLog);
+        key.SetValue("EMPRESA", empresaPath, RegistryValueKind.String);
+        if (!string.Equals(empresaPath, basePath, StringComparison.OrdinalIgnoreCase))
+            WriteOperationLog(operationLog, $"EMPRESA = {empresaPath} (pasta de bases de apoio)");
+        key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
+        key.SetValue("TEMP", GetConfiguredTempPath(), RegistryValueKind.String);
+        WriteOperationLog(operationLog, "O Registro foi atualizado; o sistema já aponta para esta base.");
+        await Task.CompletedTask;
+    }
+
+    private async Task UpdateRegistryForMultiBaseAsync(string root, Action<string>? operationLog = null)
+    {
+        WriteOperationLog(operationLog, "Apontando o sistema para as bases ARQ## (Registro do Windows)…");
+        using var key = Registry.CurrentUser.CreateSubKey(@"SIC\CONEXAO", true) ?? throw new InvalidOperationException("Não foi possível atualizar o Registro do Windows (HKCU\\SIC\\CONEXAO).\nVerifique as permissões do seu usuário e tente novamente.");
+
+        foreach (var (name, value) in MultiBaseOperationRules.GetBaseKeyWrites(root))
+        {
+            key.SetValue(name, value, RegistryValueKind.String);
+            WriteOperationLog(operationLog, $"{name} = {value}");
+        }
+        foreach (var name in MultiBaseOperationRules.GetBaseKeyDeletions(root))
+        {
+            if (key.GetValue(name) is not null)
+            {
+                key.DeleteValue(name, throwOnMissingValue: false);
+                WriteOperationLog(operationLog, $"{name} removida (nenhuma pasta correspondente na SL).");
+            }
+        }
+
+        var companyPath = MultiBaseOperationRules.WithTrailingSeparator(MultiBaseOperationRules.GetCompanyDirectory(root));
+        var empresaPath = GetEmpresaRegistryPath(companyPath, operationLog);
+        key.SetValue("EMPRESA", empresaPath, RegistryValueKind.String);
+        key.SetValue("SERVIDOR", "LOCALHOST", RegistryValueKind.String);
+        key.SetValue("TEMP", GetConfiguredTempPath(), RegistryValueKind.String);
+        WriteOperationLog(operationLog, string.Equals(empresaPath, companyPath, StringComparison.OrdinalIgnoreCase)
+            ? $"EMPRESA = {empresaPath}"
+            : $"EMPRESA = {empresaPath} (pasta de bases de apoio)");
+        WriteOperationLog(operationLog, "SIC apontando para as bases recebidas (Registro atualizado).");
+        await Task.CompletedTask;
+    }
+
+    private void WriteOperationLog(Action<string>? operationLog, string message)
+    {
+        if (operationLog is null) Log(message);
+        else operationLog(message);
+    }
+
+    private async Task<string?> TryGetClientNameAsync(string arqSistDatabase, CancellationToken token)
+    {
+        try
+        {
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(arqSistDatabase));
+            await connection.OpenAsync(token);
+            await using var command = new FbCommand("SELECT FIRST 1 C.NOME, C.NFANTASIA FROM ARQCAD C WHERE C.TIPOC = 'N'", connection)
+            {
+                CommandTimeout = 0
+            };
+            await using var reader = await command.ExecuteReaderAsync(token);
+            if (!await reader.ReadAsync(token))
+            {
+                Log("Consulta de nota promissória não retornou registros; a pasta mantém o número da SL.");
+                return null;
+            }
+            // Prioridade: nome fantasia; na ausência dele, o nome; sem nenhum dos dois, mantém a SL.
+            var fantasia = Convert.ToString(reader["NFANTASIA"])?.Trim();
+            if (!string.IsNullOrWhiteSpace(fantasia)) return fantasia;
+            var nome = Convert.ToString(reader["NOME"])?.Trim();
+            if (!string.IsNullOrWhiteSpace(nome)) return nome;
+            Log("A nota promissória não tem NFantasia nem nome preenchidos; a pasta mantém o número da SL.");
+            return null;
+        }
+        catch (Exception ex)
+        {
+            Log($"Não foi possível consultar a nota promissória ({ex.Message}); renomeação ignorada.");
+            return null;
+        }
+    }
+
+    private static string GetFirstWord(string name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "";
+        var trimmed = name.Trim();
+        var index = -1;
+        for (var i = 0; i < trimmed.Length; i++)
+        {
+            if (char.IsWhiteSpace(trimmed[i])) { index = i; break; }
+        }
+        return index < 0 ? trimmed : trimmed[..index];
+    }
+
+    private static string SanitizeFolderName(string name)
+    {
+        var invalid = Path.GetInvalidFileNameChars();
+        var builder = new System.Text.StringBuilder(name.Length);
+        foreach (var character in name.Trim())
+        {
+            if (char.IsWhiteSpace(character)) builder.Append(' ');
+            else if (Array.IndexOf(invalid, character) < 0 && character != '\\' && character != '/') builder.Append(character);
+        }
+        var result = builder.ToString();
+        while (result.Contains("  ", StringComparison.Ordinal)) result = result.Replace("  ", " ");
+        result = result.Trim().TrimEnd('.', ' ');
+        return result;
+    }
+
+    private async Task ShowVersionAsync(string database, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        SetStatus("Consultando a versão da base ARQSIST…");
+        Log($"Consultando a versão em {database}");
+        await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
+        await connection.OpenAsync(token);
+        await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)
+        {
+            CommandTimeout = 0
+        };
+        await using var reader = await command.ExecuteReaderAsync(token);
+        var version = await reader.ReadAsync(token) ? Convert.ToString(reader["VERSAO"]) : "sem versão registrada";
+        _versionLabel.Text = "Versão atual: " + version;
+        _versionLabel.Visible = true;
+    }
+
+    /// <summary>Tenta ler CONTROLE.NRO_SCRIPT da ARQSIST.FDB da pasta de base (raiz, ou ARQ01 no multi-base). Retorna null quando não é possível (base não localizada, senha ausente, banco ilegível).</summary>
+    private async Task<string?> TryGetSicVersionAsync(string? folder)
+    {
+        folder = folder?.Trim();
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder)) return null;
+
+        string? database = Path.Combine(folder, "ARQSIST.FDB");
+        if (!File.Exists(database))
+        {
+            database = null;
+            if (MultiBaseOperationRules.IsMultiBase(folder))
+            {
+                var arq01 = MultiBaseOperationRules.GetArqSistPath(folder);
+                if (File.Exists(arq01)) database = arq01;
+            }
+        }
+        if (database is null || string.IsNullOrWhiteSpace(_password.Text)) return null;
+
+        try
+        {
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
+            await connection.OpenAsync();
+            await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)
+            {
+                CommandTimeout = 10
+            };
+            var version = Convert.ToString(await command.ExecuteScalarAsync());
+            return string.IsNullOrWhiteSpace(version) ? null : version;
+        }
+        catch (Exception ex)
+        {
+            Log($"Não foi possível consultar a versão da base {database}: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Lê CONTROLE.NRO_SCRIPT da ARQSIST.FDB da pasta de base indicada (raiz, ou ARQ01 no modelo
+    /// multi-base) e exibe o valor no canto superior direito da tela Alterar base. Best-effort:
+    /// falhas (senha ausente/errada, base ilegível, sem ARQSIST) só alteram o texto do rótulo.
+    /// </summary>
+    private async Task UpdateChangeBaseVersionAsync(string? folder)
+    {
+        folder = folder?.Trim();
+        if (string.IsNullOrWhiteSpace(folder) || !Directory.Exists(folder))
+        {
+            _changeBaseVersionLabel.Visible = false;
+            return;
+        }
+
+        string? database = Path.Combine(folder, "ARQSIST.FDB");
+        if (!File.Exists(database))
+        {
+            database = null;
+            if (MultiBaseOperationRules.IsMultiBase(folder))
+            {
+                var arq01 = MultiBaseOperationRules.GetArqSistPath(folder);
+                if (File.Exists(arq01)) database = arq01;
+            }
+        }
+        if (database is null)
+        {
+            _changeBaseVersionLabel.Text = "Versão atual: ARQSIST.FDB não encontrada";
+            _changeBaseVersionLabel.Visible = true;
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_password.Text))
+        {
+            _changeBaseVersionLabel.Text = "Versão atual: senha não informada na Configuração";
+            _changeBaseVersionLabel.Visible = true;
+            return;
+        }
+
+        try
+        {
+            await using var connection = new FbConnection(BuildFirebirdConnectionString(database));
+            await connection.OpenAsync();
+            await using var command = new FbCommand("SELECT NRO_SCRIPT AS VERSAO FROM CONTROLE", connection)
+            {
+                CommandTimeout = 10
+            };
+            var version = Convert.ToString(await command.ExecuteScalarAsync());
+            _changeBaseVersionLabel.Text = "Versão atual: " + (string.IsNullOrWhiteSpace(version) ? "sem versão registrada" : version);
+            _changeBaseVersionLabel.Visible = true;
+        }
+        catch (Exception ex)
+        {
+            _changeBaseVersionLabel.Text = "Versão atual: não foi possível ler a base";
+            _changeBaseVersionLabel.Visible = true;
+            Log($"Não foi possível consultar a versão da base {database}: {ex.Message}");
+        }
+    }
+
+    private void SetBusy(bool busy)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => SetBusy(busy))); return; }
+        _transferView.SuspendLayout();
+        _transferView.RowStyles[3].Height = busy ? 56 : 0;
+        _transferView.ResumeLayout(true);
+        _start.Enabled = !busy;
+        _sl.Enabled = !busy;
+        _menuToggle.Enabled = true;
+        // A transferência não bloqueia mais as opções do menu: o usuário pode navegar
+        // e usar as outras telas livremente enquanto ela acontece.
+        foreach (var navigation in new[] { _homeNav, _transferNav, _changeBaseNav, _resetNav, _restoreNav, _updateSicNav, _settingsNav, _arqEmpNav, _arqSistNav, _folderShortcutsNav }) navigation.Enabled = true;
+        _cancel.Visible = busy;
+        _cancel.Enabled = busy;
+        _progressFooter.Visible = busy;
+        _progress.Visible = busy;
+        if (busy)
+        {
+            _progressPercent = 0;
+            UpdateProgressFill();
+            SetStatus("Só um instante…");
+        }
+    }
+
+    private void SetStatus(string text)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => SetStatus(text))); return; }
+        _status.Text = text;
+        RefreshTrayTooltip();
+    }
+
+    private void Log(string message)
+    {
+        if (InvokeRequired) { BeginInvoke(new Action(() => Log(message))); return; }
+        _log.AppendText($"[{DateTime.Now:HH:mm:ss}] {message}{Environment.NewLine}");
+        _log.SelectionStart = _log.TextLength;
+        _log.ScrollToCaret();
+    }
+}
+
+
+

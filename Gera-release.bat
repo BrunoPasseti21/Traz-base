@@ -1,1 +1,1 @@
-dotnet build .\TrazBase.App\TrazBase.App.csproj -c Release
+dotnet build .\SupraKit.App\SupraKit.App.csproj -c Release

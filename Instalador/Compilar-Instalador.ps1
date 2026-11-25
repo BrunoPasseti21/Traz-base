@@ -1,7 +1,7 @@
 $ErrorActionPreference = 'Stop'
 
-$scriptPath = Join-Path $PSScriptRoot 'TrazBase.iss'
-$appExecutable = Join-Path $PSScriptRoot 'Aplicativo\TrazBase.exe'
+$scriptPath = Join-Path $PSScriptRoot 'SupraKit.iss'
+$appExecutable = Join-Path $PSScriptRoot 'Aplicativo\SupraKit.exe'
 $compilerCandidates = @(
     (Join-Path $env:USERPROFILE 'AppData\Local\Programs\Inno Setup 7\ISCC.exe'),
     (Join-Path $env:USERPROFILE 'AppData\Local\Programs\Inno Setup 6\ISCC.exe'),

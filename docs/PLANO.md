@@ -9,8 +9,8 @@ As fases originais foram executadas; o aplicativo está funcional na versão **0
 
 ## Fase 2 — Fundação da aplicação — **concluída**
 
-- Solução WinForms em C#/.NET 10 criada (`TrazBase.App`).
-- Configuração nomeada em JSON (`%APPDATA%\TrazBase\settings.json`) com DPAPI para a senha.
+- Solução WinForms em C#/.NET 10 criada (`SupraKit.App`).
+- Configuração nomeada em JSON (`%APPDATA%\SupraKit\settings.json`) com DPAPI para a senha.
 - Captura de exceções e exibição via diálogos próprios; **log apenas em memória** (painel por tela) — ver lacunas.
 - Serviço central de processos **não foi criado**: optou-se por eliminar dependências de executáveis externos (cópia nativa, `ZipArchive`, SharpCompress, `FbConnection`), restando como único processo o instalador da atualização.
 
@@ -39,7 +39,7 @@ As fases originais foram executadas; o aplicativo está funcional na versão **0
 - Instalador (Inno Setup) com escolha de pasta, bloqueio de downgrade e atualização silenciosa via GitHub Releases: **OK**.
 - Documentação para operadores: este diretório (`docs/`).
 - Validação manual com bases descartáveis e comparação com o BAT: responsabilidade contínua do operador; não há matriz formal preenchida.
-- Testes automatizados: **parciais** — `TrazBase.Tests` cobre a lógica pura (`BaseOperationRules`, `ArchivePathSafety`, `GitHubReleaseUpdater.ParseLatestRelease`, proteção DPAPI de senha em `AppSettings`); a UI e os fluxos de `MainForm` não têm cobertura.
+- Testes automatizados: **parciais** — `SupraKit.Tests` cobre a lógica pura (`BaseOperationRules`, `ArchivePathSafety`, `GitHubReleaseUpdater.ParseLatestRelease`, proteção DPAPI de senha em `AppSettings`); a UI e os fluxos de `MainForm` não têm cobertura.
 
 ## Entregáveis — status
 
@@ -54,7 +54,7 @@ As fases originais foram executadas; o aplicativo está funcional na versão **0
 ## Próximos passos (ordem sugerida)
 
 1. **Ampliar a cobertura de testes** para os fluxos menos óbvios (`MainForm`) ou, ao extrair lógica de `MainForm`, cobrir a nova lógica pura; manter `BaseOperationRules`/`ArchivePathSafety` sempre cobertos.
-2. **Log persistente** em arquivo (ex.: `%APPDATA%\TrazBase\logs\`), com rotação simples e nível de detalhe; nunca registrar a senha.
+2. **Log persistente** em arquivo (ex.: `%APPDATA%\SupraKit\logs\`), com rotação simples e nível de detalhe; nunca registrar a senha.
 3. **Restauração com segurança adicional**: opcional backup dos `.FDB` substituídos antes da restauração e suporte/validação de `.FBK` multipartes e protegidos por senha.
 4. **Backup do Registro** antes de gravar `HKCU\SIC\CONEXAO` (ler e registrar valores anteriores).
 5. **Verificação de espaço em disco** antes de copiar/extrair.
