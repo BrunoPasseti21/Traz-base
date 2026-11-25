@@ -21,22 +21,22 @@ internal sealed partial class MainForm : Form
     private readonly Dictionary<string, TextBox> _fields = new();
     private readonly Dictionary<string, RoundedButton> _browseButtons = new();
     private readonly UnthemedTextBox _password = new() { UseSystemPasswordChar = true, Width = 220 };
-    private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _savePassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly UnthemedTextBox _sicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
     private readonly UnthemedTextBox _sicDynamicPassword = new() { UseSystemPasswordChar = true, Width = 220 };
-    private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _saveSicDynamicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _saveSicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _saveSicDynamicPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly RoundedButton _passwordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly RoundedButton _sicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly RoundedButton _sicDynamicPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
-    private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Teste_123456')", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _startInBackground = new() { Text = "Iniciar o TrazBase em segundo plano (na bandeja)", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _startWithWindows = new() { Text = "Iniciar o TrazBase com o Windows", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _useSupportAsCompany = new() { Text = "Apontar a EMPRESA do Regedit para a pasta de bases de apoio", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _forceMultiBase = new() { Text = "Sempre criar estrutura multi-base (pastas ARQ01/ARQ00)", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _renameSl = new() { Text = "Renomear pasta da solicitação para o nome fantasia (ou nome) do cliente + Nº da sl. (ex: 'Teste_123456')", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _minimizeToTray = new() { Text = "Fechar a janela minimiza para a bandeja do Windows (segundo plano)", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _startInBackground = new() { Text = "Iniciar o TrazBase em segundo plano (na bandeja)", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _startWithWindows = new() { Text = "Iniciar o TrazBase com o Windows", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _useSupportAsCompany = new() { Text = "Apontar a EMPRESA do Regedit para a pasta de bases de apoio", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private NotifyIcon? _notifyIcon;
-    private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
+    private readonly NumericUpDown _baseCount = new() { Minimum = 1, Maximum = 99, Value = 4, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private static readonly (StartScreen Value, string Text)[] StartScreenItems =
     [
         (StartScreen.Atalhos, "Atalhos de pasta"),
@@ -114,8 +114,8 @@ internal sealed partial class MainForm : Form
     private readonly UnthemedTextBox _folderShortcutName = new() { PlaceholderText = "Ex.: Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
     private readonly UnthemedTextBox _folderShortcutPath = new() { PlaceholderText = "Ex.: C:\\SupraSys\\SIC\\Bases", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
     private readonly RoundedButton _folderShortcutBrowse = new() { Text = "Procurar", Size = new Size(110, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly ThemedCheckBox _folderShortcutShowExe = new() { Text = "Apenas .exe", AutoSize = true, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _folderShortcutShowBat = new() { Text = "Apenas .bat", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _folderShortcutShowExe = new() { Text = "Apenas .exe", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _folderShortcutShowBat = new() { Text = "Apenas .bat", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ThemedCheckBox _folderShortcutShowAll = new() { Text = "Todos os arquivos", AutoSize = true, Anchor = AnchorStyles.Left, Checked = true };
     private readonly RoundedButton _folderShortcutAddUpdate = new() { Text = "Adicionar / atualizar", Width = 172, Height = 32, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
     private readonly RoundedButton _folderShortcutRemove = new() { Text = "Remover", Width = 112, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
@@ -152,16 +152,16 @@ internal sealed partial class MainForm : Form
     private Panel _passwordsSettingsHost = null!;
     private Panel _vpnSettingsHost = null!;
     // VPN: opção de conectar a uma VPN do Windows antes de transferir as bases.
-    private readonly ThemedCheckBox _useVpn = new() { Text = "Usar VPN para transferir bases", AutoSize = false, Height = 26, Width = 260, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _useVpn = new() { Text = "Usar VPN para transferir bases", AutoSize = false, Height = 26, Width = 260, Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ComboBox _vpnConnectionName = new() { DropDownStyle = ComboBoxStyle.DropDown, FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), Font = UiTypography.Body(9f), Width = 300, Height = 30 };
-    private readonly ThemedCheckBox _vpnUseManualCredentials = new() { Text = "Informar usuário e senha manualmente", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _vpnUseManualCredentials = new() { Text = "Informar usuário e senha manualmente", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly UnthemedTextBox _vpnUsername = new() { Width = 260, Height = 30, PlaceholderText = "Usuário", BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
     private readonly UnthemedTextBox _vpnPassword = new() { UseSystemPasswordChar = true, Width = 260, Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254), PlaceholderText = "Senha" };
-    private readonly ThemedCheckBox _saveVpnPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Left };
+    private readonly ThemedCheckBox _saveVpnPassword = new() { Text = "Salvar senha", AutoSize = true, ForeColor = Color.FromArgb(29, 42, 61), Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly RoundedButton _vpnPasswordVisibilityToggle = new() { Size = new Size(30, 28), CornerRadius = 5, FlatStyle = FlatStyle.Flat, BackColor = Color.Transparent, Cursor = Cursors.Hand, TabStop = false };
     private readonly RoundedButton _vpnRefreshList = new() { Text = "Atualizar lista", Size = new Size(132, 30), FlatStyle = FlatStyle.Flat, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, Font = UiTypography.BodySemibold(9f) };
-    private readonly NumericUpDown _vpnReconnectAttempts = new() { Minimum = 1, Maximum = 10, Value = 3, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Left };
-    private readonly ThemedCheckBox _vpnRunConnectScript = new() { Text = "Executar script ao conectar a VPN", AutoSize = true, Anchor = AnchorStyles.Left };
+    private readonly NumericUpDown _vpnReconnectAttempts = new() { Minimum = 1, Maximum = 10, Value = 3, Width = 80, Height = 26, BackColor = Color.FromArgb(249, 251, 254), ForeColor = Color.FromArgb(29, 42, 61), TextAlign = HorizontalAlignment.Center, Anchor = AnchorStyles.Top | AnchorStyles.Left };
+    private readonly ThemedCheckBox _vpnRunConnectScript = new() { Text = "Executar script ao conectar a VPN", AutoSize = true, Anchor = AnchorStyles.Top | AnchorStyles.Left };
     private readonly ThemedRichTextBox _vpnConnectScript = new() { Size = new Size(760, 130), Multiline = true, WordWrap = false, ScrollBars = RichTextBoxScrollBars.Both, BackColor = Color.FromArgb(18, 25, 38), ForeColor = Color.FromArgb(220, 229, 242), BorderStyle = BorderStyle.None, Font = new Font("Consolas", 10f) };
     private bool _vpnConnectedByApp;
     private readonly Label _vpnHint = new() { AutoSize = false, Size = new Size(620, 54), ForeColor = Color.FromArgb(97, 113, 134), Font = UiTypography.Body(9f), TextAlign = ContentAlignment.TopLeft };
