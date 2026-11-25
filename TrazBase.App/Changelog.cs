@@ -10,7 +10,7 @@ internal static class Changelog
             "Dicas de uso agora ficam em ícones de ajuda de 24×24 ao lado do título de cada tela, em vez de cards.",
             "Menu lateral rola apenas quando o conteúdo não cabe; \"Configurar caminhos\" passou a ficar abaixo de \"Atualização de executáveis\".",
             "Restaurar base lista as pastas de bases encontradas e mantém o botão \"Procurar\".",
-            "Atualizações: verificação passou a rodar a cada 15 minutos e a consultar um manifesto estático (version.json) em vez da API do GitHub, evitando o limite de requisições.",
+            "Atualizações: verificação passou a rodar a cada 1 minuto e a consultar um manifesto estático (version.json) em vez da API do GitHub, evitando o limite de requisições; na hora de atualizar, o app se encerra e o instalador substitui os arquivos mesmo com o executável elevado, reabrindo o aplicativo ao final.",
             "O executável do Traz Base agora solicita privilégios de administrador (UAC) ao abrir.",
             "Transferência de bases não bloqueia mais as opções do menu — é possível navegar e usar as outras telas durante o processo; ao tentar atualizar o app, um aviso pede para esperar a transferência terminar.",
         ],
