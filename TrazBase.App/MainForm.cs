@@ -874,9 +874,10 @@ internal sealed partial class MainForm : Form
             {
                 UseShellExecute = true,
                 Verb = "runas",
-                // Sem /VERYSILENT: o instalador mostra a janela de progresso enquanto o app fecha,
-                // como nos atualizadores do OpenCode/Notepad++. /SP- oculta só a página final.
-                Arguments = "/NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+                // /SILENT mantém a janela de progresso visível (sem páginas de wizard) enquanto o
+                // app fecha — mesma experiência dos atualizadores do OpenCode/Notepad++.
+                // /SP- remove a confirmação inicial; sem /SUPPRESSMSGBOXES, erros aparecem.
+                Arguments = "/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
             });
             _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
 
