@@ -5432,8 +5432,14 @@ internal sealed partial class MainForm : Form
             NotifyIfMinimized("Selecione a ARQSIST.FDB", "O SupraKit precisa que você escolha o arquivo ARQSIST.");
             using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
             if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
-            await CopyFileAsync(dialog.FileName, systemDb, token);
-            Log("ARQSIST.FDB criado com o arquivo que você selecionou.");
+            token.ThrowIfCancellationRequested();
+            // Apenas renomeia/move o arquivo escolhido para ARQSIST.FDB, sem copiá-lo novamente.
+            if (!string.Equals(Path.GetFullPath(dialog.FileName), Path.GetFullPath(systemDb), StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(systemDb)) File.Delete(systemDb);
+                File.Move(dialog.FileName, systemDb);
+            }
+            Log("ARQSIST.FDB criada com o arquivo que você selecionou.");
         }
         foreach (var supportFile in BaseOperationRules.GetSupportFilesToCopy(root, _settings.SupportRoot))
         {
@@ -5502,9 +5508,15 @@ internal sealed partial class MainForm : Form
             NotifyIfMinimized("Selecione a ARQSIST.FDB", "O SupraKit precisa que você escolha o arquivo ARQSIST para a pasta ARQ01.");
             using var dialog = new OpenFileDialog { InitialDirectory = root, Title = "Selecione o arquivo que será usado como ARQSIST.FDB (pasta ARQ01)", Filter = "Bases Firebird (*.fdb)|*.fdb|Todos os arquivos (*.*)|*.*" };
             if (dialog.ShowDialog(this) != DialogResult.OK) throw new OperationCanceledException("A preparação foi interrompida porque nenhum arquivo foi selecionado.");
+            token.ThrowIfCancellationRequested();
             Directory.CreateDirectory(Path.GetDirectoryName(arqSist)!);
-            await CopyFileAsync(dialog.FileName, arqSist, token);
-            Log("ARQSIST.FDB criado em ARQ01 com o arquivo que você selecionou.");
+            // Apenas renomeia/move o arquivo escolhido para ARQSIST.FDB, sem copiá-lo novamente.
+            if (!string.Equals(Path.GetFullPath(dialog.FileName), Path.GetFullPath(arqSist), StringComparison.OrdinalIgnoreCase))
+            {
+                if (File.Exists(arqSist)) File.Delete(arqSist);
+                File.Move(dialog.FileName, arqSist);
+            }
+            Log("ARQSIST.FDB criada em ARQ01 com o arquivo que você selecionou.");
         }
         else
         {
