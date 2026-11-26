@@ -139,9 +139,9 @@ internal sealed partial class MainForm : Form
     private readonly UnthemedTextBox _sqlShortcutSearch = new() { PlaceholderText = "Filtrar comandos...", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
     private readonly UnthemedTextBox _sqlShortcutTitle = new() { PlaceholderText = "Ex.: Clientes ativos", Height = 30, BorderStyle = BorderStyle.FixedSingle, BackColor = Color.FromArgb(249, 251, 254) };
     private readonly RichTextBox _sqlShortcutEditor = CreateSqlEditor();
-    private readonly RoundedButton _sqlShortcutSave = new() { Text = "Salvar", Width = 120, Height = 34, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
-    private readonly RoundedButton _sqlShortcutCopy = new() { Text = "Copiar", Width = 100, Height = 34, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
-    private readonly RoundedButton _sqlShortcutDelete = new() { Text = "Excluir", Width = 100, Height = 34, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutSave = new() { Text = "Salvar", Width = 120, Height = 32, BackColor = Color.FromArgb(31, 111, 235), ForeColor = Color.White, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutCopy = new() { Text = "Copiar", Width = 100, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
+    private readonly RoundedButton _sqlShortcutDelete = new() { Text = "Excluir", Width = 100, Height = 32, FlatStyle = FlatStyle.Flat, Font = UiTypography.BodySemibold(9f) };
     private readonly Label _sqlShortcutSummaryLabel = new() { AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 14) };
     private bool _loadingSqlShortcuts;
     private string? _editingSqlShortcutId;
@@ -1068,7 +1068,7 @@ internal sealed partial class MainForm : Form
         _homeTicketBox.Location = new Point(rowX, 68);
         _homeTicketBox.Width = controlWidth;
         // Mesma altura do campo e alinhamento de topo.
-        _homeTicketButton.Size = new Size(controlWidth, _homeTicketBox.Height);
+        _homeTicketButton.Size = new Size(controlWidth, _homeTicketBox.Height + 2);
         _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 68);
         card.Controls.Add(_homeTicketBox);
         card.Controls.Add(_homeTicketButton);
@@ -1713,10 +1713,10 @@ internal sealed partial class MainForm : Form
         _resetSl.Width = 250;
         _resetSl.Anchor = AnchorStyles.Top | AnchorStyles.Left;
         _resetButton.Location = new Point(Math.Max(_resetSl.Right + 20, 288), _resetSl.Top);
-        _resetButton.Size = new Size(190, _resetSl.Height);
+        _resetButton.Size = new Size(190, _resetSl.Height + 2);
         _resetButton.FlatAppearance.BorderSize = 0;
         _resetCancelButton.Location = new Point(_resetButton.Right + 16, _resetSl.Top);
-        _resetCancelButton.Size = new Size(_resetCancelButton.Width, _resetSl.Height);
+        _resetCancelButton.Size = new Size(_resetCancelButton.Width, _resetSl.Height + 2);
         _resetCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _resetCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_resetSl);
@@ -3929,7 +3929,7 @@ internal sealed partial class MainForm : Form
                 pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 pwdField.Height = 30;
                 pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y);
-                pwdToggle.Size = new Size(pwdToggle.Width, pwdField.Height);
+                pwdToggle.Size = new Size(pwdToggle.Width, pwdField.Height + 2);
                 pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
                 var saveHeight = pwdSave.PreferredSize.Height;
                 pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
@@ -4175,7 +4175,7 @@ internal sealed partial class MainForm : Form
             _vpnPassword.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
             _vpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
             _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 170);
-            _vpnPasswordVisibilityToggle.Size = new Size(_vpnPasswordVisibilityToggle.Width, _vpnPassword.Height);
+            _vpnPasswordVisibilityToggle.Size = new Size(_vpnPasswordVisibilityToggle.Width, _vpnPassword.Height + 2);
             var saveHeight = _saveVpnPassword.PreferredSize.Height;
             _saveVpnPassword.Location = new Point(host.ClientSize.Width - buttonWidth, 170 + (30 - saveHeight) / 2);
             _saveVpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -4208,12 +4208,12 @@ internal sealed partial class MainForm : Form
         _sl.Location = new Point(18, 42);
         _sl.Font = UiTypography.BodySemibold(11);
         card.Controls.Add(_sl);
-        _start.Size = new Size(_start.Width, _sl.Height);
-        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), _sl.Top);
+        _start.Size = new Size(_start.Width, _sl.Height + 2);
+        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), _sl.Top - 1);
         _start.FlatAppearance.BorderSize = 0;
         card.Controls.Add(_start);
-        _cancel.Size = new Size(_cancel.Width, _sl.Height);
-        _cancel.Location = new Point(_start.Right + 16, _sl.Top);
+        _cancel.Size = new Size(_cancel.Width, _sl.Height + 2);
+        _cancel.Location = new Point(_start.Right + 16, _sl.Top - 1);
         _cancel.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _cancel.FlatAppearance.BorderSize = 1;
         card.Controls.Add(_cancel);
@@ -4262,8 +4262,9 @@ internal sealed partial class MainForm : Form
     {
         field.Location = new Point(left, top);
         field.Width = Math.Max(120, containerWidth - left - rightInset - buttonWidth - gap);
-        button.Location = new Point(containerWidth - rightInset - buttonWidth, top);
-        button.Height = field.Height;
+        // +2 compensa o recuo de 1 px aplicado na pintura (anti-aliasing), para a altura visual coincidir com a do campo.
+        button.Location = new Point(containerWidth - rightInset - buttonWidth, top - 1);
+        button.Height = field.Height + 2;
     }
 
     private void ApplyTheme()
