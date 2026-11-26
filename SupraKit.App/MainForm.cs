@@ -1067,8 +1067,9 @@ internal sealed partial class MainForm : Form
         const int rowX = (440 - controlWidth * 2 - gap) / 2;
         _homeTicketBox.Location = new Point(rowX, 68);
         _homeTicketBox.Width = controlWidth;
-        // 3 px acima do centro do campo, igual ao alinhamento padrão dos botões ao lado de edits.
-        _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 67);
+        // Mesma altura do campo e alinhamento de topo.
+        _homeTicketButton.Size = new Size(controlWidth, _homeTicketBox.Height);
+        _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 68);
         card.Controls.Add(_homeTicketBox);
         card.Controls.Add(_homeTicketButton);
 
@@ -1171,8 +1172,9 @@ internal sealed partial class MainForm : Form
         editor.Controls.Add(new Label { Text = "Caminho da pasta", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 107) });
         _folderShortcutPath.Location = new Point(18, 127);
         editor.Controls.Add(_folderShortcutPath);
-        _folderShortcutBrowse.Location = new Point(0, 122);
+        _folderShortcutBrowse.Location = new Point(0, 127);
         _folderShortcutBrowse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
+        _folderShortcutBrowse.Height = _folderShortcutPath.Height;
         editor.Controls.Add(_folderShortcutBrowse);
         editor.Controls.Add(new Label { Text = "Mostrar na lista", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 169) });
         editor.Controls.Add(_folderShortcutShowAll);
@@ -1443,9 +1445,9 @@ internal sealed partial class MainForm : Form
         void LayoutButtons()
         {
             var right = Math.Max(520, formCard.ClientSize.Width - 18);
-            _sqlShortcutDelete.Location = new Point(right - _sqlShortcutDelete.Width, _sqlShortcutTitle.Top - 3);
-            _sqlShortcutCopy.Location = new Point(_sqlShortcutDelete.Left - 12 - _sqlShortcutCopy.Width, _sqlShortcutTitle.Top - 3);
-            _sqlShortcutSave.Location = new Point(_sqlShortcutCopy.Left - 12 - _sqlShortcutSave.Width, _sqlShortcutTitle.Top - 3);
+            _sqlShortcutDelete.Location = new Point(right - _sqlShortcutDelete.Width, _sqlShortcutTitle.Top);
+            _sqlShortcutCopy.Location = new Point(_sqlShortcutDelete.Left - 12 - _sqlShortcutCopy.Width, _sqlShortcutTitle.Top);
+            _sqlShortcutSave.Location = new Point(_sqlShortcutCopy.Left - 12 - _sqlShortcutSave.Width, _sqlShortcutTitle.Top);
             _sqlShortcutTitle.Width = Math.Max(140, Math.Min(360, _sqlShortcutSave.Left - 18 - 20));
         }
         formCard.Resize += (_, _) => LayoutButtons();
@@ -1710,10 +1712,11 @@ internal sealed partial class MainForm : Form
         _resetSl.Location = new Point(18, 42);
         _resetSl.Width = 250;
         _resetSl.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        _resetButton.Location = new Point(Math.Max(_resetSl.Right + 20, 288), _resetSl.Top - 3);
-        _resetButton.Size = new Size(190, 36);
+        _resetButton.Location = new Point(Math.Max(_resetSl.Right + 20, 288), _resetSl.Top);
+        _resetButton.Size = new Size(190, _resetSl.Height);
         _resetButton.FlatAppearance.BorderSize = 0;
-        _resetCancelButton.Location = new Point(_resetButton.Right + 16, _resetSl.Top - 3);
+        _resetCancelButton.Location = new Point(_resetButton.Right + 16, _resetSl.Top);
+        _resetCancelButton.Size = new Size(_resetCancelButton.Width, _resetSl.Height);
         _resetCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _resetCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_resetSl);
@@ -1775,7 +1778,7 @@ internal sealed partial class MainForm : Form
         action.Controls.Add(new Label { Text = "Pasta da base", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
         _restoreFolder.Location = new Point(18, 38);
         action.Controls.Add(_restoreFolder);
-        _restoreBrowseButton.Location = new Point(0, 35);
+        _restoreBrowseButton.Location = new Point(0, 38);
         _restoreBrowseButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         _restoreBrowseButton.FlatAppearance.BorderSize = 0;
         _restoreBrowseButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
@@ -2628,7 +2631,7 @@ internal sealed partial class MainForm : Form
         _updateSicSingleDestination.Location = new Point(18, 36);
         _updateSicSingleDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         _updateSicSingleDestination.Height = 28;
-        _updateSicSingleDestinationBrowse.Location = new Point(0, 33);
+        _updateSicSingleDestinationBrowse.Location = new Point(0, 36);
         _updateSicSingleDestinationBrowse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         singleDestCard.Controls.Add(_updateSicSingleDestinationCheck);
         singleDestCard.Controls.Add(_updateSicSingleDestination);
@@ -3302,7 +3305,7 @@ internal sealed partial class MainForm : Form
             Font = UiTypography.BodySemibold()
         };
         browse.FlatAppearance.BorderSize = 0;
-        browse.Location = new Point(0, 6);
+        browse.Location = new Point(0, 9);
         browse.Click += (_, _) => BrowseCommandDatabase(databasePath);
         if (string.Equals(databaseName, "ARQEMP", StringComparison.Ordinal)) _arqEmpBrowseButton = browse;
         else if (string.Equals(databaseName, "ARQSIST", StringComparison.Ordinal)) _arqSistBrowseButton = browse;
@@ -3925,7 +3928,8 @@ internal sealed partial class MainForm : Form
                 pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
                 pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 pwdField.Height = 30;
-                pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y - 3);
+                pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y);
+                pwdToggle.Size = new Size(pwdToggle.Width, pwdField.Height);
                 pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
                 var saveHeight = pwdSave.PreferredSize.Height;
                 pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
@@ -4170,7 +4174,8 @@ internal sealed partial class MainForm : Form
             _vpnPassword.Location = new Point(fieldLeft, 170);
             _vpnPassword.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
             _vpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 167);
+            _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 170);
+            _vpnPasswordVisibilityToggle.Size = new Size(_vpnPasswordVisibilityToggle.Width, _vpnPassword.Height);
             var saveHeight = _saveVpnPassword.PreferredSize.Height;
             _saveVpnPassword.Location = new Point(host.ClientSize.Width - buttonWidth, 170 + (30 - saveHeight) / 2);
             _saveVpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -4203,10 +4208,10 @@ internal sealed partial class MainForm : Form
         _sl.Location = new Point(18, 42);
         _sl.Font = UiTypography.BodySemibold(11);
         card.Controls.Add(_sl);
-        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), _sl.Top - 3);
+        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), _sl.Top);
         _start.FlatAppearance.BorderSize = 0;
         card.Controls.Add(_start);
-        _cancel.Location = new Point(_start.Right + 16, _sl.Top - 3);
+        _cancel.Location = new Point(_start.Right + 16, _sl.Top);
         _cancel.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _cancel.FlatAppearance.BorderSize = 1;
         card.Controls.Add(_cancel);
@@ -4255,7 +4260,8 @@ internal sealed partial class MainForm : Form
     {
         field.Location = new Point(left, top);
         field.Width = Math.Max(120, containerWidth - left - rightInset - buttonWidth - gap);
-        button.Location = new Point(containerWidth - rightInset - buttonWidth, top - 3);
+        button.Location = new Point(containerWidth - rightInset - buttonWidth, top);
+        button.Height = field.Height;
     }
 
     private void ApplyTheme()
