@@ -65,6 +65,7 @@ Padrão único para todos os botões interativos (ações principais e auxiliare
 - Altura **42 px** para ações principais (ex.: Trazer e preparar), 36–40 px para ações de tela (Redefinir, Testar comando), 28–32 px para auxiliares (Limpar, Procurar, Trocar base). A cor, a fonte, o estilo plano e a remoção de borda são obrigatórios em todas.
 - Hover `#2D7DF5`, pressed `#195ECD` nos botões que definem essas cores explicitamente.
 - Botões secundários (ex.: **Abrir pasta**, **Cancelar** da transferência / da redefinição / da restauração / da Atualização de executáveis): fundo superfície, texto ink (claro) / texto claro (escuro), borda fina `#D0D9E6` (claro) / `#536277` (83,98,119, escuro); altura igual à do botão primário da mesma tela (42 px na Transferência, na Atualização de executáveis, 36 px nas telas Redefinir/Restaurar) e largura 100 px.
+- **Alinhamento campo + botão (obrigatório em todo o sistema):** o campo de texto ocupa a largura disponível até o botão, com gap de **20 px** entre eles e margem direita de **18 px** em relação ao card; o botão fica com `Anchor = Top | Right` e o topo **3 px acima** do topo do campo, para ficar visualmente centralizado. O helper `AlignFieldButton` em `MainForm.cs` aplica essa regra; o layout é recalculado no `Resize` do card e uma vez na construção da tela. A referência é o campo "Caminho da pasta" da tela **Atalhos de pasta**.
 - Proibido criar botões de ação como links sublinhados ou introduzir cores/tipografias diferentes sem atualizar este documento.
 
 ## Menu lateral

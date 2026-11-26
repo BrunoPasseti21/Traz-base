@@ -1067,7 +1067,8 @@ internal sealed partial class MainForm : Form
         const int rowX = (440 - controlWidth * 2 - gap) / 2;
         _homeTicketBox.Location = new Point(rowX, 68);
         _homeTicketBox.Width = controlWidth;
-        _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 68);
+        // 3 px acima do centro do campo, igual ao alinhamento padrão dos botões ao lado de edits.
+        _homeTicketButton.Location = new Point(rowX + controlWidth + gap, 67);
         card.Controls.Add(_homeTicketBox);
         card.Controls.Add(_homeTicketButton);
 
@@ -1182,8 +1183,7 @@ internal sealed partial class MainForm : Form
         void Layout()
         {
             var width = editor.ClientSize.Width;
-            _folderShortcutPath.Width = Math.Max(120, width - 36 - 130);
-            _folderShortcutBrowse.Location = new Point(width - 18 - 110, 124);
+            AlignFieldButton(_folderShortcutPath, _folderShortcutBrowse, 18, 127, width, _folderShortcutBrowse.Width);
             _folderShortcutShowExe.Location = new Point(18, 190);
             _folderShortcutShowBat.Location = new Point(_folderShortcutShowExe.Right + 16, 193);
             _folderShortcutShowAll.Location = new Point(_folderShortcutShowBat.Right + 16, 193);
@@ -1443,10 +1443,10 @@ internal sealed partial class MainForm : Form
         void LayoutButtons()
         {
             var right = Math.Max(520, formCard.ClientSize.Width - 18);
-            _sqlShortcutDelete.Location = new Point(right - _sqlShortcutDelete.Width, 32);
-            _sqlShortcutCopy.Location = new Point(_sqlShortcutDelete.Left - 12 - _sqlShortcutCopy.Width, 32);
-            _sqlShortcutSave.Location = new Point(_sqlShortcutCopy.Left - 12 - _sqlShortcutSave.Width, 32);
-            _sqlShortcutTitle.Width = Math.Max(140, Math.Min(360, _sqlShortcutSave.Left - 18 - 16));
+            _sqlShortcutDelete.Location = new Point(right - _sqlShortcutDelete.Width, _sqlShortcutTitle.Top - 3);
+            _sqlShortcutCopy.Location = new Point(_sqlShortcutDelete.Left - 12 - _sqlShortcutCopy.Width, _sqlShortcutTitle.Top - 3);
+            _sqlShortcutSave.Location = new Point(_sqlShortcutCopy.Left - 12 - _sqlShortcutSave.Width, _sqlShortcutTitle.Top - 3);
+            _sqlShortcutTitle.Width = Math.Max(140, Math.Min(360, _sqlShortcutSave.Left - 18 - 20));
         }
         formCard.Resize += (_, _) => LayoutButtons();
         LayoutButtons();
@@ -1710,10 +1710,10 @@ internal sealed partial class MainForm : Form
         _resetSl.Location = new Point(18, 42);
         _resetSl.Width = 250;
         _resetSl.Anchor = AnchorStyles.Top | AnchorStyles.Left;
-        _resetButton.Location = new Point(284, 38);
+        _resetButton.Location = new Point(Math.Max(_resetSl.Right + 20, 288), _resetSl.Top - 3);
         _resetButton.Size = new Size(190, 36);
         _resetButton.FlatAppearance.BorderSize = 0;
-        _resetCancelButton.Location = new Point(484, 38);
+        _resetCancelButton.Location = new Point(_resetButton.Right + 16, _resetSl.Top - 3);
         _resetCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _resetCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_resetSl);
@@ -1774,13 +1774,12 @@ internal sealed partial class MainForm : Form
         var action = Card();
         action.Controls.Add(new Label { Text = "Pasta da base", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(18, 12) });
         _restoreFolder.Location = new Point(18, 38);
-        action.Resize += (_, _) => _restoreFolder.Width = Math.Max(120, action.ClientSize.Width - 18 - _restoreBrowseButton.Width - 24);
         action.Controls.Add(_restoreFolder);
-        _restoreBrowseButton.Location = new Point(0, 37);
+        _restoreBrowseButton.Location = new Point(0, 35);
+        _restoreBrowseButton.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         _restoreBrowseButton.FlatAppearance.BorderSize = 0;
         _restoreBrowseButton.FlatAppearance.MouseOverBackColor = Color.FromArgb(45, 125, 245);
         _restoreBrowseButton.FlatAppearance.MouseDownBackColor = Color.FromArgb(25, 94, 205);
-        action.Resize += (_, _) => _restoreBrowseButton.Left = action.ClientSize.Width - _restoreBrowseButton.Width - 18;
         _restoreBrowseButton.Click += (_, _) => BrowseRestoreFolder();
         action.Controls.Add(_restoreBrowseButton);
         _restoreButton.Location = new Point(18, 74);
@@ -1790,7 +1789,12 @@ internal sealed partial class MainForm : Form
         _restoreCancelButton.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _restoreCancelButton.FlatAppearance.BorderSize = 1;
         action.Controls.Add(_restoreCancelButton);
-        _restoreFolder.Width = 600;
+        void Layout()
+        {
+            AlignFieldButton(_restoreFolder, _restoreBrowseButton, 18, 38, action.ClientSize.Width, _restoreBrowseButton.Width);
+        }
+        action.Resize += (_, _) => Layout();
+        Layout();
         page.Controls.Add(action, 0, 3);
 
         var logCard = Card();
@@ -2624,16 +2628,15 @@ internal sealed partial class MainForm : Form
         _updateSicSingleDestination.Location = new Point(18, 36);
         _updateSicSingleDestination.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
         _updateSicSingleDestination.Height = 28;
-        _updateSicSingleDestinationBrowse.Location = new Point(0, 35);
+        _updateSicSingleDestinationBrowse.Location = new Point(0, 33);
+        _updateSicSingleDestinationBrowse.Anchor = AnchorStyles.Top | AnchorStyles.Right;
         singleDestCard.Controls.Add(_updateSicSingleDestinationCheck);
         singleDestCard.Controls.Add(_updateSicSingleDestination);
         singleDestCard.Controls.Add(_updateSicSingleDestinationBrowse);
 
         void LayoutSingleDest()
         {
-            var available = Math.Max(120, singleDestCard.ClientSize.Width - 18 - _updateSicSingleDestinationBrowse.Width - 24);
-            _updateSicSingleDestination.Width = available;
-            _updateSicSingleDestinationBrowse.Left = singleDestCard.ClientSize.Width - _updateSicSingleDestinationBrowse.Width - 18;
+            AlignFieldButton(_updateSicSingleDestination, _updateSicSingleDestinationBrowse, 18, 36, singleDestCard.ClientSize.Width, _updateSicSingleDestinationBrowse.Width);
         }
         singleDestCard.Resize += (_, _) => LayoutSingleDest();
         LayoutSingleDest();
@@ -3287,6 +3290,7 @@ internal sealed partial class MainForm : Form
         var databaseCard = Card();
         var databaseLabel = new Label { Text = "Base Firebird (.FDB)", AutoSize = true, ForeColor = Muted, Font = UiTypography.Body(9f), Location = new Point(14, 14) };
         databasePath.Location = new Point(160, 9);
+        databasePath.Size = new Size(120, 32);
         var browse = new RoundedButton
         {
             Text = "Procurar",
@@ -3298,17 +3302,20 @@ internal sealed partial class MainForm : Form
             Font = UiTypography.BodySemibold()
         };
         browse.FlatAppearance.BorderSize = 0;
-        browse.Location = new Point(databaseCard.ClientSize.Width - browse.Width - 18, 8);
-        databaseCard.Resize += (_, _) => browse.Left = databaseCard.ClientSize.Width - browse.Width - 18;
+        browse.Location = new Point(0, 6);
         browse.Click += (_, _) => BrowseCommandDatabase(databasePath);
         if (string.Equals(databaseName, "ARQEMP", StringComparison.Ordinal)) _arqEmpBrowseButton = browse;
         else if (string.Equals(databaseName, "ARQSIST", StringComparison.Ordinal)) _arqSistBrowseButton = browse;
         databaseCard.Controls.Add(databaseLabel);
-        databasePath.Size = new Size(Math.Max(120, databaseCard.ClientSize.Width - 160 - browse.Width - 44), 32);
         databasePath.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-        databaseCard.Resize += (_, _) => databasePath.Width = Math.Max(120, databaseCard.ClientSize.Width - 160 - browse.Width - 44);
         databaseCard.Controls.Add(databasePath);
         databaseCard.Controls.Add(browse);
+        void Layout()
+        {
+            AlignFieldButton(databasePath, browse, 160, 9, databaseCard.ClientSize.Width, browse.Width);
+        }
+        databaseCard.Resize += (_, _) => Layout();
+        Layout();
         page.Controls.Add(databaseCard, 0, 1);
 
         page.Controls.Add(BuildEditorCard("Comandos SQL", editor), 0, 2);
@@ -3918,7 +3925,7 @@ internal sealed partial class MainForm : Form
                 pwdField.Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
                 pwdField.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
                 pwdField.Height = 30;
-                pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y + 1);
+                pwdToggle.Location = new Point(fieldLeft + pwdField.Width + 3, y - 3);
                 pwdToggle.Anchor = AnchorStyles.Top | AnchorStyles.Left;
                 var saveHeight = pwdSave.PreferredSize.Height;
                 pwdSave.Location = new Point(host.ClientSize.Width - buttonWidth, y + (30 - saveHeight) / 2);
@@ -4067,17 +4074,14 @@ internal sealed partial class MainForm : Form
         {
             const int fieldLeft = 200;
             const int buttonWidth = 120;
-            const int rightInset = 18;
             var rowY = new[] { 26, 68, 110, 194 };
             for (var i = 0; i < labels.Length; i++)
             {
                 var y = rowY[i];
                 labels[i].Location = new Point(i == 2 ? 24 : 0, y);
                 if (i == 2) supportHelp.Location = new Point(0, y + 7);
-                pathFields[i].Location = new Point(fieldLeft, y);
-                pathFields[i].Width = Math.Max(100, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8);
+                AlignFieldButton(pathFields[i], browseButtons[i], fieldLeft, y, host.ClientSize.Width, buttonWidth);
                 pathFields[i].Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-                browseButtons[i].Location = new Point(host.ClientSize.Width - buttonWidth - rightInset, y + 1);
                 browseButtons[i].Anchor = AnchorStyles.Top | AnchorStyles.Right;
             }
         }
@@ -4150,15 +4154,12 @@ internal sealed partial class MainForm : Form
             const int fieldLeft = 220;
             const int buttonWidth = 132;
             const int rightInset = 18;
-            const int fieldToButtonGap = 10;
 
             _useVpn.Location = new Point(24, 2);
             // Alinha o ícone de ajuda verticalmente com o checkbox (fixo em 26 px).
             vpnHelp.Location = new Point(0, _useVpn.Location.Y + (_useVpn.Height - 16) / 2);
-            _vpnConnectionName.Location = new Point(fieldLeft, 43);
-            _vpnConnectionName.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - fieldToButtonGap);
+            AlignFieldButton(_vpnConnectionName, _vpnRefreshList, fieldLeft, 43, host.ClientSize.Width, buttonWidth);
             _vpnConnectionName.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            _vpnRefreshList.Location = new Point(host.ClientSize.Width - rightInset - buttonWidth, 43);
             _vpnRefreshList.Anchor = AnchorStyles.Top | AnchorStyles.Right;
             _vpnUseManualCredentials.Location = new Point(0, 88);
 
@@ -4169,7 +4170,7 @@ internal sealed partial class MainForm : Form
             _vpnPassword.Location = new Point(fieldLeft, 170);
             _vpnPassword.Width = Math.Max(120, host.ClientSize.Width - fieldLeft - buttonWidth - rightInset - 8 - 36);
             _vpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Left | AnchorStyles.Right;
-            _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 171);
+            _vpnPasswordVisibilityToggle.Location = new Point(fieldLeft + _vpnPassword.Width + 3, 167);
             var saveHeight = _saveVpnPassword.PreferredSize.Height;
             _saveVpnPassword.Location = new Point(host.ClientSize.Width - buttonWidth, 170 + (30 - saveHeight) / 2);
             _saveVpnPassword.Anchor = AnchorStyles.Top | AnchorStyles.Right;
@@ -4202,10 +4203,10 @@ internal sealed partial class MainForm : Form
         _sl.Location = new Point(18, 42);
         _sl.Font = UiTypography.BodySemibold(11);
         card.Controls.Add(_sl);
-        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), 31);
+        _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), _sl.Top - 3);
         _start.FlatAppearance.BorderSize = 0;
         card.Controls.Add(_start);
-        _cancel.Location = new Point(_start.Right + 16, 31);
+        _cancel.Location = new Point(_start.Right + 16, _sl.Top - 3);
         _cancel.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _cancel.FlatAppearance.BorderSize = 1;
         card.Controls.Add(_cancel);
@@ -4244,6 +4245,18 @@ internal sealed partial class MainForm : Form
     }
 
     private static Panel Card() => new() { Dock = DockStyle.Fill, BackColor = Surface, Padding = new Padding(16), BorderStyle = BorderStyle.FixedSingle };
+
+    /// <summary>
+    /// Alinhamento único de campo + botão, adotado em "Atalhos de pasta": o campo ocupa a largura
+    /// disponível até o botão (gap de 20 px e margem direita de 18 px do card) e o botão fica alinhado
+    /// à direita, 3 px acima do campo para ficar visualmente centralizado com ele.
+    /// </summary>
+    private static void AlignFieldButton(Control field, Control button, int left, int top, int containerWidth, int buttonWidth, int gap = 20, int rightInset = 18)
+    {
+        field.Location = new Point(left, top);
+        field.Width = Math.Max(120, containerWidth - left - rightInset - buttonWidth - gap);
+        button.Location = new Point(containerWidth - rightInset - buttonWidth, top - 3);
+    }
 
     private void ApplyTheme()
     {
