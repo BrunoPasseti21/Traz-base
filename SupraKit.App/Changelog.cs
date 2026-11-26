@@ -4,6 +4,11 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["1.0.2"] =
+        [
+            "Atualização automática: o aplicativo encerra o próprio processo antes da instalação, evitando que o instalador precise forçar o fechamento (CloseApplications).",
+            "Atualização automática: removido /FORCECLOSEAPPLICATIONS dos argumentos; mantido /CLOSEAPPLICATIONS para o caso do processo ainda estar ativo.",
+        ],
         ["1.0.1"] =
         [
             "Padronização visual: todos os botões ao lado de campos de texto (Procurar, olho das senhas, Buscar, Trazer e preparar base, etc.) passam a ter a mesma altura do campo, com alinhamento à direita e 20 px de gap.",
