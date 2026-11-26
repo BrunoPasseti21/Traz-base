@@ -4208,9 +4208,11 @@ internal sealed partial class MainForm : Form
         _sl.Location = new Point(18, 42);
         _sl.Font = UiTypography.BodySemibold(11);
         card.Controls.Add(_sl);
+        _start.Size = new Size(_start.Width, _sl.Height);
         _start.Location = new Point(Math.Max(_sl.Right + 20, label.Right + 18), _sl.Top);
         _start.FlatAppearance.BorderSize = 0;
         card.Controls.Add(_start);
+        _cancel.Size = new Size(_cancel.Width, _sl.Height);
         _cancel.Location = new Point(_start.Right + 16, _sl.Top);
         _cancel.FlatAppearance.BorderColor = Color.FromArgb(208, 217, 230);
         _cancel.FlatAppearance.BorderSize = 1;
