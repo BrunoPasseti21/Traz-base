@@ -894,8 +894,10 @@ internal sealed partial class MainForm : Form
             _settings.PendingUpdateVersion = update.Version;
             _settings.Save();
 
-            // Não fechamos o app aqui: /CLOSEAPPLICATIONS fecha no momento certo da instalação e
-            // /RESTARTAPPLICATIONS o reabre com a nova versão ao terminar.
+            // O app encerra o próprio processo (kill) antes da instalação, para que o atualizador
+            // não precise forçar o fechamento (CloseApplications=force / /FORCECLOSEAPPLICATIONS).
+            // A espera dá tempo ao instalador de registrar o aplicativo, para que
+            // /RESTARTAPPLICATIONS possa reabri-lo com a nova versão ao final.
             _updateInstallInProgress = true;
             var installerProcess = System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(installer)
             {
@@ -904,7 +906,7 @@ internal sealed partial class MainForm : Form
                 // /SILENT mantém a janela de progresso visível (sem páginas de wizard) enquanto o
                 // app fecha — mesma experiência dos atualizadores do OpenCode/Notepad++.
                 // /SP- remove a confirmação inicial; sem /SUPPRESSMSGBOXES, erros aparecem.
-                Arguments = "/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /FORCECLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
+                Arguments = "/SILENT /NORESTART /SP- /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS"
             });
             _menuToolTip.SetToolTip(_updateButton, "Instalando atualização…");
 
@@ -912,16 +914,9 @@ internal sealed partial class MainForm : Form
             // enxergar o progresso. Não usa TopMost: ela continua atrás/na frente como qualquer janela.
             if (installerProcess is not null) _ = BringInstallerToFrontAsync(installerProcess);
 
-            // O Restart Manager do Inno Setup normalmente encerra o app por nós. Caso ele
-            // não consiga (por exemplo, diferença de integridade com o executável elevado),
-            // garantimos a saída limpa. A pequena espera dá tempo ao instalador de registrar
-            // o aplicativo para que /RESTARTAPPLICATIONS possa reabri-lo ao final.
             await Task.Delay(1500);
-            if (!IsDisposed)
-            {
-                try { Close(); Application.Exit(); }
-                catch { /* o instalador encerra o processo se ele ainda estiver aberto */ }
-            }
+            try { System.Diagnostics.Process.GetCurrentProcess().Kill(); }
+            catch { /* o instalador encerra o processo se ele ainda estiver aberto */ }
         }
         catch (Exception ex)
         {
