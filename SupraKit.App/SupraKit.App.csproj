@@ -8,7 +8,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <RootNamespace>SupraKit.App</RootNamespace>
     <AssemblyName>SupraKit</AssemblyName>
-    <Version>1.0.0</Version>
+    <Version>1.0.1</Version>
     <!-- Incrementar a tag quando for preciso regerar a MESMA versão (ex.: r2, r3).
          O app compara essa tag com o campo "tag" de version.json e oferece a atualização
          mesmo quando o número da versão não mudou. -->

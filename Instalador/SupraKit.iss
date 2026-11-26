@@ -1,8 +1,8 @@
 #define AppName "SupraKit"
 #define AppPublisher "SupraKit"
 #define AppExeName "SupraKit.exe"
-#define AppVersion "1.0.0"
-#define AppFileVersion "1.0.0.0"
+#define AppVersion "1.0.1"
+#define AppFileVersion "1.0.1.0"
 
 [Setup]
 AppId={{6BB4D28C-AE7D-4627-8F01-CCEA7B3311B5}

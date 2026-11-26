@@ -4,7 +4,7 @@
 
 - C# com .NET **10** (`net10.0-windows`), WinForms, DPI `PerMonitorV2`.
 - Aplicação desktop para Windows 10+, distribuída como executável **self-contained win-x64** dentro de um instalador Inno Setup (`SupraKit-Setup.exe`), com autoatualização via GitHub Releases.
-- `AssemblyName` = `SupraKit`; versão atual **1.0.0** (`SupraKit.App.csproj`), espelhada em `Instalador/SupraKit.iss`.
+- `AssemblyName` = `SupraKit`; versão atual **1.0.1** (`SupraKit.App.csproj`), espelhada em `Instalador/SupraKit.iss`.
 
 ## Organização do código
 

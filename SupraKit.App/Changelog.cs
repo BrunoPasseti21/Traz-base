@@ -4,6 +4,12 @@ internal static class Changelog
 {
     private static readonly IReadOnlyDictionary<string, string[]> Notes = new Dictionary<string, string[]>(StringComparer.OrdinalIgnoreCase)
     {
+        ["1.0.1"] =
+        [
+            "Padronização visual: todos os botões ao lado de campos de texto (Procurar, olho das senhas, Buscar, Trazer e preparar base, etc.) passam a ter a mesma altura do campo, com alinhamento à direita e 20 px de gap.",
+            "Correção da renderização dos botões arredondados: pintura com recuo de 1 px para cantos suaves, sem estouro de borda.",
+            "Ajustes de alinhamento e espaçamento nas telas Início, Transferir, Redefinir, Restaurar, Configurações, Trocar base, Comandos SQL, Atualização de executáveis e Copiar SQL.",
+        ],
         ["1.0.0"] =
         [
             "O Traz Base agora se chama SupraKit, seguindo o padrão dos aplicativos SupraSys (SupraHelp, SupraZap). O executável, o instalador, os atalhos e os textos da interface foram renomeados.",
