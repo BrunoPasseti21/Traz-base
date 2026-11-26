@@ -322,9 +322,7 @@ internal class RoundedButton : Button
             : BackColor;
         var bounds = ClientRectangle;
         if (bounds.Width < 2 || bounds.Height < 2) { base.OnPaint(e); return; }
-        // Pinta até a borda do controle para que a altura visual coincida com o Height definido
-        // (e com a altura do campo de texto ao lado, quando o botão é alinhado a um edit).
-        var drawBounds = bounds;
+        var drawBounds = Rectangle.Inflate(bounds, -1, -1);
 
         e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
         e.Graphics.Clear(Parent?.BackColor ?? Color.FromArgb(24, 30, 40));
